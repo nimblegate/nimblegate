@@ -1,0 +1,16 @@
+#!/bin/sh
+# Called by s6 when sshd's run script exits, for any reason.
+# Args (from s6-supervise):
+#   $1 = exit code (0-255), or 256 if killed by signal
+#   $2 = signal number (only meaningful when $1 == 256)
+# We log the exit with a distinctive prefix so operators can grep restart
+# events with: docker logs <container> | grep nbg-supervise
+exit_code="$1"
+signal="$2"
+if [ "$exit_code" = "256" ]; then
+  reason="killed by signal $signal"
+else
+  reason="exited with code $exit_code"
+fi
+echo "[$(date -Iseconds)] nbg-supervise: service sshd $reason - s6 will restart" >&2
+exit 0

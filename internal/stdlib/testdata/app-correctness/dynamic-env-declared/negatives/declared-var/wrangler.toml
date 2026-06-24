@@ -1,0 +1,5 @@
+name = "test-project"
+compatibility_date = "2026-01-01"
+
+[vars]
+PUBLIC_API_URL = "https://api.example.com"

@@ -1,0 +1,118 @@
+#!/bin/sh
+# nbg-reset [--logs|--all|--hard] --yes - clear gateway state.
+#
+# Three destructive tiers, each gated behind an explicit --yes flag. Without
+# --yes the script prints what WOULD happen and exits non-zero so it's safe
+# to run for inspection.
+set -u
+
+usage() {
+  cat <<EOF >&2
+usage: nbg-reset MODE [--yes]
+
+Modes (pick one):
+  --logs   Empty audit logs only.
+             Preserves: repos, policy files, credentials, SSH state, admin.
+             Use case: clear noisy test data; reset stats without losing setup.
+
+  --all    Delete all repos + policy + audit logs.
+             Preserves: SSH host keys, authorized_keys, admin user.
+             Use case: start over on repos without breaking dev-side TOFU
+             trust or losing the dashboard login.
+
+  --hard   Delete EVERYTHING - repos + policy + audit + SSH state + auth DB.
+             Breaks: dev-box known_hosts trust (clients will see "HOST
+             IDENTIFICATION CHANGED" warning), admin login. Setup token
+             regenerates on next container start.
+             Use case: clean-slate for an evaluation reset.
+
+Without --yes, prints what would happen and exits with code 1 - safe to run
+for inspection.
+EOF
+}
+
+mode=${1:-}
+yes=${2:-}
+
+case "$mode" in
+  --logs|--all|--hard) ;;
+  -h|--help|"") usage; exit 0 ;;
+  *) usage; exit 2 ;;
+esac
+
+dry=1
+[ "$yes" = "--yes" ] && dry=0
+
+if [ "$dry" = "1" ]; then
+  echo 'DRY RUN - pass --yes as the second arg to actually do this:'
+  echo
+fi
+
+restart_after=0
+
+case "$mode" in
+  --logs)
+    echo '  empty: /srv/gateway/cfg/_events.jsonl'
+    echo '  empty: /srv/gateway/cfg/*/audit.log'
+    if [ "$dry" = "0" ]; then
+      : > /srv/gateway/cfg/_events.jsonl 2>/dev/null || true
+      for f in /srv/gateway/cfg/*/audit.log; do
+        [ -f "$f" ] && : > "$f"
+      done
+    fi
+    ;;
+  --all)
+    echo '  delete: /srv/gateway/repos/*       (bare repos)'
+    echo '  delete: /srv/gateway/cfg/*/         (per-repo policy + credentials + audit)'
+    echo '  empty:  /srv/gateway/cfg/_events.jsonl'
+    echo '  keep:   /srv/gateway/cfg/_auth.db   (admin login intact)'
+    echo '  keep:   /srv/gateway/ssh/*          (host keys + authorized_keys)'
+    if [ "$dry" = "0" ]; then
+      rm -rf /srv/gateway/repos/* 2>/dev/null || true
+      # Per-repo subdirs only (leave _auth.db, _setup_token, _events.jsonl alone)
+      for d in /srv/gateway/cfg/*/; do
+        case "$d" in
+          /srv/gateway/cfg/_*) continue ;;  # don't touch _-prefixed state files
+        esac
+        [ -d "$d" ] && rm -rf "$d"
+      done
+      : > /srv/gateway/cfg/_events.jsonl 2>/dev/null || true
+      restart_after=1
+    fi
+    ;;
+  --hard)
+    echo '  delete: /srv/gateway/repos/*       (bare repos)'
+    echo '  delete: /srv/gateway/cfg/*         (INCLUDING auth DB - admin gone)'
+    echo '  delete: /srv/gateway/ssh/hostkeys/*'
+    echo '  delete: /srv/gateway/ssh/authorized_keys'
+    echo
+    echo '  RESULT: dev boxes will see "REMOTE HOST IDENTIFICATION HAS CHANGED"'
+    echo '          on next push. Admin login gone - setup token will regenerate'
+    echo '          and print via [nbg-setup] after container restart.'
+    if [ "$dry" = "0" ]; then
+      rm -rf /srv/gateway/repos/* 2>/dev/null || true
+      rm -rf /srv/gateway/cfg/* 2>/dev/null || true
+      rm -f /srv/gateway/ssh/authorized_keys 2>/dev/null || true
+      rm -f /srv/gateway/ssh/hostkeys/* 2>/dev/null || true
+      restart_after=1
+    fi
+    ;;
+esac
+
+if [ "$dry" = "1" ]; then
+  echo
+  echo '(no changes - re-run with --yes to apply)'
+  exit 1
+fi
+
+echo 'done.'
+if [ "$restart_after" = "1" ]; then
+  echo 'restarting container processes so the dashboard re-reads state...'
+  /command/s6-svc -r /run/service/dashboard 2>/dev/null || true
+  if [ "$mode" = "--hard" ]; then
+    # Host keys regenerate via init-host-keys.sh; sshd needs a restart to load them.
+    # Easiest: re-run the init script and bounce sshd.
+    /bin/sh /etc/s6-overlay/scripts/init-host-keys.sh >/dev/null 2>&1 || true
+    /command/s6-svc -r /run/service/sshd 2>/dev/null || true
+  fi
+fi

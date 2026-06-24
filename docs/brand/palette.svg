@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  nimblegate 5-step brand palette — strip derived by interpolating between
+  the two locked-in source colors: the brand surface (#0b0d11, base dark)
+  and the brand accent (#79c0ff, primary). Use this strip in slide decks,
+  brand-guideline docs, design files; the canonical hex list is in
+  docs/brand/README.md "Palette" section.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 200" width="1000" height="200" role="img" aria-label="nimblegate 5-step palette">
+  <title>nimblegate 5-step palette</title>
+  <rect x="0"   y="0" width="200" height="200" fill="#0b0d11"/>
+  <rect x="200" y="0" width="200" height="200" fill="#263a4c"/>
+  <rect x="400" y="0" width="200" height="200" fill="#426688"/>
+  <rect x="600" y="0" width="200" height="200" fill="#5e93c4"/>
+  <rect x="800" y="0" width="200" height="200" fill="#79c0ff"/>
+
+  <!-- Hex labels — light text on dark steps, dark text on light steps -->
+  <g font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="18" text-anchor="middle">
+    <text x="100" y="186" fill="#cdd">#0b0d11</text>
+    <text x="300" y="186" fill="#cdd">#263a4c</text>
+    <text x="500" y="186" fill="#cdd">#426688</text>
+    <text x="700" y="186" fill="#0b0d11">#5e93c4</text>
+    <text x="900" y="186" fill="#0b0d11">#79c0ff</text>
+  </g>
+  <g font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="14" text-anchor="middle" letter-spacing="1.5">
+    <text x="100" y="108" fill="#79c0ff">SURFACE 0</text>
+    <text x="300" y="108" fill="#79c0ff">SURFACE 1</text>
+    <text x="500" y="108" fill="#cdd">SURFACE 2</text>
+    <text x="700" y="108" fill="#0b0d11">ACCENT 1</text>
+    <text x="900" y="108" fill="#0b0d11">ACCENT 2</text>
+  </g>
+</svg>

@@ -1,0 +1,3 @@
+# Positive: 192.168.1.100/16 has host bits set; canonical 192.168.0.0/16.
+[firewall]
+trusted = "192.168.1.100/16"

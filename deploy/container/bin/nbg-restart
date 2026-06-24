@@ -1,0 +1,57 @@
+#!/bin/sh
+# nbg-restart [sshd|dashboard|all] - restart one or both supervised services.
+#
+# Wraps `s6-svc -r /run/service/<svc>` so operators don't need to remember the
+# s6 path or syntax. Waits up to 5 sec for the service to come back to `up`;
+# reports outcome.
+set -u
+
+S6=/command
+SVC=/run/service
+
+target=${1:-}
+case "$target" in
+  sshd|dashboard) services="$target" ;;
+  all|"") services="sshd dashboard" ;;
+  -h|--help|help)
+    cat <<EOF
+usage: nbg-restart [sshd|dashboard|all]
+
+Restart one or both supervised services. Default: all. Each service is
+restarted via s6-svc -r, then nbg-restart waits up to 5 sec for the
+service to enter the 'up' state, reporting ok or TIMEOUT.
+
+Service-death recovery is automatic via s6-overlay - you only need this
+script for explicit operator restarts (e.g. after editing config, or
+to clear in-memory state like the failed-login rate-limit bucket).
+EOF
+    exit 0
+    ;;
+  *)
+    echo "usage: nbg-restart [sshd|dashboard|all]" >&2
+    exit 2
+    ;;
+esac
+
+for s in $services; do
+  printf 'restarting %s... ' "$s"
+  if ! "$S6/s6-svc" -r "$SVC/$s" 2>/dev/null; then
+    printf 'FAILED (s6 not reachable or service unknown)\n'
+    exit 1
+  fi
+  # Wait up to 5 sec for 'up' state. s6 reports "up (pid ...)" or "down ...".
+  attempts=0
+  state="?"
+  while [ "$attempts" -lt 25 ]; do
+    state=$("$S6/s6-svstat" "$SVC/$s" 2>/dev/null | awk '{print $1}')
+    if [ "$state" = "up" ]; then
+      printf 'ok\n'
+      break
+    fi
+    sleep 0.2
+    attempts=$((attempts+1))
+  done
+  if [ "$state" != "up" ]; then
+    printf 'TIMEOUT (still %s after 5 sec)\n' "$state"
+  fi
+done

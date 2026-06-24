@@ -1,0 +1,61 @@
+# Binaries (root-level only; don't ignore the cmd/nimblegate package dir)
+/nimblegate
+/nimblegate-*
+*.exe
+*.test
+*.out
+
+# Go build artifacts
+/bin/
+/dist/
+/build/
+*.tmp
+
+# Coverage
+coverage.out
+coverage.html
+*.cov
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# nimblegate test artifacts (produced when nimblegate is run against the test project)
+.appframes/audit.log
+.appframes/audit.log.*
+
+# Local env / secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# Private/internal notes (dogfood logs, parked-ideas brain dumps, pre-launch
+# scratch). These live in the working tree but stay out of the public repo.
+.private/
+
+# Generated demo static snapshot (rebuild with deploy/demo/static-build.sh)
+/deploy/demo-static/
+
+# Internal-only - kept locally for development, never published. (.private/ above
+# covers scratch notes; these are the other dev-history artifacts that must not
+# reach the public mirror.)
+/CLAUDE.md
+/BUSINESS-MODEL.md
+/docs/sketches/
+/docs/manual-tests/
+/docs/superpowers/
+/.superpowers/
+/.claude/
+.appframes/_design.md
+.appframes/_future.md
+
+# transient binary built by the relay boundary test
+/deploy/gateway/relay-boundary-test/nimblegate
+/deploy/gateway/scoped-access-test/nimblegate

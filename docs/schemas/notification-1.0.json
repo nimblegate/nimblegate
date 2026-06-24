@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimblegate.com/schema/1.0/notification.json",
+  "title": "nimblegate notification payload v1.0",
+  "description": "Wire format for the auto-PR + webhook rail. See docs/superpowers/specs/2026-06-04-auto-pr-and-webhook-design.md §4. Both channels (hidden HTML block in PR comment, webhook POST body) carry this payload.",
+  "type": "object",
+  "required": ["schema_version", "event", "event_id", "gateway", "repo", "push", "decision"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "event": { "type": "string", "enum": ["push.rejected", "push.observed"] },
+    "event_id": { "type": "string", "description": "Globally unique per notification. Webhook idempotency key." },
+    "gateway": {
+      "type": "object",
+      "required": ["name", "version", "instance_id"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "instance_id": { "type": "string" }
+      }
+    },
+    "repo": {
+      "type": "object",
+      "required": ["name", "upstream_url"],
+      "properties": {
+        "name": { "type": "string" },
+        "upstream_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "push": {
+      "type": "object",
+      "required": ["timestamp", "refs"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "pusher_key_fingerprint": { "type": "string" },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "old_sha", "new_sha", "type"],
+            "properties": {
+              "name": { "type": "string" },
+              "old_sha": { "type": "string" },
+              "new_sha": { "type": "string" },
+              "type": { "type": "string", "enum": ["create", "update", "delete"] }
+            }
+          }
+        },
+        "pr": {
+          "oneOf": [{ "type": "null" }, {
+            "type": "object",
+            "required": ["number", "url"],
+            "properties": {
+              "number": { "type": "integer" },
+              "url": { "type": "string", "format": "uri" },
+              "assignees": { "type": "array", "items": { "type": "string" } },
+              "reviewers": { "type": "array", "items": { "type": "string" } }
+            }
+          }]
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": ["accepted"],
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "observed": { "type": "boolean" },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["frame_id", "severity", "message", "fingerprint"],
+            "properties": {
+              "frame_id": { "type": "string" },
+              "severity": { "type": "string", "enum": ["BLOCK", "ERROR", "WARN", "INFO"] },
+              "message": { "type": "string" },
+              "file": { "type": "string" },
+              "line": { "type": "integer", "minimum": 0 },
+              "hint": { "type": "string" },
+              "fingerprint": { "type": "string", "pattern": "^sha256:[0-9a-f]{16}$" }
+            }
+          }
+        },
+        "suppressed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["frame_id", "file", "reason"],
+            "properties": {
+              "frame_id": { "type": "string" },
+              "file": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "mention": {
+      "type": "object",
+      "properties": {
+        "default": { "type": "string" },
+        "current_bot": { "type": "string" },
+        "rotation": {
+          "type": "object",
+          "required": ["enabled", "attempt_index"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "attempt_index": { "type": "integer", "minimum": 0 },
+            "rotated_from": { "type": "string" },
+            "rotated_reason": { "type": "string", "enum": ["attempt-threshold", "same-finding", "exhaustion"] }
+          }
+        },
+        "auto_tagged_humans": { "type": "array", "items": { "type": "string" } },
+        "fallback_active": { "type": "boolean" }
+      }
+    },
+    "loop_state": {
+      "type": "object",
+      "required": ["pr_attempt_count", "max_attempts"],
+      "properties": {
+        "pr_attempt_count": { "type": "integer", "minimum": 0 },
+        "max_attempts": { "type": "integer", "minimum": 1 },
+        "same_finding_as_previous": { "type": "boolean" },
+        "previous_attempts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["sha", "timestamp"],
+            "properties": {
+              "sha": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" },
+              "bot": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "next_steps": {
+      "type": "object",
+      "properties": {
+        "fix_and_repush": { "type": "string" },
+        "request_recheck": { "type": "string" },
+        "view_full_audit": { "type": "string", "format": "uri" }
+      }
+    }
+  }
+}

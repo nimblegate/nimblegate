@@ -1,0 +1,7 @@
+commits:
+  - branch: main
+    msg: "local change"
+    files:
+      "a.txt": "local"
+current_branch: main
+command: "git commit --amend -m updated"

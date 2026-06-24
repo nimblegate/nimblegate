@@ -1,0 +1,16 @@
+# Negative: 7d window, well within Free-tier 31d retention.
+query ShortWindow {
+  viewer {
+    zones {
+      httpRequestsAdaptiveGroups(
+        limit: 10000
+        filter: {
+          datetime_geq: "2026-05-13T00:00:00Z"
+          datetime_lt: "2026-05-20T00:00:00Z"
+        }
+      ) {
+        sum { requests }
+      }
+    }
+  }
+}

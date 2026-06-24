@@ -1,0 +1,68 @@
+#!/bin/sh
+# nbg-status - compact snapshot of gateway state.
+# Designed to fit one terminal screen and be scannable at a glance.
+#
+# Usage:  docker exec <container> nbg-status
+set -u
+
+S6=/command
+SVC=/run/service
+
+fmt_dur() {
+  s=$1
+  d=$((s/86400)); h=$(((s%86400)/3600)); m=$(((s%3600)/60))
+  printf '%dd %02dh %02dm' "$d" "$h" "$m"
+}
+
+# Container-local uptime: PID 1 age = host-uptime - PID-1-starttime-in-seconds.
+# /proc/1/stat field 22 is starttime in clock ticks since boot; clock ticks
+# per second on most kernels is 100 (HZ=100). This is correct for the
+# container because PID 1 inside the container IS the container's init.
+sys_uptime=$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)
+pid1_starttime_ticks=$(awk '{print $22}' /proc/1/stat 2>/dev/null || echo 0)
+uptime_sec=$(( sys_uptime - pid1_starttime_ticks / 100 ))
+[ "$uptime_sec" -lt 0 ] && uptime_sec=0
+
+echo "nimblegate gateway state"
+printf '  uptime:     %s\n' "$(fmt_dur "$uptime_sec")"
+
+# Service state via s6-svstat ("up (pid N pgid M) NN seconds")
+printf '  sshd:       '
+"$S6/s6-svstat" "$SVC/sshd" 2>/dev/null || echo "(s6 not reachable)"
+printf '  dashboard:  '
+"$S6/s6-svstat" "$SVC/dashboard" 2>/dev/null || echo "(s6 not reachable)"
+
+# Registered repos = subdirs of /srv/gateway/cfg containing gateway.toml.
+repos=$(ls /srv/gateway/cfg/*/gateway.toml 2>/dev/null | wc -l | tr -d ' ')
+printf '  repos:      %s registered\n' "$repos"
+
+# Authorized SSH keys = non-comment non-empty pubkey lines.
+keys_file=/srv/gateway/ssh/authorized_keys
+if [ -r "$keys_file" ]; then
+  keys=$(grep -cE '^(ssh-|sk-|ecdsa-)' "$keys_file" 2>/dev/null)
+  : "${keys:=0}"
+else
+  keys=0
+fi
+printf '  ssh keys:   %s authorized\n' "$keys"
+
+# Auth state - has an admin been claimed?
+if [ -f /srv/gateway/cfg/_setup_token ]; then
+  printf '  auth:       PENDING - claim the setup token at /setup\n'
+  printf '              (token: grep nbg-setup in docker logs)\n'
+elif [ -f /srv/gateway/cfg/_auth.db ]; then
+  size=$(stat -c %s /srv/gateway/cfg/_auth.db 2>/dev/null || echo 0)
+  if [ "$size" -gt 0 ]; then
+    printf '  auth:       admin claimed (DB: %s bytes)\n' "$size"
+  else
+    printf '  auth:       DB empty (corrupted?)\n'
+  fi
+else
+  printf '  auth:       not initialized (--auth=off? or container too fresh)\n'
+fi
+
+# Crash-loop hint: count nbg-supervise lines if we can read our own logs (we
+# can't from inside, but the operator can - drop a one-liner pointer instead).
+echo
+echo 'For service restarts:  docker logs <container> | grep nbg-supervise'
+echo 'For other operations:  nbg-restart | nbg-logs | nbg-reset | nbg-regen-keys'

@@ -1,0 +1,4 @@
+# Negative: no CIDRs in this file at all.
+name: my-service
+port: 8080
+log_level: info

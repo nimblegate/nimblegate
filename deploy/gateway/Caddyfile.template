@@ -1,0 +1,35 @@
+# Reference Caddyfile for nimblegate's public-deployment reverse proxy.
+# `nimblegate gateway tls-setup --domain <X>` writes this file with the
+# placeholders replaced; you can also drop it in by hand and edit.
+#
+# Caddy provisions the TLS cert automatically via Let's Encrypt on first
+# startup. Requirements:
+#   - your domain's A/AAAA DNS record points at this gateway box
+#   - ports 80 (ACME challenge) and 443 (HTTPS serving) are reachable
+#
+# After landing this file: `systemctl restart caddy` and visit https://<domain>.
+
+${DOMAIN} {
+	# Reverse-proxy to the dashboard's loopback bind. The dashboard's own
+	# `gateway bind localhost` step should have flipped it off 0.0.0.0
+	# before this Caddyfile takes effect.
+	reverse_proxy 127.0.0.1:7900
+
+	encode gzip zstd
+
+	# JSON access logs so structured-log tooling (vector, journalctl
+	# --output=json, Promtail) can parse them.
+	log {
+		output file /var/log/caddy/${DOMAIN}-access.log
+		format json
+	}
+
+	header {
+		# 2-year HSTS - browsers refuse HTTP fallback for this domain.
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		# Defensive headers.
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

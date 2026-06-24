@@ -1,0 +1,15 @@
+# Replace nimblegate.example.com with your real hostname. Caddy will fetch a
+# Let's Encrypt cert on first start; your DNS A/AAAA record must point at
+# this host before that happens, otherwise the ACME http-01 challenge fails.
+#
+# nimblegate's own auth (--auth=setup-token, default) is still on, so you'll
+# log in once to nimblegate after this proxy succeeds. If you'd rather have
+# basic-auth at the Caddy layer too (defence-in-depth), uncomment the
+# basicauth block and generate a hash with:
+#   docker run --rm caddy:2-alpine caddy hash-password
+nimblegate.example.com {
+	# basicauth {
+	# 	admin <hash-from-caddy-hash-password>
+	# }
+	reverse_proxy nimblegate:7900
+}

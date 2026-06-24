@@ -1,0 +1,6 @@
+/*
+  X-Powered-By: cf-pages
+
+# Positive: _headers file exists but is missing the baseline protective
+# directives (CSP, X-Frame-Options, X-Content-Type-Options,
+# Referrer-Policy, HSTS).

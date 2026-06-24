@@ -1,0 +1,72 @@
+#!/bin/sh
+# nbg-logs [sshd|dashboard|restarts|setup|help] [N]
+#
+# v0.1.0 doesn't write per-service log files inside the container - all
+# service output goes to s6's stdout which becomes the container's docker
+# logs. The actual logs live OUTSIDE the container (at the docker daemon).
+# This script prints the right `docker logs ... | grep ...` recipe so the
+# operator doesn't need to memorize patterns.
+set -u
+
+target=${1:-help}
+n=${2:-30}
+
+print_intro() {
+  cat <<EOF
+nbg-logs runs INSIDE the container, but service logs live OUTSIDE
+(captured by the docker daemon, not stored on the container's
+filesystem). Run these on the HOST instead:
+
+EOF
+}
+
+case "$target" in
+  sshd)
+    print_intro
+    printf '  docker logs --tail %s <container> 2>&1 | grep -E "sshd|Server listening|Connection|publickey"\n' "$n"
+    ;;
+  dashboard)
+    print_intro
+    printf '  docker logs --tail %s <container> 2>&1 | grep -E "nimblegate gateway"\n' "$n"
+    ;;
+  restarts)
+    print_intro
+    echo '  docker logs <container> 2>&1 | grep nbg-supervise'
+    echo
+    echo 'A few clustered lines = healthy auto-recovery.'
+    echo 'Many in a short window = crash loop, investigate.'
+    ;;
+  setup)
+    print_intro
+    echo '  docker logs <container> 2>&1 | grep nbg-setup'
+    echo
+    echo '(Setup token line only appears when no admin user exists yet.)'
+    ;;
+  ""|help|-h|--help)
+    cat <<EOF
+usage: nbg-logs [target] [N]
+
+  target:  sshd | dashboard | restarts | setup | help (default)
+  N:       lines to tail when relevant (default 30)
+
+Recipes by target:
+  sshd          - filter for sshd auth + connection events
+  dashboard     - filter for the dashboard process's own output
+  restarts      - service exit/restart events (s6-overlay supervision)
+  setup         - first-run setup token (only when no admin exists)
+  help          - this message + a full cheatsheet:
+
+Cheatsheet:
+  All output:            docker logs --tail $n <container>
+  Live tail (Ctrl-C):    docker logs -f <container>
+  Just restart events:   docker logs <container> | grep nbg-supervise
+  Current setup token:   docker logs <container> | grep nbg-setup
+  Dashboard process:     docker logs <container> | grep "nimblegate gateway"
+  sshd connections:      docker logs <container> | grep -E "sshd|publickey"
+EOF
+    ;;
+  *)
+    echo "usage: nbg-logs [sshd|dashboard|restarts|setup|help] [N]" >&2
+    exit 2
+    ;;
+esac

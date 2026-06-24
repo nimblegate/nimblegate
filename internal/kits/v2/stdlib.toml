@@ -1,0 +1,93 @@
+# v2 stdlib kit catalog - named pre-filled axis-selection bundles operators
+# can apply via `nimblegate kits apply <kit_id>`. Each kit holds AXIS SELECTIONS
+# (not explicit frame lists); frames flow from the selections at runtime via
+# the buckets.Selection resolution chain.
+#
+# Field schema (per spec §7.1):
+#   kit_id       - flat unique identifier (stable across UI display changes)
+#   display      - human-readable name for UI surfaces
+#   semver       - manually bumped on meaningful change (decision #18)
+#   description  - one-line operator-facing summary
+#   selections   - table with framework / platform / platform_exclude / domains
+#
+# Kit IDs use flat naming with UI/CLI duplicate-check at creation time
+# (decision #16). Convention: lowercase-hyphenated.
+#
+# When adding/editing kits:
+# - Bump semver on meaningful axis change (added/removed domain, new exclusion)
+# - Don't worry about hash - computed at runtime from kit content
+
+[[kit]]
+kit_id = "static-cf-pages-marketing"
+display = "Static HTML on Cloudflare Pages - Marketing"
+semver = "1.0"
+description = "Static-site marketing project shipping plain HTML to Cloudflare Pages. myapp-shape default."
+
+  [kit.selections]
+  framework = "html"
+  platform = "cloudflare"
+  domains = ["security", "encoding", "documentation", "html", "seo"]
+
+  [kit.selections.platform_exclude]
+  cloudflare = ["cf-workers"]
+
+[[kit]]
+kit_id = "svelte-cf-pages-marketing"
+display = "Svelte on Cloudflare Pages - Marketing"
+semver = "1.0"
+description = "SvelteKit project on Cloudflare Pages. Includes html, seo, encoding, security, documentation domains."
+
+  [kit.selections]
+  framework = "svelte"
+  platform = "cloudflare"
+  domains = ["security", "encoding", "documentation", "html", "seo"]
+
+  [kit.selections.platform_exclude]
+  cloudflare = ["cf-workers"]
+
+[[kit]]
+kit_id = "astro-cf-pages"
+display = "Astro on Cloudflare Pages"
+semver = "1.0"
+description = "Astro project on Cloudflare Pages. Same domain coverage as Svelte/HTML CF Pages with framework=astro for component-extracted HTML."
+
+  [kit.selections]
+  framework = "astro"
+  platform = "cloudflare"
+  domains = ["security", "encoding", "documentation", "html", "seo"]
+
+  [kit.selections.platform_exclude]
+  cloudflare = ["cf-workers"]
+
+[[kit]]
+kit_id = "cf-workers-backend"
+display = "Cloudflare Workers - backend service"
+semver = "1.0"
+description = "Workers-only backend (no HTML). Network + database + security + encoding domains."
+
+  [kit.selections]
+  platform = "cloudflare"
+  domains = ["security", "encoding", "network", "database"]
+
+  [kit.selections.platform_exclude]
+  cloudflare = ["cf-pages"]
+
+[[kit]]
+kit_id = "go-aws-lambda"
+display = "Go on AWS Lambda"
+semver = "1.0"
+description = "Go backend deployed to AWS Lambda. Security + network + database domain coverage."
+
+  [kit.selections]
+  framework = "go"
+  platform = "aws"
+  domains = ["security", "encoding", "network", "database"]
+
+[[kit]]
+kit_id = "security-strict-overlay"
+display = "Security strict overlay"
+semver = "1.0"
+description = "Add encoding + security domains. Designed to be applied on top of any project kit when stricter encoding-attack coverage is wanted."
+
+  [kit.selections]
+  domains = ["security", "encoding"]

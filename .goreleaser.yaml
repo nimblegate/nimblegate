@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# nimblegate release config - binary, module path, and public brand are
+# all `nimblegate`.
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: nimblegate
+    main: ./cmd/nimblegate
+    binary: nimblegate
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X nimblegate/internal/version.Version={{.ShortCommit}}-{{.Version}}
+
+archives:
+  - id: nimblegate
+    formats: [tar.gz]
+    name_template: "nimblegate_{{.Version}}_{{.Os}}_{{.Arch}}"
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT"
+
+release:
+  github:
+    owner: nimblegate
+    name: nimblegate
+  draft: true   # we'll publish manually for 0.1.0
+  prerelease: auto

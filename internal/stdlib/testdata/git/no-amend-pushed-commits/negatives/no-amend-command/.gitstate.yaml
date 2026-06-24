@@ -1,0 +1,10 @@
+commits:
+  - branch: main
+    msg: "shipped"
+    files:
+      "a.txt": "ok"
+remote_refs:
+  - branch: main
+    points_to: HEAD
+current_branch: main
+command: "git commit -m regular"

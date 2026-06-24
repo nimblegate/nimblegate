@@ -1,0 +1,5 @@
+#!/bin/sh
+# sshd as a long-running supervised service. s6-overlay restarts it on exit.
+# Runs as root (sshd needs root to bind port 22 and drop to the connecting
+# user); per-connection auth + privilege drop happens inside sshd itself.
+exec /usr/sbin/sshd -D -e

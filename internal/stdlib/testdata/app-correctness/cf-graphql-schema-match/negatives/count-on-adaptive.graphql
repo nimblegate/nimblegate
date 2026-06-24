@@ -1,0 +1,10 @@
+# Negative: `count` on an adaptive dataset is the correct shape.
+query GoodCountAdaptive {
+  viewer {
+    zones {
+      httpRequestsAdaptiveGroups(limit: 100) {
+        count
+      }
+    }
+  }
+}

@@ -1,0 +1,161 @@
+# Built-in starter kits shipped with nimblegate (v0.1.0+ schema).
+#
+# Each kit is a fully-enumerated list of frame IDs. There is NO
+# `extends`, NO composition, NO wildcards - kits resolve to a flat
+# frame ID list with zero runtime expansion.
+#
+# Operators apply kits from the dashboard or `nimblegate kits apply
+# <name>`. Applying a kit (a) ticks every frame in `frames` into the
+# project's `[frames] enabled` list, deduplicated against the
+# existing set; and (b) records the kit name in `[ui] applied_kits`
+# so the dashboard can render a chip with a × button to clear all
+# of it.
+
+[core]
+display = "Core"
+description = "Universal floor - every project should apply this."
+frames = [
+    "git/folder-branch-lock",
+    "git/no-amend-pushed-commits",
+    "git/no-bypass-pre-commit",
+    "git/no-force-push-main",
+    "commands/apt-purge-preview",
+    "commands/curl-pipe-shell",
+    "database/migration-script-explicit-env",
+    "database/migration-verification-step",
+    "database/sqlite-migration-idempotent-wrapper",
+    "filesystem/rm-rf-protected-paths",
+    "security/no-hardcoded-credentials",
+    "security/no-private-keys-in-repo",
+    "network/no-localhost-in-proxy-config",
+    "database/schema-vs-code-drift",
+    "app-correctness/dynamic-env-declared",
+]
+
+[web-app]
+display = "Web app"
+description = "For projects shipping HTML pages (any backend)."
+frames = [
+    # Core (15)
+    "git/folder-branch-lock",
+    "git/no-amend-pushed-commits",
+    "git/no-bypass-pre-commit",
+    "git/no-force-push-main",
+    "commands/apt-purge-preview",
+    "commands/curl-pipe-shell",
+    "database/migration-script-explicit-env",
+    "database/migration-verification-step",
+    "database/sqlite-migration-idempotent-wrapper",
+    "filesystem/rm-rf-protected-paths",
+    "security/no-hardcoded-credentials",
+    "security/no-private-keys-in-repo",
+    "network/no-localhost-in-proxy-config",
+    "database/schema-vs-code-drift",
+    "app-correctness/dynamic-env-declared",
+    # Added for Web app (12)
+    "security/no-innerHTML-user-input",
+    "security/no-mixed-content-urls",
+    "security/cf-pages-headers-baseline",
+    "web/html-required-meta",
+    "web/html-seo-meta",
+    "web/html-img-alt",
+    "web/html-markup-valid",
+    "web/html-placeholder-content",
+    "documentation/cross-branch-id-consistency",
+    "documentation/doc-touches-with-code",
+    "documentation/markdown-link-check-internal",
+    "documentation/dated-todo",
+]
+
+[cf-pages-project]
+display = "Cloudflare Pages project"
+description = "SvelteKit / Astro / Next on Cloudflare Pages with D1."
+frames = [
+    # All web-app (27) plus the following 2 for CF Pages specifics
+    "git/folder-branch-lock",
+    "git/no-amend-pushed-commits",
+    "git/no-bypass-pre-commit",
+    "git/no-force-push-main",
+    "commands/apt-purge-preview",
+    "commands/curl-pipe-shell",
+    "database/migration-script-explicit-env",
+    "database/migration-verification-step",
+    "database/sqlite-migration-idempotent-wrapper",
+    "filesystem/rm-rf-protected-paths",
+    "security/no-hardcoded-credentials",
+    "security/no-private-keys-in-repo",
+    "network/no-localhost-in-proxy-config",
+    "database/schema-vs-code-drift",
+    "app-correctness/dynamic-env-declared",
+    "security/no-innerHTML-user-input",
+    "security/no-mixed-content-urls",
+    "security/cf-pages-headers-baseline",
+    "web/html-required-meta",
+    "web/html-seo-meta",
+    "web/html-img-alt",
+    "web/html-markup-valid",
+    "web/html-placeholder-content",
+    "documentation/cross-branch-id-consistency",
+    "documentation/doc-touches-with-code",
+    "documentation/markdown-link-check-internal",
+    "documentation/dated-todo",
+    "app-correctness/prefer-static-public",
+    "app-correctness/top-of-page-import-safety",
+]
+
+[cf-workers-project]
+display = "Cloudflare Workers project"
+description = "Workers, Tunnels, Access. Backend-only - no HTML."
+frames = [
+    # Core (15)
+    "git/folder-branch-lock",
+    "git/no-amend-pushed-commits",
+    "git/no-bypass-pre-commit",
+    "git/no-force-push-main",
+    "commands/apt-purge-preview",
+    "commands/curl-pipe-shell",
+    "database/migration-script-explicit-env",
+    "database/migration-verification-step",
+    "database/sqlite-migration-idempotent-wrapper",
+    "filesystem/rm-rf-protected-paths",
+    "security/no-hardcoded-credentials",
+    "security/no-private-keys-in-repo",
+    "network/no-localhost-in-proxy-config",
+    "database/schema-vs-code-drift",
+    "app-correctness/dynamic-env-declared",
+    # CF Workers-specifics (5)
+    "network/cidr-host-bits-zero",
+    "app-correctness/cf-graphql-dataset-by-window",
+    "app-correctness/cf-graphql-schema-match",
+    "app-correctness/prefer-static-public",
+    "app-correctness/top-of-page-import-safety",
+]
+
+[security-strict]
+display = "Security strict"
+description = "Adds every security/* frame on top of any project-shape kit. Apply additively."
+frames = [
+    "security/no-hardcoded-credentials",
+    "security/no-private-keys-in-repo",
+    "security/no-innerHTML-user-input",
+    "security/no-mixed-content-urls",
+    "security/cf-pages-headers-baseline",
+    "security/no-bidi-override",
+    "security/no-invisible-tag-chars",
+    "security/no-zero-width-in-source",
+    "security/no-homoglyph-identifiers",
+]
+
+[encoding-strict]
+display = "Encoding strict"
+description = "Catch invisible / wrong-encoding characters that break parsers or render wrong (BOM, smart quotes, YAML tabs, CRLF on scripts, mixed indent, en-dash flags, non-printable chars, ZWSP in docs). Stackable with any project kit."
+frames = [
+    "encoding/no-bom",
+    "encoding/no-smart-quotes-in-config",
+    "encoding/yaml-no-tabs",
+    "encoding/consistent-line-endings",
+    "encoding/no-mixed-indent",
+    "encoding/no-en-dash-in-commands",
+    "encoding/no-non-printable",
+    "encoding/no-zero-width-in-content",
+]

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head><title>duplicate id positive</title></head>
+<body>
+  <!-- Positive: two elements share id="main" - invalid; breaks
+       getElementById callers, screen readers, and accessibility tooling. -->
+  <div id="main">First</div>
+  <div id="main">Second</div>
+</body>
+</html>

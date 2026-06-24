@@ -1,0 +1,6 @@
+# Negative: query without a datetime window — nothing to validate.
+query Zones {
+  viewer {
+    zones { name }
+  }
+}

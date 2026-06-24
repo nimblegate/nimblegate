@@ -1,0 +1,41 @@
+# Source control and CI metadata - not needed for the build.
+.git
+.github
+
+# Build outputs - never input to a build. `build/` is the local Go-build
+# target (16MB binary); `dist/` is goreleaser output (~80MB of cross-platform
+# tarballs). Both would otherwise be shipped into the build context.
+bin/
+build/
+dist/
+tmp/
+
+# Docs and design notes - nothing under docs/ is embedded by the Go binary
+# (embedded markdown lives under internal/gateway/help/ and internal/stdlib/),
+# so the whole tree is safe to drop from the context.
+docs/
+.appframes/
+
+# Tests. The stdlib package embeds its own testdata via `go:embed all:testdata`,
+# which sits at internal/stdlib/testdata/ - a root-level `testdata/` glob in
+# .dockerignore does NOT match nested testdata directories, so the embed still
+# works. Don't change `testdata/` to `**/testdata/` without rechecking that.
+*_test.go
+testdata/
+
+# Editor and OS metadata.
+.idea/
+.vscode/
+.DS_Store
+
+# Backups, coverage, ad-hoc scratch.
+*.bak
+*.out
+*.test
+coverage*
+_archive/
+
+# Container-build inputs that the build doesn't need.
+README.md
+CHANGELOG.md
+CLAUDE.md

@@ -1,0 +1,13 @@
+# Positive: httpRequestsAdaptiveGroups uses `count` for row-level counts,
+# NOT `sum`. Sum on an adaptive dataset is the inverted error to the
+# count-on-grouped pattern.
+query BadSum {
+  viewer {
+    zones {
+      httpRequestsAdaptiveGroups(limit: 100) {
+        sum { requests }
+        count
+      }
+    }
+  }
+}

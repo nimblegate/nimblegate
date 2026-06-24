@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimblegate.dev/schemas/frame-frontmatter.schema.json",
+  "title": "nimblegate frame frontmatter",
+  "description": "Schema for the YAML frontmatter block at the top of a nimblegate frame markdown file (.appframes/<category>/<name>.md). Validates required fields, enum values, and shape. Does not validate the markdown body after the closing `---` fence.",
+  "type": "object",
+  "required": ["name", "category", "severity", "triggers"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Short kebab-case identifier, unique within the frame's category. Example: 'no-force-push-main'. Combined with category to form the full ID 'git-safety/no-force-push-main'.",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+      "minLength": 1,
+      "maxLength": 80,
+      "examples": [
+        "folder-branch-lock",
+        "no-force-push-main",
+        "no-innerHTML-user-input"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "description": "Frame category. Determines output ordering (most-destructive first) and is part of the frame ID. Picks one of seven fixed values.",
+      "enum": [
+        "git-safety",
+        "fs-safety",
+        "command-safety",
+        "network-safety",
+        "security",
+        "app-correctness",
+        "convention"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "description": "How a failure is enforced. BLOCK fails the trigger (exit 1); WARN reports but lets the action proceed (exit 0); INFO is logged only.",
+      "enum": ["BLOCK", "WARN", "INFO"]
+    },
+    "triggers": {
+      "type": "array",
+      "description": "Which trigger surfaces fire this frame. The engine indexes frames by trigger and only runs the matching subset for each action.",
+      "items": {
+        "type": "string",
+        "enum": ["cli", "pre-commit", "git-wrap", "watcher", "server"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "applies-to": {
+      "type": "object",
+      "description": "Optional targeting hints. The engine reads this for documentation purposes; the check function is free to ignore or override.",
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "type": "array",
+          "description": "Glob patterns of files this frame examines. Used by file-scanning checks (e.g. security/no-innerHTML-user-input).",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "examples": [
+            ["**/*.js", "**/*.ts", "**/*.html"]
+          ]
+        },
+        "commands": {
+          "type": "array",
+          "description": "Command prefixes this frame examines. Used by command-intercept checks via the git-wrap trigger.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "examples": [
+            ["git push", "git commit"],
+            ["apt purge", "apt-get purge"]
+          ]
+        }
+      }
+    },
+    "canonical-refs": {
+      "type": "array",
+      "description": "Names of TOML files under .appframes/_canonical/ that this frame's check function reads. Documents the data dependency so tooling can detect missing tables.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*\\.toml$"
+      },
+      "examples": [
+        ["folder-branch-map.toml"],
+        ["website-ids.toml"]
+      ]
+    }
+  }
+}

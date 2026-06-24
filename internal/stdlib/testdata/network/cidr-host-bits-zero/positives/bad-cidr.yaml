@@ -1,0 +1,4 @@
+# Positive: 10.0.0.5/24 has host bits set; canonical form is 10.0.0.0/24.
+network:
+  allowlist:
+    - 10.0.0.5/24

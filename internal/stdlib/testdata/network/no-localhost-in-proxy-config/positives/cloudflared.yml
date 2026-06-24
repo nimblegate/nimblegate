@@ -1,0 +1,8 @@
+# Positive: cloudflared config using "localhost" — resolves to 127.0.0.1
+# OR [::1] depending on the resolver; non-deterministic.
+tunnel: example-tunnel
+credentials-file: /etc/cloudflared/cert.json
+ingress:
+  - hostname: api.example.com
+    service: http://localhost:8080
+  - service: http_status:404

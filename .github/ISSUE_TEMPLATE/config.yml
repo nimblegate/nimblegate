@@ -1,0 +1,10 @@
+# Routes the "New issue" chooser: keeps Issues for actionable bug/feature/frame
+# work, and sends questions to Discussions + vulnerabilities to private reporting.
+blank_issues_enabled: false
+contact_links:
+  - name: Question, help, or "how do I…?"
+    url: https://github.com/nimblegate/nimblegate/discussions/categories/q-a
+    about: Setup, configuration, and usage questions belong in Discussions (Q&A), not Issues. Search first; mark an answer when one helps.
+  - name: Security vulnerability (report privately)
+    url: https://github.com/nimblegate/nimblegate/security/advisories/new
+    about: Report privately via a security advisory. Please do NOT open a public issue for a vulnerability.

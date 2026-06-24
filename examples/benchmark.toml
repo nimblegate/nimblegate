@@ -1,0 +1,33 @@
+# Agent Cleanliness Benchmark - example config.
+# Scored frames: the unimpeachable core only (would fail review anywhere).
+# Presence/placement, never content quality. See docs/benchmark.md.
+
+[scored]
+frames = [
+  "security/no-hardcoded-credentials",
+  "security/no-private-keys-in-repo",
+  "commands/curl-pipe-shell",
+]
+
+# Published, justified false-positive exclusions. `contains` matches a substring
+# of the finding's message (the file/identifier); omit it to exclude the whole
+# frame. Anyone may submit a proven FP for inclusion here.
+[[whitelist]]
+frame   = "security/no-hardcoded-credentials"
+contains = "test/fixtures"
+reason  = "example tokens in test fixtures, not live credentials"
+
+# One gateway repo per run = (agent, task, stack, rep).
+[[run]]
+repo  = "bench-claude-blog-go-1"
+agent = "claude-code"
+task  = "blog-crud"
+stack = "go"
+rep   = 1
+
+[[run]]
+repo  = "bench-cursor-blog-go-1"
+agent = "cursor"
+task  = "blog-crud"
+stack = "go"
+rep   = 1

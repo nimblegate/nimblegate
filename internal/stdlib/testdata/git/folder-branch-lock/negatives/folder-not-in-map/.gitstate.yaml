@@ -1,0 +1,14 @@
+commits:
+  - branch: main
+    msg: "initial"
+    files:
+      ".appframes/_canonical/folder-branch-map.toml": |
+        [folders]
+        "studio/" = "main"
+      "marketing/README.md": "marketing docs"
+  - branch: feature-x
+    msg: "wip"
+    files:
+      "marketing/wip.md": "wip"
+current_branch: feature-x
+working_dir: marketing/

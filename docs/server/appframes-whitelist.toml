@@ -1,0 +1,95 @@
+# nimblegate gateway-held whitelist - deploy to the gateway under nimblegate's policy
+# dir at .appframes/_canonical/whitelist.toml (overlayPolicy copies the policy
+# dir's .appframes/ into each materialized tree). Each entry needs a reason; the
+# suppression is recorded per-push in the audit log (not silent).
+#
+# 2026-06-04 update:
+# - Frame IDs migrated from `command-safety/*` → new taxonomy (`commands/*` /
+#   `database/*`) after the v0.1.0 frames-taxonomy rework.
+# - Positive testdata fixtures under `internal/stdlib/testdata/<category>/<frame>/positives/`
+#   are whitelisted en bloc - they exist precisely to fire the frame, so each
+#   one is a known-good false positive.
+# - Sentinel AWS keys in docs/server/MIGRATION-trixie-to-combined.md are
+#   fake values (one explicitly "never issued", one is AWS's canonical
+#   AKIAIOSFODNN7EXAMPLE), used to illustrate the gate's own behavior.
+
+# ---------- Real installer / test code (legitimate operational files) ----------
+
+[[entry]]
+frame  = "commands/curl-pipe-shell"
+path   = "cmd/installer/install.sh"
+reason = "installer intentionally curl|sh-bootstraps the binary; documented install path"
+
+[[entry]]
+frame  = "security/no-private-keys-in-repo"
+path   = "internal/checks/scanignore_integration_test.go"
+reason = "test fixture keys exercising the scan-ignore integration, not real secrets"
+
+[[entry]]
+frame  = "security/no-private-keys-in-repo"
+path   = "internal/gateway/e2e_test.go"
+reason = "test fixture keys for the gateway e2e suite, not real secrets"
+
+# ---------- Positive testdata fixtures (must contain the bad pattern) ----------
+
+[[entry]]
+frame  = "commands/curl-pipe-shell"
+path   = "internal/stdlib/testdata/commands/curl-pipe-shell/positives/**"
+reason = "positive fixtures: each file is required to fire the curl-pipe-shell frame"
+
+[[entry]]
+frame  = "database/migration-script-explicit-env"
+path   = "internal/stdlib/testdata/database/migration-script-explicit-env/positives/**"
+reason = "positive fixtures: each file is required to fire migration-script-explicit-env"
+
+[[entry]]
+frame  = "database/migration-verification-step"
+path   = "internal/stdlib/testdata/database/migration-verification-step/positives/**"
+reason = "positive fixtures: each file is required to fire migration-verification-step"
+
+[[entry]]
+frame  = "database/sqlite-migration-idempotent-wrapper"
+path   = "internal/stdlib/testdata/database/sqlite-migration-idempotent-wrapper/positives/**"
+reason = "positive fixtures: each migration is required to fire the idempotent-wrapper frame"
+
+[[entry]]
+frame  = "security/no-hardcoded-credentials"
+path   = "internal/stdlib/testdata/security/no-hardcoded-credentials/positives/**"
+reason = "positive fixtures: each file embeds a credential SHAPE to exercise the detector; no real secrets"
+
+[[entry]]
+frame  = "security/no-private-keys-in-repo"
+path   = "internal/stdlib/testdata/security/no-private-keys-in-repo/positives/**"
+reason = "positive fixtures: PEM blocks and conventional key filenames required to fire the frame; no real keys"
+
+[[entry]]
+frame  = "security/no-bidi-override"
+path   = "internal/stdlib/testdata/security/no-bidi-override/positives/**"
+reason = "positive fixtures: contain a real U+202E byte by design to exercise the detector"
+
+[[entry]]
+frame  = "security/no-invisible-tag-chars"
+path   = "internal/stdlib/testdata/security/no-invisible-tag-chars/positives/**"
+reason = "positive fixtures: contain Unicode tag-block runes by design"
+
+[[entry]]
+frame  = "security/no-zero-width-in-source"
+path   = "internal/stdlib/testdata/security/no-zero-width-in-source/positives/**"
+reason = "positive fixtures: zero-width Unicode in source identifiers, by design"
+
+[[entry]]
+frame  = "security/no-homoglyph-identifiers"
+path   = "internal/stdlib/testdata/security/no-homoglyph-identifiers/positives/**"
+reason = "positive fixtures: Cyrillic / Greek confusable runes in source, by design"
+
+[[entry]]
+frame  = "encoding/*"
+path   = "internal/stdlib/testdata/encoding/**/positives/**"
+reason = "positive fixtures across all encoding/* frames: each file embeds the bad pattern by design"
+
+# ---------- Documentation sentinels (fake keys cited as examples) ----------
+
+[[entry]]
+frame  = "security/no-hardcoded-credentials"
+path   = "docs/server/MIGRATION-trixie-to-combined.md"
+reason = "fake AWS keys (AKIAZZZZMIGRATION007, AKIAIOSFODNN7EXAMPLE) used as gate-behavior examples in the migration playbook; never issued"

@@ -1,0 +1,43 @@
+[Unit]
+Description=nimblegate gateway dashboard
+After=network.target
+
+[Service]
+# git-owned policy/repo files under /srv/gateway; switch to root only if the
+# service can't read them. The long flag list lives here, in a file you copy -
+# never paste it into a terminal: a dropped --policy-root silently falls back to
+# /etc/nimblegate-gateway/repos and the dashboard then shows zero repos.
+#
+# --ssh-authorized-keys MUST point at the file the host sshd actually reads for
+# the git user. On a bare-metal install that's /home/git/.ssh/authorized_keys
+# (the dashboard's /ssh-keys page writes here). Its built-in default is the
+# container path /srv/gateway/ssh/authorized_keys - leave that out on bare metal
+# or keys added via the UI go to a file sshd never reads, and pushes fail with
+# "Permission denied (publickey)".
+#
+# The dashboard process also runs the Auto-PR notification daemon, so this
+# service must be running for PR comments / webhooks to deliver - it is not
+# "monitoring only."
+#
+# --addr defaults to 127.0.0.1 (loopback only). Reach the dashboard via SSH
+# port-forward: `ssh -L 7900:127.0.0.1:7900 <gateway>` then open
+# http://localhost:7900 in your browser. Or put nginx + TLS in front for
+# multi-operator access. Auth is on by default (--auth=setup-token): claim the
+# admin login at /setup using the token printed in the journal on first start
+# (`journalctl -u nimblegate-dashboard | grep nbg-setup`). Add --auth=off only
+# when fronted by a reverse proxy that authenticates, or on a trusted LAN where
+# you accept unauthenticated edit access.
+#
+# To change the bind address later (e.g., open it to your trusted LAN):
+#   nimblegate gateway bind all            # listen on every interface
+#   nimblegate gateway bind <gateway-ip>   # listen on a specific IP
+#   nimblegate gateway bind localhost      # back to loopback
+# The command rewrites this file's ExecStart, runs daemon-reload, prints
+# the restart command. See `docs/server/SECURITY-MODEL.md` for the
+# trade-offs of each binding.
+User=git
+ExecStart=/usr/local/bin/nimblegate gateway dashboard --serve --allow-edits --addr 127.0.0.1 --policy-root /srv/gateway/cfg --repos-root /srv/gateway/repos --ssh-authorized-keys /home/git/.ssh/authorized_keys
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

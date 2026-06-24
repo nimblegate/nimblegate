@@ -1,0 +1,33 @@
+[Unit]
+Description=nimblegate gateway upstream relay (privilege-separated)
+After=network.target
+
+[Service]
+# The relay is the privilege boundary for upstream delivery. It runs as a
+# DEDICATED user (nbg-relay) that ALONE holds the upstream credential - the git
+# user (which receives dev/agent pushes and runs the post-receive hook) must NOT
+# be able to read it. The git-side post-receive hook hands a credential-free job
+# to this service over the Unix socket below; this service performs the push.
+#
+# Prerequisites (see docs/server/SECURITY-MODEL.md "Privilege-separated relay"):
+#   * Users: `nbg-relay` (this service) and `git` (receives pushes), plus a
+#     shared group both belong to - passed as --socket-group so git may connect.
+#   * Per-repo credential at <policy-root>/<repo>/credential owned nbg-relay:0600
+#     (git cannot read it). The token must NOT be in the upstream URL.
+#   * gateway.toml relay-readable (e.g. the shared group, 0640) - it holds the
+#     non-secret upstream URL + gating config that BOTH git and the relay read.
+#   * The bare repos readable by nbg-relay (shared group, group-readable) - it
+#     reads objects to push; the code is not the secret.
+#   * Register repos with: nimblegate gateway add --relay-socket /run/nimblegate/relay.sock ...
+#     so the generated post-receive hook routes through this service.
+#
+# --reconcile-interval re-pushes any ref the upstream is missing/behind
+# (recovers pushes accepted while this service was down). 0 disables.
+User=nbg-relay
+RuntimeDirectory=nimblegate
+RuntimeDirectoryMode=0750
+ExecStart=/usr/local/bin/nimblegate gateway relay-service --policy-root /srv/gateway/cfg --repos-root /srv/gateway/repos --socket /run/nimblegate/relay.sock --socket-group git --reconcile-interval 5m
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

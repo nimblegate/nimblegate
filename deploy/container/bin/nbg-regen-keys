@@ -1,0 +1,51 @@
+#!/bin/sh
+# nbg-regen-keys --yes - regenerate SSH host keys.
+#
+# Deletes the current host keys, re-runs init-host-keys.sh to generate fresh
+# ones, restarts sshd. Side effect: every dev box currently set up with this
+# gateway in known_hosts will see a "REMOTE HOST IDENTIFICATION HAS CHANGED"
+# warning on their next push and must manually accept the new key.
+set -u
+
+if [ "${1:-}" != "--yes" ]; then
+  cat <<'EOF' >&2
+nbg-regen-keys --yes
+
+This rotates the gateway's SSH host keys. Use this when:
+  - You believe the host keys leaked.
+  - You're spinning up a clean evaluation environment.
+
+Side effects:
+  - Every dev-box known_hosts entry for this gateway becomes stale. On the
+    next push, clients see "REMOTE HOST IDENTIFICATION HAS CHANGED" and
+    refuse to connect until the user manually re-accepts the host key.
+  - In-flight SSH connections are NOT terminated; new connections use the
+    new keys after sshd reloads.
+
+Pass --yes to proceed.
+EOF
+  exit 2
+fi
+
+echo 'regenerating SSH host keys...'
+rm -f /srv/gateway/ssh/hostkeys/ssh_host_rsa_key* \
+      /srv/gateway/ssh/hostkeys/ssh_host_ecdsa_key* \
+      /srv/gateway/ssh/hostkeys/ssh_host_ed25519_key*
+
+# Re-run the init script. It re-generates absent host keys + rewrites the
+# sshd_config; suppress its welcome-banner output since we're not at boot.
+/bin/sh /etc/s6-overlay/scripts/init-host-keys.sh >/dev/null 2>&1
+
+# Restart sshd to load the new keys.
+/command/s6-svc -r /run/service/sshd 2>/dev/null || true
+
+echo 'host keys regenerated; sshd restarted.'
+echo
+echo 'New fingerprints:'
+for k in /srv/gateway/ssh/hostkeys/*.pub; do
+  [ -f "$k" ] || continue
+  printf '  %s\n' "$(ssh-keygen -lf "$k" 2>/dev/null)"
+done
+
+echo
+echo 'Dev boxes need to re-accept the host key on next push.'

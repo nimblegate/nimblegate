@@ -1,0 +1,23 @@
+name: New frame proposal
+description: Propose a new check for the stdlib
+labels: [frame, enhancement]
+body:
+  - type: input
+    attributes:
+      label: Frame ID (proposed)
+      placeholder: "security/no-jwt-secrets-in-config"
+    validations: { required: true }
+  - type: dropdown
+    attributes:
+      label: Category
+      options: [security, command-safety, fs-safety, git-safety, network-safety, app-correctness, convention]
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: What pattern catches it
+      description: Concrete example of the mistake + how a check would detect it deterministically
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Severity
+      description: BLOCK / WARN / INFO + why

@@ -1,0 +1,13 @@
+# Positive: httpRequests1hGroups is a pre-grouped dataset; it does NOT
+# support `count` — only `sum` / `avg` / `quantiles` over the bucketed
+# fields. Using count returns wrong numbers silently.
+query BadCount {
+  viewer {
+    zones {
+      httpRequests1hGroups(limit: 100) {
+        count
+        dimensions { date }
+      }
+    }
+  }
+}

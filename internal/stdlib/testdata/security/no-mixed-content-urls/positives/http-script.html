@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>mixed-content positive 2</title>
+  <!-- Positive: http:// script src. Particularly dangerous - attacker
+       can inject code via MITM on the http connection. -->
+  <script src="http://cdn.example.com/analytics.js"></script>
+</head>
+<body><p>page</p></body>
+</html>

@@ -1,0 +1,6 @@
+name = "test-project"
+compatibility_date = "2026-01-01"
+
+[vars]
+PUBLIC_DIFFERENT_VAR = "some-other-value"
+# Note: PUBLIC_UNDECLARED_API (used in page.svelte) is NOT listed here.

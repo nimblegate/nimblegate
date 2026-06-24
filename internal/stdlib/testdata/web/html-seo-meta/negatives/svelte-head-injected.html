@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <svelte:head>
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDescription}>
+    <link rel="canonical" href={canonicalUrl}>
+    <meta property="og:title" content={pageTitle}>
+    <meta property="og:description" content={pageDescription}>
+    <meta property="og:image" content={ogImage}>
+  </svelte:head>
+</head>
+<body><p>Svelte head injects all SEO meta dynamically.</p></body>
+</html>

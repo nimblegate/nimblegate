@@ -1,0 +1,22 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    attributes:
+      label: nimblegate version
+      placeholder: "0.1.0 (from `nimblegate version`)"
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: What happened
+      description: Expected vs actual; include git push output / dashboard screenshot if relevant
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+    validations: { required: true }
+  - type: input
+    attributes:
+      label: Deployment shape
+      placeholder: "container / binary / built-from-source"

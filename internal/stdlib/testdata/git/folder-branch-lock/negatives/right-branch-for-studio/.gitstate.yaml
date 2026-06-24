@@ -1,0 +1,10 @@
+commits:
+  - branch: main
+    msg: "initial"
+    files:
+      ".appframes/_canonical/folder-branch-map.toml": |
+        [folders]
+        "studio/" = "main"
+      "studio/README.md": "studio docs"
+current_branch: main
+working_dir: studio/

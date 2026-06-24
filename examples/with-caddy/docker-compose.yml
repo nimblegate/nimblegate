@@ -1,0 +1,50 @@
+# nimblegate fronted by Caddy - HTTPS-with-auto-TLS on the dashboard.
+#
+# Why this exists: nimblegate ships --auth=setup-token (built-in single-admin
+# login) by default. This recipe adds Caddy in front to handle HTTPS
+# termination with an actual Let's Encrypt cert, and removes the dashboard
+# port from the host so only Caddy can reach it.
+#
+#   docker compose -f examples/with-caddy/docker-compose.yml up -d --build
+#
+# Then edit ./Caddyfile and replace `nimblegate.example.com` with your real
+# hostname. Caddy will auto-fetch a Let's Encrypt cert on first start (your
+# DNS must point at this host first).
+services:
+  nimblegate:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: nimblegate
+    container_name: nimblegate
+    restart: unless-stopped
+    ports:
+      - "2222:22"                          # SSH still exposed for git push
+      # NOTE: NO 7900 on the host - only Caddy can reach the dashboard.
+    expose:
+      - "7900"                             # docker-network-only
+    volumes:
+      - gw-repos:/srv/gateway/repos
+      - gw-cfg:/srv/gateway/cfg
+      - gw-ssh:/srv/gateway/ssh
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nimblegate-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"                            # ACME http-01 challenge
+      - "443:443"                          # public HTTPS dashboard
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data                   # certs + ACME state
+      - caddy-config:/config
+    depends_on:
+      - nimblegate
+
+volumes:
+  gw-repos:
+  gw-cfg:
+  gw-ssh:
+  caddy-data:
+  caddy-config:

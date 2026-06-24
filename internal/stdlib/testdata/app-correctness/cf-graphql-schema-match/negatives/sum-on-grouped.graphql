@@ -1,0 +1,11 @@
+# Negative: `sum.requests` on a grouped dataset is the correct shape.
+query GoodSumGrouped {
+  viewer {
+    zones {
+      httpRequests1hGroups(limit: 100) {
+        sum { requests }
+        dimensions { date }
+      }
+    }
+  }
+}

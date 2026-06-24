@@ -1,0 +1,45 @@
+# nimblegate - Git push guardrails for AI agents.
+#
+# Quickstart:
+#   1. Save this file (curl -O https://raw.githubusercontent.com/nimblegate/nimblegate/main/compose.yaml)
+#   2. docker compose up -d
+#   3. docker compose logs | grep nbg-setup   # get your first-run setup token
+#   4. Visit http://localhost:7900/setup and claim it.
+#
+# Full quickstart + first-repo walkthrough: https://github.com/nimblegate/nimblegate#quick-install
+#
+# Ports - asymmetric on purpose:
+#   * 7900 (dashboard) binds to host loopback only - it's the admin surface; keep it off the LAN.
+#   * 2222 (sshd) binds to all interfaces - key-only auth from byte zero; this is how your dev box pushes.
+#
+# Port conflict? Override without editing this file. Either inline:
+#     NIMBLEGATE_DASHBOARD_PORT=7901 NIMBLEGATE_SSH_PORT=2223 docker compose up -d
+# or drop a `.env` file next to this one:
+#     NIMBLEGATE_DASHBOARD_PORT=7901
+#     NIMBLEGATE_SSH_PORT=2223
+# Want the dashboard reachable on the LAN (cloud VPS, multi-machine team)? Set
+# NIMBLEGATE_DASHBOARD_HOST=0.0.0.0 - but the dashboard is an admin surface, so
+# only do this when you've also locked it behind a reverse proxy with auth.
+#
+# Volumes - three persistent stores so your state survives container restarts and image upgrades:
+#   * repos - the bare gated repos (size your disk to these)
+#   * cfg   - per-repo policy + upstream credentials + audit log
+#   * ssh   - persistent host keys + dashboard-managed authorized_keys
+
+services:
+  nimblegate:
+    image: ghcr.io/nimblegate/nimblegate:0.1.0
+    container_name: nimblegate
+    restart: unless-stopped
+    ports:
+      - "${NIMBLEGATE_DASHBOARD_HOST:-127.0.0.1}:${NIMBLEGATE_DASHBOARD_PORT:-7900}:7900"
+      - "${NIMBLEGATE_SSH_PORT:-2222}:22"
+    volumes:
+      - nimblegate-repos:/srv/gateway/repos
+      - nimblegate-cfg:/srv/gateway/cfg
+      - nimblegate-ssh:/srv/gateway/ssh
+
+volumes:
+  nimblegate-repos:
+  nimblegate-cfg:
+  nimblegate-ssh:

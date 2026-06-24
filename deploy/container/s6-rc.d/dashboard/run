@@ -1,0 +1,9 @@
+#!/bin/sh
+# Dashboard HTTP server. Long-running, auto-restarted by s6-overlay on exit.
+# Drops to the git user (UID 1000) - same user that owns the gateway data
+# directories - so writes via --allow-edits land with correct ownership.
+exec s6-setuidgid git \
+  /usr/local/bin/nimblegate gateway dashboard --serve --allow-edits \
+    --addr 0.0.0.0 --port 7900 \
+    --policy-root /srv/gateway/cfg \
+    --repos-root /srv/gateway/repos

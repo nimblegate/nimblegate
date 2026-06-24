@@ -1,0 +1,34 @@
+# nimblegate combined gateway - run on a SEPARATE box the dev machine can't
+# touch. This is the production-host shape of the same image documented in
+# the root README quickstart. Build from the repo root.
+#
+#   docker compose -f deploy/gateway/docker-compose.yml up -d --build
+#
+# Asymmetric port binding (matches the README quickstart):
+#   * dashboard binds host loopback only (--auth=setup-token is on by default,
+#     but loopback-only is the belt-and-braces story for HN/Reddit readers)
+#   * sshd binds all interfaces on host port 2222 (key-only auth from byte zero)
+#
+# For HTTPS-on-the-dashboard with auto-TLS + basic-auth, see
+# examples/with-caddy/docker-compose.yml - that recipe puts caddy in front and
+# turns nimblegate's own auth off so caddy fronts it.
+services:
+  gateway:
+    build:
+      context: ../..                       # repo root (the build needs the module)
+      dockerfile: Dockerfile               # the single combined Dockerfile
+    image: nimblegate
+    container_name: nimblegate
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7900:7900"              # dashboard on host loopback only
+      - "2222:22"                          # devs push to ssh://git@<host>:2222/<repo>.git
+    volumes:
+      - gw-repos:/srv/gateway/repos        # bare gated repos (size disk to these)
+      - gw-cfg:/srv/gateway/cfg            # per-repo policy + credentials + audit
+      - gw-ssh:/srv/gateway/ssh            # persistent host keys + authorized_keys
+
+volumes:
+  gw-repos:
+  gw-cfg:
+  gw-ssh:

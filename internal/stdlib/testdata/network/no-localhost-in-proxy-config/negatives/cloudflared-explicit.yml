@@ -1,0 +1,7 @@
+# Negative: explicit 127.0.0.1 — deterministic IPv4 loopback.
+tunnel: example-tunnel
+credentials-file: /etc/cloudflared/cert.json
+ingress:
+  - hostname: api.example.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404
