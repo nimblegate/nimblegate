@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  nimblegate X (Twitter) profile picture - 400x400, the orb on the dark brand
+  field (NO wordmark). Pairs with header-x.svg: profile = the mark, header =
+  the name + tagline, both on the same dark surface. icon.svg is transparent and
+  reads as sparse dots on a light theme, so this version backs the orb with the
+  vignette and is sized to sit inside X's circular crop with margin.
+  Rebuild PNG: rsvg-convert -w 400 -h 400 avatar-x.svg -o avatar-x.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="nimblegate">
+  <title>nimblegate</title>
+  <defs>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="72%">
+      <stop offset="0%" stop-color="#10151c" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#0b0d11" stop-opacity="1"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#vignette)"/>
+  <!-- Orb centered with margin for X's circular crop: 64-unit box x 4.2 = 269 px,
+       translate(66 66) centers it at (200, 200). -->
+  <g transform="translate(66 66) scale(4.2)" fill="#79c0ff">
+    <circle cx="32.00" cy="4.00" r="2.50" opacity="0.65"/>
+    <circle cx="24.47" cy="5.93" r="2.77" opacity="0.74"/>
+    <circle cx="33.24" cy="7.86" r="1.94" opacity="0.47"/>
+    <circle cx="42.38" cy="9.79" r="3.03" opacity="0.82"/>
+    <circle cx="12.98" cy="11.72" r="2.37" opacity="0.61"/>
+    <circle cx="49.85" cy="13.66" r="2.05" opacity="0.51"/>
+    <circle cx="26.11" cy="15.59" r="3.36" opacity="0.92"/>
+    <circle cx="20.96" cy="17.52" r="1.66" opacity="0.38"/>
+    <circle cx="55.51" cy="19.45" r="2.84" opacity="0.76"/>
+    <circle cx="8.05" cy="21.38" r="2.89" opacity="0.77"/>
+    <circle cx="43.28" cy="23.31" r="1.55" opacity="0.35"/>
+    <circle cx="40.13" cy="25.24" r="3.52" opacity="0.97"/>
+    <circle cx="8.14" cy="27.17" r="1.96" opacity="0.48"/>
+    <circle cx="59.20" cy="29.10" r="2.27" opacity="0.58"/>
+    <circle cx="15.91" cy="31.03" r="3.40" opacity="0.94"/>
+    <circle cx="28.40" cy="32.97" r="1.41" opacity="0.30"/>
+    <circle cx="53.30" cy="34.90" r="3.21" opacity="0.87"/>
+    <circle cx="4.44" cy="36.83" r="2.54" opacity="0.66"/>
+    <circle cx="51.26" cy="38.76" r="1.75" opacity="0.41"/>
+    <circle cx="30.77" cy="40.69" r="3.54" opacity="0.98"/>
+    <circle cx="15.40" cy="42.62" r="1.72" opacity="0.40"/>
+    <circle cx="56.81" cy="44.55" r="2.63" opacity="0.69"/>
+    <circle cx="12.33" cy="46.48" r="3.04" opacity="0.82"/>
+    <circle cx="36.98" cy="48.41" r="1.63" opacity="0.37"/>
+    <circle cx="42.52" cy="50.34" r="3.22" opacity="0.88"/>
+    <circle cx="13.60" cy="52.28" r="2.27" opacity="0.58"/>
+    <circle cx="47.48" cy="54.21" r="2.22" opacity="0.56"/>
+    <circle cx="26.52" cy="56.14" r="3.01" opacity="0.81"/>
+    <circle cx="28.54" cy="58.07" r="2.12" opacity="0.53"/>
+    <circle cx="32.00" cy="60.00" r="2.50" opacity="0.65"/>
+  </g>
+</svg>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  nimblegate X (Twitter) banner - 1500x500, tagline-led. NO logo/orb: X already
+  shows the name (display name + @handle) and the orb (avatar-x.svg), so this
+  banner spends its space on WHAT IT DOES. Palette gradient (#0b0d11 -> #263a4c)
+  + a faint accent glow + a scattered small-dot field (the brand particle motif
+  distributed, not a focal orb). Bottom-left is kept clear for the profile pic.
+  Pair with avatar-x.svg.
+  Rebuild PNG: rsvg-convert -w 1500 -h 500 header-x.svg -o header-x.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500" role="img" aria-label="A self-hosted gate for your AI coding agents. It checks every push against your rules before it reaches your real repo. Free for non-commercial use.">
+  <title>A self-hosted gate for your AI coding agents</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0%" stop-color="#16222f"/>
+      <stop offset="55%" stop-color="#0d1016"/>
+      <stop offset="100%" stop-color="#0a0c10"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="76%" cy="28%" r="58%">
+      <stop offset="0%" stop-color="#79c0ff" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#79c0ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#bg)"/>
+  <rect width="1500" height="500" fill="url(#glow)"/>
+  <!-- Scattered particle field: brand dots distributed across the whole canvas,
+       faint, sparser over the centre text, none in the bottom-left avatar zone. -->
+  <g fill="#79c0ff">
+    <circle cx="70" cy="40" r="2.5" opacity="0.28"/>
+    <circle cx="210" cy="80" r="1.8" opacity="0.22"/>
+    <circle cx="380" cy="32" r="3.0" opacity="0.17"/>
+    <circle cx="520" cy="95" r="1.6" opacity="0.32"/>
+    <circle cx="690" cy="50" r="2.3" opacity="0.24"/>
+    <circle cx="840" cy="30" r="2.7" opacity="0.19"/>
+    <circle cx="980" cy="85" r="1.8" opacity="0.30"/>
+    <circle cx="1130" cy="45" r="2.5" opacity="0.22"/>
+    <circle cx="1270" cy="95" r="2.0" opacity="0.26"/>
+    <circle cx="1410" cy="55" r="2.8" opacity="0.17"/>
+    <circle cx="300" cy="122" r="1.7" opacity="0.24"/>
+    <circle cx="1050" cy="120" r="2.0" opacity="0.19"/>
+    <circle cx="120" cy="165" r="2.3" opacity="0.24"/>
+    <circle cx="430" cy="150" r="1.6" opacity="0.17"/>
+    <circle cx="1180" cy="168" r="2.5" opacity="0.22"/>
+    <circle cx="1340" cy="140" r="1.8" opacity="0.28"/>
+    <circle cx="40" cy="215" r="2.0" opacity="0.19"/>
+    <circle cx="1462" cy="232" r="2.6" opacity="0.24"/>
+    <circle cx="62" cy="305" r="1.8" opacity="0.26"/>
+    <circle cx="1442" cy="312" r="2.3" opacity="0.22"/>
+    <circle cx="400" cy="205" r="1.4" opacity="0.13"/>
+    <circle cx="1100" cy="200" r="1.5" opacity="0.13"/>
+    <circle cx="750" cy="158" r="1.6" opacity="0.15"/>
+    <circle cx="330" cy="405" r="2.5" opacity="0.24"/>
+    <circle cx="470" cy="442" r="1.8" opacity="0.19"/>
+    <circle cx="620" cy="392" r="2.3" opacity="0.28"/>
+    <circle cx="770" cy="452" r="1.7" opacity="0.22"/>
+    <circle cx="920" cy="402" r="2.7" opacity="0.17"/>
+    <circle cx="1070" cy="442" r="2.0" opacity="0.26"/>
+    <circle cx="1230" cy="402" r="2.2" opacity="0.22"/>
+    <circle cx="1370" cy="452" r="2.5" opacity="0.19"/>
+    <circle cx="1452" cy="392" r="1.8" opacity="0.24"/>
+  </g>
+  <!-- Three-tier: what it is (hero, accent on "gate") / what it does / the licence, centred, clear of the avatar. -->
+  <text x="750" y="206" text-anchor="middle" font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="52" letter-spacing="0.5" fill="#e8f1fb">A self-hosted <tspan fill="#79c0ff">gate</tspan> for your AI coding agents</text>
+  <text x="750" y="262" text-anchor="middle" font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="29" letter-spacing="0.4" fill="#aebccb">It checks every push against your rules before it reaches your real repo</text>
+  <text x="750" y="308" text-anchor="middle" font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="22" letter-spacing="0.5" fill="#7f93a6">Free for non-commercial use</text>
+</svg>
