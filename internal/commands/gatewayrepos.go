@@ -267,7 +267,7 @@ func renderRepoTable(w io.Writer, rows []repoRow, opts reposPageOpts) {
 		// under the repo. Belongs here on /repos with the rest of registration, not
 		// buried on the /policy page.
 		if opts.AllowEdits {
-			fmt.Fprintf(w, `<tr class="gw-repos-settings-row"><td colspan="6">%s</td></tr>`, repoSettingsForm(row, opts.CSRFToken))
+			fmt.Fprintf(w, `<tr class="gw-repos-settings-row"><td colspan="6" style="padding:0 16px 12px;border-left:3px solid var(--gw-accent);background:var(--gw-bg-control)">%s</td></tr>`, repoSettingsForm(row, opts.CSRFToken))
 		}
 	}
 	fmt.Fprint(w, `</tbody></table>`)
@@ -277,8 +277,8 @@ func renderRepoTable(w io.Writer, rows []repoRow, opts reposPageOpts) {
 // Posts to /policy/repo/settings (the handler is shared; only the render moved).
 func repoSettingsForm(row repoRow, csrf string) string {
 	refs := strings.Join(row.ProtectedRefs, " ")
-	return fmt.Sprintf(`<details class="frame gw-edit-settings"><summary class="gw-section-head">Edit repo settings</summary><form hx-post="/policy/repo/settings" hx-headers='{"X-CSRF-Token":"%s"}' hx-encoding="application/x-www-form-urlencoded" hx-target="body" hx-swap="outerHTML"><input type="hidden" name="repo" value="%s"><label>Upstream URL <input type="text" name="upstream" required value="%s" placeholder="https://github.com/owner/repo.git"></label><p class="sub">The repo's <b>HTTPS</b> clone URL (not the <code>git@</code> SSH form). Change the token separately via the rotate-credential section below.</p><label>Protected refs <input type="text" name="protected_refs" value="%s" placeholder="refs/heads/main refs/heads/release/*" title="space-separated; bare names like main are auto-prefixed refs/heads/. Use refs/heads/* to gate every branch."></label><p class="sub">Space-separated. Use <code>refs/heads/*</code> to gate <b>every</b> branch (required for the auto-PR loop). This gates push content only; branch deletion is separate, so main stays protected while feature branches remain deletable.</p><button type="submit">Save settings</button></form></details>`,
-		htmlEsc(csrf), htmlEsc(row.Name), htmlEsc(row.UpstreamURL), htmlEsc(refs))
+	return fmt.Sprintf(`<details class="gw-edit-settings"><summary class="gw-section-head">Edit settings for <strong>%s</strong></summary><form hx-post="/policy/repo/settings" hx-headers='{"X-CSRF-Token":"%s"}' hx-encoding="application/x-www-form-urlencoded" hx-target="body" hx-swap="outerHTML"><input type="hidden" name="repo" value="%s"><label>Upstream URL <input type="text" name="upstream" required value="%s" placeholder="https://github.com/owner/repo.git"></label><p class="sub">The repo's <b>HTTPS</b> clone URL (not the <code>git@</code> SSH form). Change the token separately via the rotate-credential section below.</p><label>Protected refs <input type="text" name="protected_refs" value="%s" placeholder="refs/heads/main refs/heads/release/*" title="space-separated; bare names like main are auto-prefixed refs/heads/. Use refs/heads/* to gate every branch."></label><p class="sub">Space-separated. Use <code>refs/heads/*</code> to gate <b>every</b> branch (required for the auto-PR loop). This gates push content only; branch deletion is separate, so main stays protected while feature branches remain deletable.</p><button type="submit">Save settings</button></form></details>`,
+		htmlEsc(row.Name), htmlEsc(csrf), htmlEsc(row.Name), htmlEsc(row.UpstreamURL), htmlEsc(refs))
 }
 
 // renderRepoIssuesBanner emits a "Issues to address" section listing every
