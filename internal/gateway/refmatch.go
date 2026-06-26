@@ -18,3 +18,18 @@ func isGatedRef(p Policy, refName string) bool {
 	}
 	return false
 }
+
+// isDeleteProtected reports whether refName may NOT be deleted. This is separate
+// from gating: ProtectedRefs decides what gets content-checked, delete-protection
+// decides what can't be removed. The default branch (main/master) is ALWAYS
+// protected; DeleteProtectedRefs adds more. So feature branches gated via
+// refs/heads/* stay deletable, while main can't be dropped by accident.
+func isDeleteProtected(p Policy, refName string) bool {
+	pats := append([]string{"refs/heads/main", "refs/heads/master"}, p.DeleteProtectedRefs...)
+	for _, pat := range pats {
+		if ok, _ := path.Match(pat, refName); ok {
+			return true
+		}
+	}
+	return false
+}

@@ -27,13 +27,14 @@ func (s FilePolicyStore) dir(repo string) string  { return filepath.Join(s.Root,
 func (s FilePolicyStore) file(repo string) string { return filepath.Join(s.dir(repo), "gateway.toml") }
 
 type policyTOML struct {
-	UpstreamURL   string            `toml:"upstream-url"`
-	ProtectedRefs []string          `toml:"protected-refs"`
-	GateAllRefs   bool              `toml:"gate-all-refs,omitempty"`
-	Enabled       bool              `toml:"enabled"`
-	Observe       bool              `toml:"observe"`
-	MaxInputSize  string            `toml:"max-input-size,omitempty"`
-	Notification  *notificationTOML `toml:"notification,omitempty"`
+	UpstreamURL         string            `toml:"upstream-url"`
+	ProtectedRefs       []string          `toml:"protected-refs"`
+	DeleteProtectedRefs []string          `toml:"delete-protected-refs,omitempty"`
+	GateAllRefs         bool              `toml:"gate-all-refs,omitempty"`
+	Enabled             bool              `toml:"enabled"`
+	Observe             bool              `toml:"observe"`
+	MaxInputSize        string            `toml:"max-input-size,omitempty"`
+	Notification        *notificationTOML `toml:"notification,omitempty"`
 }
 
 // notificationTOML mirrors the [notification.*] sections of gateway.toml (spec §7.1).
@@ -124,13 +125,14 @@ func writeGatewayTOML(path string, p Policy) error {
 		return err
 	}
 	if err := toml.NewEncoder(f).Encode(policyTOML{
-		UpstreamURL:   p.UpstreamURL,
-		ProtectedRefs: p.ProtectedRefs,
-		GateAllRefs:   p.GateAllRefs,
-		Enabled:       p.Enabled,
-		Observe:       p.Observe,
-		MaxInputSize:  p.MaxInputSize,
-		Notification:  notificationConfigToTOML(p.Notification),
+		UpstreamURL:         p.UpstreamURL,
+		ProtectedRefs:       p.ProtectedRefs,
+		DeleteProtectedRefs: p.DeleteProtectedRefs,
+		GateAllRefs:         p.GateAllRefs,
+		Enabled:             p.Enabled,
+		Observe:             p.Observe,
+		MaxInputSize:        p.MaxInputSize,
+		Notification:        notificationConfigToTOML(p.Notification),
 	}); err != nil {
 		f.Close()
 		return err
@@ -173,14 +175,15 @@ func (s FilePolicyStore) Load(repo string) (Policy, error) {
 		return Policy{}, fmt.Errorf("gateway: load policy for %q: %w", repo, err)
 	}
 	p := Policy{
-		Repo:          repo,
-		UpstreamURL:   pt.UpstreamURL,
-		ProtectedRefs: pt.ProtectedRefs,
-		GateAllRefs:   pt.GateAllRefs,
-		Enabled:       pt.Enabled,
-		Observe:       pt.Observe,
-		MaxInputSize:  pt.MaxInputSize,
-		PolicyDir:     s.dir(repo),
+		Repo:                repo,
+		UpstreamURL:         pt.UpstreamURL,
+		ProtectedRefs:       pt.ProtectedRefs,
+		DeleteProtectedRefs: pt.DeleteProtectedRefs,
+		GateAllRefs:         pt.GateAllRefs,
+		Enabled:             pt.Enabled,
+		Observe:             pt.Observe,
+		MaxInputSize:        pt.MaxInputSize,
+		PolicyDir:           s.dir(repo),
 	}
 	if err := ValidateReceiveCap(p.MaxInputSize); err != nil {
 		return Policy{}, fmt.Errorf("gateway: policy for %q max-input-size: %w", repo, err)

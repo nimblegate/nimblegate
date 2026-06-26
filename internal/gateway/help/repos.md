@@ -4,7 +4,8 @@ The repos page is where you register a repo for the gateway to guard and manage 
 
 ## Per-row actions
 
-- **Edit policy**: links to [/policy?repo=&lt;name&gt;](/policy) where kits, frame toggles, severity overrides, and whitelist live - plus **Edit repo settings**, a collapsible form to change the **upstream URL** and **protected refs** of an already-registered repo in place (no delete + re-add). Use `refs/heads/*` there to gate every branch (needed for the feature-branch PR / auto-PR flow). Name and credential aren't edited here (rename = delete + re-add; the credential has its own rotate form).
+- **Edit policy**: links to [/policy?repo=&lt;name&gt;](/policy) where kits, frame toggles, severity overrides, and whitelist live.
+- **Edit repo settings**: a collapsible under each repo row to change the **upstream URL** and **protected refs** in place (no delete + re-add). Use `refs/heads/*` to gate every branch (needed for the auto-PR flow). This gates push **content**; branch **deletion** is controlled separately, so `main` stays protected while feature branches gated via `refs/heads/*` remain deletable. Name and credential aren't edited here (rename = delete + re-add; the credential has its own rotate form).
 - **Archive**: soft-removes from the active list; files preserved in `_repos/`. Pushes fail until restored. Archived repos appear in a collapsible panel at the bottom; **Restore** moves them back.
 - **Delete permanently** (archived rows only): the irreversible counterpart to Archive - removes the bare repo (all git history) and the policy/credential dir, freeing the name **and** the upstream URL for re-registration. The upstream remote and other repos are untouched. Use this to fix a mis-registered repo (wrong name, wrong upstream): Archive it, then Delete permanently, then add it again cleanly. Confirm-gated; there is no undo.
 

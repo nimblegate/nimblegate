@@ -77,6 +77,31 @@ func TestDecide_deleteProtectedRejected(t *testing.T) {
 	}
 }
 
+func TestDecide_deleteFeatureBranchAllowed(t *testing.T) {
+	// refs/heads/* gates ALL branches' content, but delete-protection covers only
+	// the default branch, so a feature branch stays deletable.
+	p := Policy{Enabled: true, ProtectedRefs: []string{"refs/heads/*"}}
+	if d := Decide(p, []RefUpdate{{Name: "refs/heads/feature-x", OldRev: "a", NewRev: zeroRev}}, map[string][]engine.CheckResult{}); !d.Accept {
+		t.Errorf("deleting a gated-but-not-delete-protected feature branch must be allowed; got %+v", d.Findings)
+	}
+	if d := Decide(p, []RefUpdate{{Name: "refs/heads/main", OldRev: "a", NewRev: zeroRev}}, map[string][]engine.CheckResult{}); d.Accept {
+		t.Error("deleting main (always protected) must still be rejected")
+	}
+}
+
+func TestDecide_deleteProtectedRefsAddsToDefault(t *testing.T) {
+	p := Policy{Enabled: true, ProtectedRefs: []string{"refs/heads/*"}, DeleteProtectedRefs: []string{"refs/heads/release/*"}}
+	if d := Decide(p, []RefUpdate{{Name: "refs/heads/release/1.0", OldRev: "a", NewRev: zeroRev}}, map[string][]engine.CheckResult{}); d.Accept {
+		t.Error("a ref matching DeleteProtectedRefs must be undeletable")
+	}
+	if d := Decide(p, []RefUpdate{{Name: "refs/heads/main", OldRev: "a", NewRev: zeroRev}}, map[string][]engine.CheckResult{}); d.Accept {
+		t.Error("main stays protected even when DeleteProtectedRefs is set")
+	}
+	if d := Decide(p, []RefUpdate{{Name: "refs/heads/feature-y", OldRev: "a", NewRev: zeroRev}}, map[string][]engine.CheckResult{}); !d.Accept {
+		t.Error("a feature branch not in the protected set must be deletable")
+	}
+}
+
 func TestFindingMessage_longReasonBounded(t *testing.T) {
 	// Build a Reason that is 1000 chars long (all ASCII) - simulates a linter
 	// returning the full semicolon-joined hit list; must exceed findingMessageCap

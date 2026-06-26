@@ -25,17 +25,22 @@ func Decide(p Policy, refs []RefUpdate, resultsByRef map[string][]engine.CheckRe
 	var findings []Finding
 	reject := false
 	for _, r := range refs {
-		if !isGatedRef(p, r.Name) {
+		// Delete-protection is independent of content-gating: a delete-protected
+		// ref can't be removed whether or not its content is gated. A delete has no
+		// content to check, so this is the only thing a delete is evaluated against.
+		if r.IsDelete() {
+			if isDeleteProtected(p, r.Name) {
+				reject = true
+				msgs = append(msgs, fmt.Sprintf("%s: deleting a protected branch is not allowed", r.Name))
+				findings = append(findings, Finding{
+					ID:       "gateway/protected-ref-delete",
+					Severity: "BLOCK",
+					Message:  r.Name + ": deleting a protected branch is not allowed",
+				})
+			}
 			continue
 		}
-		if r.IsDelete() {
-			reject = true
-			msgs = append(msgs, fmt.Sprintf("%s: deleting a protected branch is not allowed", r.Name))
-			findings = append(findings, Finding{
-				ID:       "gateway/protected-ref-delete",
-				Severity: "BLOCK",
-				Message:  r.Name + ": deleting a protected branch is not allowed",
-			})
+		if !isGatedRef(p, r.Name) {
 			continue
 		}
 		for _, res := range resultsByRef[r.Name] {

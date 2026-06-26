@@ -295,7 +295,7 @@ func (h repoLifecycleHandlers) settings(w http.ResponseWriter, r *http.Request) 
 		Event: "settings-update", Repo: name, OK: true,
 		Payload: map[string]any{"upstream": upstream, "protected_refs": p.ProtectedRefs},
 	})
-	redirectAfterAction(w, r, "/policy?repo="+name)
+	redirectAfterAction(w, r, "/repos")
 }
 
 // groups replaces the repo's [frames].enabled list with exactly the groups

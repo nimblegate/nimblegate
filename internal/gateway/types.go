@@ -28,9 +28,14 @@ type Policy struct {
 	UpstreamURL   string   // where accepted pushes are relayed
 	ProtectedRefs []string // glob patterns over full ref names; gated if matched
 	GateAllRefs   bool     // true → gate EVERY ref (fail-closed on all branches), ignoring ProtectedRefs
-	Enabled       bool     // false → pure pass-through (relay, no gate)
-	Observe       bool     // true → check + record findings but never reject; relay anyway (advisory mode)
-	PolicyDir     string   // dir holding the gateway-held appframes.toml (+ optional .appframes/)
+	// DeleteProtectedRefs lists ADDITIONAL refs that may NOT be deleted; the
+	// default branch (main/master) is always protected. Separate from gating: a
+	// ref can be content-checked on push yet still deletable, so feature branches
+	// gated via ProtectedRefs=refs/heads/* stay cleanable.
+	DeleteProtectedRefs []string
+	Enabled             bool   // false → pure pass-through (relay, no gate)
+	Observe             bool   // true → check + record findings but never reject; relay anyway (advisory mode)
+	PolicyDir           string // dir holding the gateway-held appframes.toml (+ optional .appframes/)
 
 	// MaxInputSize is the pack-file size cap applied to git-receive-pack via
 	// `git config receive.maxInputSize`. Format: empty (no cap), "0" (no cap),
@@ -70,6 +75,11 @@ func (p Policy) Validate() error {
 	for _, pat := range p.ProtectedRefs {
 		if _, err := path.Match(pat, ""); err != nil {
 			return fmt.Errorf("invalid protected-ref pattern %q: %w", pat, err)
+		}
+	}
+	for _, pat := range p.DeleteProtectedRefs {
+		if _, err := path.Match(pat, ""); err != nil {
+			return fmt.Errorf("invalid delete-protected-ref pattern %q: %w", pat, err)
 		}
 	}
 	return nil
