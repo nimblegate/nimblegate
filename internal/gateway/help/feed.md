@@ -16,6 +16,7 @@ The status cell stacks information vertically. Each push always shows the decisi
 - **Notification chip**: appears when the notification rail was engaged. :icon-notif: delivered / :icon-pending: queued / :icon-warn: deadlettered. Hover for the message.
 - **Findings list**: one pill per fired frame: `BLOCK security/no-private-keys-in-repo`. Click any pill to expand its reason. The pill color matches severity.
 - **:icon-loop: N/M @bot pill**: appears when this push opened or continued a fix-loop on the upstream PR. The pill mirrors the BLOCK/WARN geometry so the row stays compact; `N` is the current attempt, `M` is the configured max.
+- **no PR comment: notifications off [Enable]**: appears on a rejected push for a repo that has an upstream but the notification rail switched off, so no PR comment was posted. The default is off, so this is the reminder that the auto-PR loop won't fire until you enable it; the link opens the per-repo config. Operator-side only - the agent that pushed never sees it.
 
 ## Reset column
 

@@ -109,6 +109,34 @@ func applyActiveLoops(vm *gateway.ViewModel, loops map[string]*gateway.ActiveLoo
 	}
 }
 
+// applyNotifOff annotates the first rejected row per repo that has an upstream
+// but notifications off (and no active loop) with a nudge explaining no PR
+// comment was posted. Mirrors applyActiveLoops: operator-side only, one note
+// per repo. Closes the silent gap where the default-off rail produces no
+// feedback and the operator wonders why the auto-PR loop did nothing.
+func applyNotifOff(vm *gateway.ViewModel, policyRoot string) {
+	used := map[string]bool{}
+	for i := range vm.Rows {
+		r := &vm.Rows[i]
+		if r.Accept || used[r.Repo] {
+			continue
+		}
+		if r.ActiveLoop != nil {
+			used[r.Repo] = true // loop running = notifications on; no nudge for this repo
+			continue
+		}
+		used[r.Repo] = true
+		p, err := (gateway.FilePolicyStore{Root: policyRoot}).Load(r.Repo)
+		if err != nil || p.UpstreamURL == "" {
+			continue // no upstream = no PR host; the nudge would be meaningless
+		}
+		if p.Notification != nil && p.Notification.Enabled {
+			continue // rail is on; the loop is wired
+		}
+		r.NotifOff = &gateway.NotifOffView{EnableURL: "/auto-pr/config?repo=" + url.QueryEscape(r.Repo)}
+	}
+}
+
 // feedResetLoopHandler removes the PRState file for (repo, pr). POST-only
 // (CSRF-checked when --allow-edits is on). No-op when the state file is
 // absent - operator may have clicked twice or already accepted the PR.

@@ -49,6 +49,11 @@ type DecisionRow struct {
 	// reset the loop with one click. Nil = no active state file for this PR
 	// (the typical case: PR accepted or never engaged the rail).
 	ActiveLoop *ActiveLoopView
+	// NotifOff is set on a rejected row when the repo could run the auto-PR
+	// loop (an upstream is configured) but the notification rail is off, so no
+	// PR comment fired. Nil = notifications on, no upstream, or an active loop
+	// is already shown. Surfaces the silent default-off operator-side only.
+	NotifOff *NotifOffView
 }
 
 // NotificationStatusView is the row-level rendering data for the
@@ -70,6 +75,13 @@ type ActiveLoopView struct {
 	MaxAttempts  int
 	CurrentBot   string
 	ResetURL     string // POST target - /feed/reset-loop?repo=<r>&pr=<n>
+}
+
+// NotifOffView is the row-level nudge shown when a rejected push produced no PR
+// comment because the repo's notification rail is off. EnableURL links to the
+// per-repo notification config so the operator can turn it on in one click.
+type NotifOffView struct {
+	EnableURL string
 }
 
 // RefDisplay is the feed-friendly view of a RefUpdate: ref name plus a short

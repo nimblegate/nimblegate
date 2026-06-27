@@ -271,3 +271,40 @@ func TestRenderGwFeed_legacyRowsRenderUnchanged(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyNotifOff(t *testing.T) {
+	dir := t.TempDir()
+	store := gateway.FilePolicyStore{Root: dir}
+	save := func(p gateway.Policy) {
+		if err := os.MkdirAll(filepath.Join(dir, p.Repo), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Save(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save(gateway.Policy{Repo: "off", UpstreamURL: "https://x.test/off.git"})
+	save(gateway.Policy{Repo: "on", UpstreamURL: "https://x.test/on.git", Notification: &gateway.NotificationConfig{Enabled: true}})
+	save(gateway.Policy{Repo: "local"})
+
+	vm := &gateway.ViewModel{Rows: []gateway.DecisionRow{
+		{Repo: "off", Accept: false},
+		{Repo: "on", Accept: false},
+		{Repo: "local", Accept: false},
+		{Repo: "off", Accept: true},
+	}}
+	applyNotifOff(vm, dir)
+
+	if vm.Rows[0].NotifOff == nil {
+		t.Error("repo with upstream + notifications off must get the nudge")
+	}
+	if vm.Rows[1].NotifOff != nil {
+		t.Error("repo with notifications on must NOT get the nudge")
+	}
+	if vm.Rows[2].NotifOff != nil {
+		t.Error("repo without an upstream must NOT get the nudge")
+	}
+	if vm.Rows[3].NotifOff != nil {
+		t.Error("accept rows must never get the nudge")
+	}
+}
