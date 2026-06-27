@@ -62,6 +62,10 @@ The per-repo silenced findings: `file:line` + frame ID + reason. Survives frame 
 - **Remove**: deletes the entry; the next push that hits this file:line will re-fire the frame.
 - Notification rail editing used to live on this page; it moved to [Auto-PR · Setup](/auto-pr/config) so it can grow without crowding policy.
 
+## Time-prevented estimates
+
+Per-tier hours-per-hit values that weight the [Stats](/stats) "time saved" estimate. One number box per frame tier (1-6); a tier left at its built-in value is marked **default**, an edited one **override**. These are a reporting model only - they do **not** affect gating or relay. Set them per repo if your team's real debugging costs differ from the conservative defaults (Tier 1 = 4h, Tier 2 = 2h, Tier 3 = 0.5h...). Saving writes the `[time-estimates]` section into the repo's `appframes.toml`.
+
 ## Common gotchas
 
 - Toggles take effect on the **next push** to this repo; already-in-flight pushes use the policy that was loaded when the push started.

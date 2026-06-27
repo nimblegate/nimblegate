@@ -619,6 +619,7 @@ var policyTmpl = func() *template.Template {
 	// credentialSection is kept defined here so /repos can reuse the same form shape
 	// by invoking it with a data value that carries Repo, AllowEdits, and CSRFToken.
 	template.Must(t.New("credentialSection").Parse(`{{if and .AllowEdits .Repo}}<details class="frame gw-credential"><summary class="gw-section-head">Add or rotate upstream credential</summary><form class="gw-credform" hx-post="/policy/repo/credential" hx-headers='{"X-CSRF-Token":"{{.CSRFToken}}"}' hx-encoding="application/x-www-form-urlencoded"><input type="hidden" name="repo" value="{{.Repo}}"><label>New credential<input type="password" name="upstream_credential" autocomplete="new-password" placeholder="PAT / deploy token: overwrites the current credential"></label><button type="submit">Update credential</button><p class="gw-credform-note">Stored at <code>&lt;policy-root&gt;/{{.Repo}}/credential</code> with mode 0600. The previous value is gone after submit; no audit-log surface beyond a "credential-update" event with no payload.</p></form></details>{{end}}`))
+	template.Must(t.New("timeEstimatesSection").Parse(`{{if and .AllowEdits .Repo}}<details class="frame gw-time-estimates"><summary class="gw-section-head">Time-prevented estimates</summary><p class="gw-te-hint">Hours of debugging saved per blocking finding, by frame tier. These weight the <a href="/stats">/stats</a> "time saved" estimate only - they do not affect gating. A tier left at its built-in number is marked "default".</p><form hx-post="/policy/repo/time-estimates" hx-headers='{"X-CSRF-Token":"{{.CSRFToken}}"}' hx-encoding="application/x-www-form-urlencoded"><input type="hidden" name="repo" value="{{.Repo}}"><div class="gw-te-grid">{{range .TimeEstimates}}<label class="gw-te-row"><span class="gw-te-tier">Tier {{.Tier}}</span><input type="number" step="0.05" min="0" name="tier-{{.Tier}}" value="{{printf "%g" .Value}}"><span class="sub">{{if .IsDefault}}default{{else}}override{{end}}</span></label>{{end}}</div><button type="submit">Save estimates</button></form></details>{{end}}`))
 	template.Must(t.New("scanBanner").Parse(`{{with .ScanRec}}{{if not .Dismissed}}<div class="frame gw-scan-banner"><h2>Scan recommendation</h2><div class="sub">scanned {{.ScannedAt}}</div><div>recommended: {{range .RecommendedGroups}}<span class="gw-group">{{.Name}}{{if not .Always}} (would flag {{.WouldFlag}}){{end}}</span> {{end}}</div>{{if $.AllowEdits}}<div class="gw-scan-actions"><button hx-post="/policy/repo/scan-apply" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Apply recommended</button><button hx-post="/policy/repo/scan-dismiss" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Dismiss</button><button hx-post="/policy/repo/scan-rescan" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Rescan now</button></div>{{end}}</div>{{end}}{{end}}`))
 	template.Must(t.New("archivedPanel").Parse(`{{if .Archived}}<details class="frame gw-archived"><summary>Archived repos ({{len .Archived}})</summary>{{range .Archived}}<div class="gw-archived-row"><span>{{.}}</span>{{if $.AllowEdits}}<form hx-post="/policy/repo/restore" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'><input type="hidden" name="name" value="{{.}}"><button type="submit">Restore</button></form><form hx-post="/policy/repo/delete" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-confirm="Permanently delete {{.}}? This removes its bare repo (all git history) and policy/credential from the gateway. The upstream is untouched and other repos are unaffected. This cannot be undone."><input type="hidden" name="name" value="{{.}}"><button type="submit" class="danger">Delete permanently</button></form>{{end}}</div>{{end}}</details>{{end}}`))
 	template.Must(t.New("editRepoForm").Parse(`<details class="frame gw-edit-repo"><summary class="gw-section-head">+ Edit existing repo in gateway</summary>{{if .Repos}}<form><label>Repo: <select name="repo" hx-get="/policy" hx-target="body" hx-swap="outerHTML"><option value="">(pick a repo to edit)</option>{{range .Repos}}<option value="{{.}}"{{if eq . $.Repo}} selected{{end}}>{{.}}</option>{{end}}</select></label></form>{{if .Repo}}<p class="warn">{{icon "warn"}} You&#39;re editing live config for <b>{{.Repo}}</b>. Frame toggle changes take effect on next push to this repo.</p>{{end}}{{else}}<p class="sub">No repos registered yet. Add one above.</p>{{end}}</details>`))
@@ -654,6 +655,7 @@ type policyPageData struct {
 	Whitelisted    []whitelistRow
 	UpstreamURL    string // current upstream, pre-fills the Edit repo settings form
 	ProtectedRefs  string // current protected refs (space-joined), pre-fills the form
+	TimeEstimates  []effectiveTimeEstimate // per-tier hours (override or default) for the editor
 }
 
 // renderPolicyPage writes the /policy page content fragment (without shell chrome)
@@ -697,6 +699,10 @@ func renderPolicyPage(w io.Writer, vm policyVM, opts policyPageOpts) error {
 			data.UpstreamURL = p.UpstreamURL
 			data.ProtectedRefs = strings.Join(p.ProtectedRefs, " ")
 		}
+		// Resolve per-tier time estimates (override or built-in default) for the editor.
+		if te, err := resolveTimeEstimates(opts.PolicyRoot, vm.Repo); err == nil {
+			data.TimeEstimates = te
+		}
 	}
 
 	// Section 1: page notice + heading + just-registered banner + scan banner.
@@ -720,6 +726,19 @@ func renderPolicyPage(w io.Writer, vm policyVM, opts policyPageOpts) error {
 	// Sits between the tabs and the tab content so the "which repo am I
 	// editing?" question is answered right next to the content.
 	renderActiveRepoSection(w, vm, data)
+
+	// Time-prevented estimates editor: per-repo tier-hour overrides for the
+	// /stats time-saved model. Backend shipped in v0.1.0; the render was never
+	// wired in the category-tree rewrite, so reconnect it here.
+	if vm.Repo != "" && opts.AllowEdits {
+		var teBuf bytes.Buffer
+		if err := policyTmpl.ExecuteTemplate(&teBuf, "timeEstimatesSection", data); err != nil {
+			return err
+		}
+		if _, err := w.Write(teBuf.Bytes()); err != nil {
+			return err
+		}
+	}
 
 	// Section 4: tab content (only the active tab).
 	if vm.Repo != "" {

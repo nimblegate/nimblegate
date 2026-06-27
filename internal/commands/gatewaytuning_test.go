@@ -1287,3 +1287,26 @@ func TestPolicyPage_NoMoreCredentialSection(t *testing.T) {
 		t.Error("credential form must not appear on /policy (moved to /repos)")
 	}
 }
+
+func TestPolicyPage_timeEstimatesEditor(t *testing.T) {
+	root := t.TempDir()
+	body := renderPolicyBody(t, root, "demo", policyPageOpts{
+		AllowEdits: true, CSRFToken: "tok", Repos: []string{"demo"}, PolicyRoot: root,
+	})
+	if !strings.Contains(body, "Time-prevented estimates") {
+		t.Error("time-estimates editor heading missing on /policy")
+	}
+	if !strings.Contains(body, `name="tier-1"`) || !strings.Contains(body, `name="tier-6"`) {
+		t.Errorf("tier inputs missing (grid present: %v)", strings.Contains(body, "gw-te-grid"))
+	}
+	if !strings.Contains(body, `/policy/repo/time-estimates`) {
+		t.Error("editor form must POST to the existing handler")
+	}
+
+	ro := renderPolicyBody(t, root, "demo", policyPageOpts{
+		AllowEdits: false, Repos: []string{"demo"}, PolicyRoot: root,
+	})
+	if strings.Contains(ro, "Time-prevented estimates") {
+		t.Error("editor must not render without --allow-edits")
+	}
+}
