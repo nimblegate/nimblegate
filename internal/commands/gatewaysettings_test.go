@@ -6,11 +6,41 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"nimblegate/internal/gateway"
 )
+
+func TestRenderAboutTabEditableShowsForm(t *testing.T) {
+	html := renderAboutTab(gateway.License{}, true, "csrf-token-xyz")
+	for _, want := range []string{
+		"I hold a commercial license",
+		`name="order_ref"`,
+		"/settings/license",
+		"csrf-token-xyz",
+		"Get a license",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("editable about tab missing %q", want)
+		}
+	}
+}
+
+func TestRenderAboutTabReadOnlyHasNoWriteSurface(t *testing.T) {
+	html := renderAboutTab(gateway.License{Commercial: true, OrderRef: "LS-1"}, false, "csrf-token-xyz")
+	if strings.Contains(html, "hx-post") {
+		t.Errorf("read-only about tab must not contain hx-post")
+	}
+	if strings.Contains(html, "/settings/license") {
+		t.Errorf("read-only about tab must not reference the write route")
+	}
+	if !strings.Contains(html, "Commercial, licensed") {
+		t.Errorf("read-only about tab should state the current licensed status")
+	}
+}
 
 func TestSettingsPage_SystemTabDefault(t *testing.T) {
 	rec := httptest.NewRecorder()
-	serveSettings("/etc/nimblegate-gateway/repos", "/srv/gateway/repos", "setup-token", false)(rec, httptest.NewRequest("GET", "/settings", nil))
+	serveSettings("/etc/nimblegate-gateway/repos", "/srv/gateway/repos", "setup-token", false, "")(rec, httptest.NewRequest("GET", "/settings", nil))
 	b := rec.Body.String()
 	for _, want := range []string{
 		`class="gw-rail"`,
@@ -40,7 +70,7 @@ func TestSettingsPage_SystemTabDefault(t *testing.T) {
 
 func TestSettingsPage_DisplayTab(t *testing.T) {
 	rec := httptest.NewRecorder()
-	serveSettings("/etc/nimblegate-gateway/repos", "/srv/gateway/repos", "setup-token", false)(rec, httptest.NewRequest("GET", "/settings?tab=display", nil))
+	serveSettings("/etc/nimblegate-gateway/repos", "/srv/gateway/repos", "setup-token", false, "")(rec, httptest.NewRequest("GET", "/settings?tab=display", nil))
 	b := rec.Body.String()
 	for _, want := range []string{
 		`href="/settings?tab=display" class="autopr-tab active">Display</a>`,
@@ -62,7 +92,7 @@ func TestSettingsPage_DisplayTab(t *testing.T) {
 
 func TestSettingsPage_AboutTab(t *testing.T) {
 	rec := httptest.NewRecorder()
-	serveSettings("/etc/nimblegate-gateway/repos", "/srv/gateway/repos", "setup-token", false)(rec, httptest.NewRequest("GET", "/settings?tab=about", nil))
+	serveSettings("/etc/nimblegate-gateway/repos", "/srv/gateway/repos", "setup-token", false, "")(rec, httptest.NewRequest("GET", "/settings?tab=about", nil))
 	b := rec.Body.String()
 	for _, want := range []string{
 		`href="/settings?tab=about" class="autopr-tab active">About</a>`,

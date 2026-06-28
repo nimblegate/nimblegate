@@ -250,7 +250,7 @@ func gatewayDashboard(args []string) int {
 	mux.HandleFunc("/auto-pr/retry", autoPRRetryHandler(*policyRoot, *allowEdits, func() string { return token }))
 	mux.HandleFunc("/frames", serveGatewayFrames(*policyRoot))
 	mux.HandleFunc("/events", serveGatewayEvents(*policyRoot))
-	mux.HandleFunc("/settings", serveSettings(*policyRoot, *reposRoot, *authModeFlag, *allowEdits))
+	mux.HandleFunc("/settings", serveSettings(*policyRoot, *reposRoot, *authModeFlag, *allowEdits, token))
 	mux.HandleFunc("/help", help.Handler())
 	mux.HandleFunc("/static/htmx.min.js", serveHtmx)
 	mux.HandleFunc("/static/gwshell.js", serveGwShellJS)
