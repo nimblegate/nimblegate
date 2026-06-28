@@ -54,7 +54,7 @@ func localHeads(gitDir string) (map[string]string, error) {
 
 // remoteHeads maps refs/heads/* -> sha at a remote via ls-remote.
 func remoteHeads(authedURL string) (map[string]string, error) {
-	out, err := exec.Command("git", "ls-remote", "--heads", authedURL).Output()
+	out, err := exec.Command("git", "ls-remote", "--heads", "--", authedURL).Output()
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -208,5 +209,20 @@ func TestSafeUpstreamURL(t *testing.T) {
 		if safeUpstreamURL(b) {
 			t.Errorf("safeUpstreamURL(%q)=true want false", b)
 		}
+	}
+}
+
+func TestGitBareNeutralizesDashLeadingBareDir(t *testing.T) {
+	// A bareDir that begins with "-" must never reach git as an option-looking
+	// argument. gitBare "./"-prefixes it so git treats it as a path.
+	cmd := gitBare("-evil", "status")
+	for _, a := range cmd.Args {
+		if a == "-evil" || a == "safe.directory=-evil" {
+			t.Fatalf("bareDir reached git unneutralized: args=%v", cmd.Args)
+		}
+	}
+	joined := strings.Join(cmd.Args, " ")
+	if !strings.Contains(joined, "./-evil") {
+		t.Fatalf("expected ./-evil in args, got %v", cmd.Args)
 	}
 }
