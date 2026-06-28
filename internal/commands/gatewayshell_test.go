@@ -99,6 +99,20 @@ func TestGatewayMode(t *testing.T) {
 	}
 }
 
+func TestLicenseBadgeRendersPerState(t *testing.T) {
+	rec := httptest.NewRecorder()
+	renderGwShell(rec, gwLayout{Title: "t", Chrome: chromeData{LicenseCommercial: false}})
+	if !strings.Contains(rec.Body.String(), "Non-commercial use") {
+		t.Errorf("default chrome should show the non-commercial badge")
+	}
+
+	rec2 := httptest.NewRecorder()
+	renderGwShell(rec2, gwLayout{Title: "t", Chrome: chromeData{LicenseCommercial: true}})
+	if !strings.Contains(rec2.Body.String(), ">Licensed<") {
+		t.Errorf("commercial chrome should show the Licensed badge")
+	}
+}
+
 // TestLocalDashboardUnaffected guards the invariant that the gateway shell CSS
 // lives only in gwShellStyle, never in the shared dashStyle (which the local
 // `nimblegate dashboard` also renders). If a future edit moves shell CSS into
