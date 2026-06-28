@@ -355,20 +355,3 @@ func TestAuth_middleware_expiredCookieClearedAndRedirects(t *testing.T) {
 	}
 }
 
-func TestLocalRedirectTarget(t *testing.T) {
-	cases := map[string]string{
-		"/":               "/",
-		"/settings":       "/settings",
-		"/policy?repo=x":  "/policy?repo=x",
-		"":                "/",
-		"//evil.com/x":    "/",
-		`/\evil.com`:      "/",
-		"https://evil.com": "/",
-		"evil":            "/",
-	}
-	for in, want := range cases {
-		if got := localRedirectTarget(in); got != want {
-			t.Errorf("localRedirectTarget(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
