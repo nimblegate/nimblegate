@@ -397,6 +397,9 @@ func gatewayDashboard(args []string) int {
 		te := timeEstimatesHandlers{policyRoot: *policyRoot, token: token}
 		mux.HandleFunc("/policy/repo/time-estimates", te.update)
 
+		lh := licenseHandlers{policyRoot: *policyRoot, token: token}
+		mux.HandleFunc("/settings/license", lh.save)
+
 		nh := notifRailHandlers{policyRoot: *policyRoot, token: token}
 		mux.HandleFunc("/policy/notification/save", nh.save)
 		mux.HandleFunc("/policy/notification/generate-secret", nh.generateSecret)
