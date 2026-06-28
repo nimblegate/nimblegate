@@ -69,7 +69,9 @@ func newestActiveLoop(policyRoot, repo, stateDir string) *gateway.ActiveLoopView
 		if s.Loop.Exhausted {
 			continue // exhausted loops are no longer "active"; nothing to reset that helps
 		}
-		if best == nil || s.Loop.AttemptCount > best.Loop.AttemptCount {
+		if best == nil ||
+			s.Loop.AttemptCount > best.Loop.AttemptCount ||
+			(s.Loop.AttemptCount == best.Loop.AttemptCount && pr > bestPR) {
 			cp := s
 			best = &cp
 			bestPR = pr

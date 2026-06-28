@@ -91,7 +91,8 @@ def main():
 
     for a in ASSETS:
         try:
-            open(os.path.join(OUT, a.lstrip("/")), "wb").write(fetch(BASE + a))
+            with open(os.path.join(OUT, a.lstrip("/")), "wb") as fh:
+                fh.write(fetch(BASE + a))
         except Exception as e:
             print(f"  warn: asset {a}: {e}", file=sys.stderr)
 
@@ -128,7 +129,8 @@ def main():
         rel = relpath(link)
         dest = os.path.join(OUT, rel, "index.html") if rel else os.path.join(OUT, "index.html")
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        open(dest, "w", encoding="utf-8").write(html)
+        with open(dest, "w", encoding="utf-8") as fh:
+            fh.write(html)
 
     n = sum(1 for _, _, fs in os.walk(OUT) for f in fs if f == "index.html")
     print(f"captured {n} pages → {OUT}")
