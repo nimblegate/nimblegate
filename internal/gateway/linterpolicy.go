@@ -25,6 +25,9 @@ type LinterPolicy struct {
 // LoadLinterPolicy reads the repo's appframes.toml linters via config.LoadProject.
 // Missing file → empty policy, no error.
 func LoadLinterPolicy(policyRoot, repo string) (LinterPolicy, error) {
+	if !safeRepoName(repo) {
+		return LinterPolicy{}, fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	path := framePolicyPath(policyRoot, repo) // same appframes.toml
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -84,6 +87,9 @@ func (p LinterPolicy) SetEnabled(name string, enabled bool) LinterPolicy {
 // Save writes the repo's appframes.toml preserving the existing frames section
 // and the [time-estimates] section.
 func (p LinterPolicy) Save(policyRoot, repo string) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	fp, err := LoadFramePolicy(policyRoot, repo)
 	if err != nil {
 		return err
@@ -113,6 +119,9 @@ type linterTOML struct {
 // frames policy, the linters policy, and the per-tier time-estimates override.
 // Any section may be empty.
 func writePolicyTOML(policyRoot, repo string, fp FramePolicy, lp LinterPolicy, te config.TimeEstimates) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	dir := filepath.Join(policyRoot, repo)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err

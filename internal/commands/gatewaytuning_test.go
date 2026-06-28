@@ -1288,6 +1288,15 @@ func TestPolicyPage_NoMoreCredentialSection(t *testing.T) {
 	}
 }
 
+func TestRenderFrameRowEscapesOutput(t *testing.T) {
+	rec := httptest.NewRecorder()
+	renderFrameRow(rec, "repo", `x"><script>alert(1)</script>`, `BLOCK`, true)
+	body := rec.Body.String()
+	if strings.Contains(body, "<script>alert(1)</script>") {
+		t.Errorf("frameID must be HTML-escaped in the saved-row output")
+	}
+}
+
 func TestPolicyPage_timeEstimatesEditor(t *testing.T) {
 	root := t.TempDir()
 	body := renderPolicyBody(t, root, "demo", policyPageOpts{

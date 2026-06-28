@@ -195,3 +195,18 @@ func hasSeedIssue(issues []SkeletonIssue) bool {
 	}
 	return false
 }
+
+func TestSafeUpstreamURL(t *testing.T) {
+	good := []string{"https://github.com/o/r.git", "http://h/r.git", "ssh://git@h/r.git", "git@github.com:o/r.git", "git://h/r.git"}
+	bad := []string{"", "--upload-pack=touch /tmp/x", "-oProxyCommand=x", "file:///etc/passwd", "ext::sh -c x"}
+	for _, g := range good {
+		if !safeUpstreamURL(g) {
+			t.Errorf("safeUpstreamURL(%q)=false want true", g)
+		}
+	}
+	for _, b := range bad {
+		if safeUpstreamURL(b) {
+			t.Errorf("safeUpstreamURL(%q)=true want false", b)
+		}
+	}
+}

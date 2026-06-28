@@ -105,6 +105,9 @@ func defaultDeliveryBackoff() []time.Duration {
 }
 
 func (s FilePolicyStore) Save(p Policy) error {
+	if !safeRepoName(p.Repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", p.Repo)
+	}
 	if err := os.MkdirAll(s.dir(p.Repo), 0o755); err != nil {
 		return fmt.Errorf("gateway: mkdir for %q: %w", p.Repo, err)
 	}
@@ -148,6 +151,9 @@ func writeGatewayTOML(path string, p Policy) error {
 // SetEnabled flips a repo's gating on/off (gateway.toml enabled), preserving the
 // rest of the policy. Errors if the repo isn't registered.
 func (s FilePolicyStore) SetEnabled(repo string, enabled bool) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	p, err := s.Load(repo)
 	if err != nil {
 		return err
@@ -161,6 +167,9 @@ func (s FilePolicyStore) SetEnabled(repo string, enabled bool) error {
 // relays anyway), preserving the rest of the policy. Errors if the repo isn't
 // registered.
 func (s FilePolicyStore) SetObserve(repo string, observe bool) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	p, err := s.Load(repo)
 	if err != nil {
 		return err
@@ -170,6 +179,9 @@ func (s FilePolicyStore) SetObserve(repo string, observe bool) error {
 }
 
 func (s FilePolicyStore) Load(repo string) (Policy, error) {
+	if !safeRepoName(repo) {
+		return Policy{}, fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	var pt policyTOML
 	if _, err := toml.DecodeFile(s.file(repo), &pt); err != nil {
 		return Policy{}, fmt.Errorf("gateway: load policy for %q: %w", repo, err)

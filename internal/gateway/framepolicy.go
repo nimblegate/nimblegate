@@ -27,6 +27,9 @@ func framePolicyPath(policyRoot, repo string) string {
 // LoadFramePolicy reads <policyRoot>/<repo>/appframes.toml via the same parser
 // the engine uses. Missing file → empty policy, no error.
 func LoadFramePolicy(policyRoot, repo string) (FramePolicy, error) {
+	if !safeRepoName(repo) {
+		return FramePolicy{}, fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	path := framePolicyPath(policyRoot, repo)
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -52,6 +55,9 @@ func LoadFramePolicy(policyRoot, repo string) (FramePolicy, error) {
 // findings). Missing file → zero value (all tier defaults), no error - matching
 // LoadFramePolicy's missing-file behavior.
 func LoadTimeEstimates(policyRoot, repo string) (config.TimeEstimates, error) {
+	if !safeRepoName(repo) {
+		return config.TimeEstimates{}, fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	path := framePolicyPath(policyRoot, repo)
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -81,6 +87,9 @@ func (p FramePolicy) WithSeverity(frameID, severity string) FramePolicy {
 // linters and [time-estimates] sections. Routes through writePolicyTOML so all
 // three sections coexist.
 func (p FramePolicy) Save(policyRoot, repo string) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	lp, err := LoadLinterPolicy(policyRoot, repo)
 	if err != nil {
 		return err
@@ -96,6 +105,9 @@ func (p FramePolicy) Save(policyRoot, repo string) error {
 // existing [frames] and [linters] sections. te is the full replacement -
 // any tier whose pointer is nil reverts to the built-in default.
 func SaveTimeEstimates(policyRoot, repo string, te config.TimeEstimates) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	fp, err := LoadFramePolicy(policyRoot, repo)
 	if err != nil {
 		return err

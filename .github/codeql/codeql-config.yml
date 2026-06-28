@@ -1,0 +1,9 @@
+name: "nimblegate CodeQL config"
+
+# Frame test fixtures under testdata/ and stdlib positives/ deliberately contain
+# insecure patterns (mixed-content scripts, fake keys, control characters) so the
+# frames that detect them have something to match. They are not shipped code.
+paths-ignore:
+  - "**/testdata/**"
+  - "internal/stdlib/**/positives/**"
+  - "internal/stdlib/**/negatives/**"

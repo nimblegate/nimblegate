@@ -9,6 +9,19 @@ import (
 	"strings"
 )
 
+// safeRepoName reports whether name is a safe single-segment repo name: it has
+// no path separators, no traversal, and no reserved prefix. It is the barrier
+// for every path built from a (user-provided) repo name. Mirrors the historic
+// guard inlined in resolveRepoBare.
+func safeRepoName(name string) bool {
+	if name == "" || name == "." || name == ".." ||
+		strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") ||
+		strings.ContainsAny(name, `/\`) {
+		return false
+	}
+	return true
+}
+
 // resolveRepoBare maps a logical repo name to the canonical path of its bare
 // repo, via the activation symlink (<reposRoot>/<name>.git -> _repos/<name>.git
 // that `gateway add` creates). It succeeds only when the repo is ACTIVE (the
@@ -23,9 +36,7 @@ import (
 //     location. Logical names that could traverse (slashes, "..", leading "." or
 //     "_") are rejected before any filesystem access.
 func resolveRepoBare(reposRoot, name string) (string, error) {
-	if name == "" || name == "." || name == ".." ||
-		strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") ||
-		strings.ContainsAny(name, `/\`) {
+	if !safeRepoName(name) {
 		return "", fmt.Errorf("invalid repo name %q", name)
 	}
 	link := filepath.Join(reposRoot, name+".git")
