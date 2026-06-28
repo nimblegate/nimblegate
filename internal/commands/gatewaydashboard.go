@@ -250,7 +250,7 @@ func gatewayDashboard(args []string) int {
 	mux.HandleFunc("/auto-pr/retry", autoPRRetryHandler(*policyRoot, *allowEdits, func() string { return token }))
 	mux.HandleFunc("/frames", serveGatewayFrames(*policyRoot))
 	mux.HandleFunc("/events", serveGatewayEvents(*policyRoot))
-	mux.HandleFunc("/settings", serveSettings(*policyRoot, *reposRoot, *authModeFlag, *allowEdits))
+	mux.HandleFunc("/settings", serveSettings(*policyRoot, *reposRoot, *authModeFlag, *allowEdits, token))
 	mux.HandleFunc("/help", help.Handler())
 	mux.HandleFunc("/static/htmx.min.js", serveHtmx)
 	mux.HandleFunc("/static/gwshell.js", serveGwShellJS)
@@ -396,6 +396,9 @@ func gatewayDashboard(args []string) int {
 
 		te := timeEstimatesHandlers{policyRoot: *policyRoot, token: token}
 		mux.HandleFunc("/policy/repo/time-estimates", te.update)
+
+		lh := licenseHandlers{policyRoot: *policyRoot, token: token}
+		mux.HandleFunc("/settings/license", lh.save)
 
 		nh := notifRailHandlers{policyRoot: *policyRoot, token: token}
 		mux.HandleFunc("/policy/notification/save", nh.save)

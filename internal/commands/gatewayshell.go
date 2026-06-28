@@ -29,7 +29,8 @@ type chromeData struct {
 	Repos         []string // for the global repo switch
 	ActiveRepo    string   // "" = all repos
 	ActiveSection string   // feed | stats | reports | frames | policy | ssh-keys
-	AuthEnabled   bool     // true when --auth != off; toggles the Sign-out button in gwtop
+	AuthEnabled       bool // true when --auth != off; toggles the Sign-out button in gwtop
+	LicenseCommercial bool // true -> operator attested a commercial license; flips the top-bar badge
 }
 
 // gwLayout is one rendered gateway page: a content fragment wrapped in the shell.
@@ -69,6 +70,9 @@ const gwShellStyle = `<style>
  .gw-top .gw-repolabel{font-size:12px;color:var(--gw-text-muted);font-weight:500;margin-right:-6px}
  .gw-top .spacer{flex:1}
  .gw-top .modebadge{font-size:11px;padding:2px 9px;border-radius:10px;background:var(--gw-bg-control);color:var(--gw-text-muted)}
+ .gw-top .gw-licbadge{font-size:11px;padding:2px 9px;border-radius:10px;background:var(--gw-bg-control);color:var(--gw-text-muted);text-decoration:none;border:1px solid var(--gw-border)}
+ .gw-top .gw-licbadge:hover{border-color:var(--gw-border-hover);color:var(--gw-text-soft)}
+ .gw-top .gw-licbadge.lic{color:var(--gw-ok-text);border-color:var(--gw-ok-border)}
  .gw-menu{display:none;align-items:center;justify-content:center;background:none;border:0;color:var(--gw-text-muted);cursor:pointer;padding:4px;margin-right:2px}
  .gw-menu svg{width:22px;height:22px;display:block}
  .gw-menu:hover{color:var(--gw-text)}
@@ -595,7 +599,7 @@ var gwLayoutTmpl = func() *template.Template {
 <a href="/settings" class="gw-railitem gw-bottom{{if eq .ActiveSection "settings"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="label">Settings</span></a>
 <button class="gw-railtoggle" data-rail-toggle><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg></span><span class="label">collapse</span></button>
 </nav>`))
-	template.Must(t.New("gwtop").Parse(`<div class="gw-top"><button class="gw-menu" data-rail-open aria-label="open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button><label class="gw-repolabel" for="gw-topbar-repo">Repo:</label><select id="gw-topbar-repo" data-repo-switch><option value="">all repos</option>{{$cur := .ActiveRepo}}{{range .Repos}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}</select><span class="modebadge" title="gateway mode (read-only)">{{.Mode}}</span><span class="spacer"></span><button type="button" class="gw-help-toggle" data-help-toggle aria-label="Toggle help">?</button>{{if .AuthEnabled}}<form method="post" action="/logout" style="margin:0;display:inline"><button type="submit" style="background:none;border:1px solid var(--gw-border);color:var(--gw-text-muted);padding:4px 10px;border-radius:4px;cursor:pointer;font:inherit;font-size:12px" title="Sign out">Sign out</button></form>{{end}}</div>`))
+	template.Must(t.New("gwtop").Parse(`<div class="gw-top"><button class="gw-menu" data-rail-open aria-label="open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button><label class="gw-repolabel" for="gw-topbar-repo">Repo:</label><select id="gw-topbar-repo" data-repo-switch><option value="">all repos</option>{{$cur := .ActiveRepo}}{{range .Repos}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}</select><span class="modebadge" title="gateway mode (read-only)">{{.Mode}}</span><a class="gw-licbadge{{if .LicenseCommercial}} lic{{end}}" href="/settings?tab=about" title="license status">{{if .LicenseCommercial}}Licensed{{else}}Non-commercial use{{end}}</a><span class="spacer"></span><button type="button" class="gw-help-toggle" data-help-toggle aria-label="Toggle help">?</button>{{if .AuthEnabled}}<form method="post" action="/logout" style="margin:0;display:inline"><button type="submit" style="background:none;border:1px solid var(--gw-border);color:var(--gw-text-muted);padding:4px 10px;border-radius:4px;cursor:pointer;font:inherit;font-size:12px" title="Sign out">Sign out</button></form>{{end}}</div>`))
 	template.Must(t.New("layout").Parse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{.Title}}</title><link rel="icon" type="image/svg+xml" href="/static/favicon.svg">` + dashStyle + gwShellStyle + gwColorStyle + gwDayColorStyle + `
 <script src="/static/htmx.min.js"></script><script src="/static/gwshell.js" defer></script></head>
 <body{{if .CSRFToken}} hx-headers='{"X-CSRF-Token":"{{.CSRFToken}}"}'{{end}}>
@@ -675,13 +679,15 @@ func gatewayMode(policyRoot, repo string) string {
 // feed|stats|frames|policy|ssh-keys; activeRepo is the (validated) ?repo=
 // value or "".
 func buildChrome(section, activeRepo, policyRoot string) chromeData {
+	lic, _ := gateway.LoadLicense(policyRoot)
 	return chromeData{
-		Build:         version.Resolved(),
-		Mode:          gatewayMode(policyRoot, activeRepo),
-		Repos:         listGatewayRepos(policyRoot),
-		ActiveRepo:    activeRepo,
-		ActiveSection: section,
-		AuthEnabled:   authEnabledForChrome,
+		Build:             version.Resolved(),
+		Mode:              gatewayMode(policyRoot, activeRepo),
+		Repos:             listGatewayRepos(policyRoot),
+		ActiveRepo:        activeRepo,
+		ActiveSection:     section,
+		AuthEnabled:       authEnabledForChrome,
+		LicenseCommercial: lic.Commercial,
 	}
 }
 
