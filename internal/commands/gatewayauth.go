@@ -256,11 +256,31 @@ func (h *authHandlers) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.setCookie(w, r, sid)
-	target := "/"
-	if safeNextPath(next) {
-		target = next
+	http.Redirect(w, r, localRedirectTarget(next), http.StatusSeeOther)
+}
+
+// localRedirectTarget turns a user-supplied `next` into a guaranteed same-site
+// path. It first applies the structural gate (safeNextPath rejects "//" and
+// "/\" forms), then parses the value and keeps ONLY its path and query,
+// discarding any scheme or host - extracting url.URL.EscapedPath is the
+// recognized sanitizer for go/unvalidated-url-redirection. Anything that fails
+// either step falls back to "/".
+func localRedirectTarget(next string) string {
+	if !safeNextPath(next) {
+		return "/"
 	}
-	http.Redirect(w, r, target, http.StatusSeeOther)
+	u, err := url.Parse(next)
+	if err != nil {
+		return "/"
+	}
+	target := u.EscapedPath()
+	if target == "" {
+		target = "/"
+	}
+	if u.RawQuery != "" {
+		target += "?" + u.RawQuery
+	}
+	return target
 }
 
 // logout deletes the session row + clears the cookie. GET is accepted so a
