@@ -321,6 +321,21 @@ func TestAuth_logout_deletesSession(t *testing.T) {
 	}
 }
 
+func TestSafeNextPath(t *testing.T) {
+	good := []string{"/", "/settings", "/policy?repo=x"}
+	bad := []string{"", "//evil.com", `/\evil.com`, "http://evil", "evil", `\\evil`}
+	for _, g := range good {
+		if !safeNextPath(g) {
+			t.Errorf("safeNextPath(%q)=false want true", g)
+		}
+	}
+	for _, b := range bad {
+		if safeNextPath(b) {
+			t.Errorf("safeNextPath(%q)=true want false", b)
+		}
+	}
+}
+
 func TestAuth_middleware_expiredCookieClearedAndRedirects(t *testing.T) {
 	ah, _, mux := newAuthFixture(t, authModeSetupToken)
 	uid, _ := ah.store.CreateUser("admin", "supersecret123")

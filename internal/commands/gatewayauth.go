@@ -257,7 +257,7 @@ func (h *authHandlers) login(w http.ResponseWriter, r *http.Request) {
 	}
 	h.setCookie(w, r, sid)
 	target := "/"
-	if next != "" && strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+	if safeNextPath(next) {
 		target = next
 	}
 	http.Redirect(w, r, target, http.StatusSeeOther)
@@ -333,6 +333,19 @@ func (h *authHandlers) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/login?err=account-created-please-sign-in", http.StatusSeeOther)
+}
+
+// safeNextPath reports whether next is a same-site local path safe to redirect
+// to. It must start with "/" but not "//" or "/\" - browsers treat both of the
+// latter as absolute URLs (//host, /\host), which would be an open redirect.
+func safeNextPath(next string) bool {
+	if next == "" || next[0] != '/' {
+		return false
+	}
+	if len(next) > 1 && (next[1] == '/' || next[1] == '\\') {
+		return false
+	}
+	return true
 }
 
 func nextQS(next string) string {
