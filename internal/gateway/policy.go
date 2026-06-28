@@ -122,12 +122,17 @@ func (s FilePolicyStore) Save(p Policy) error {
 // secrets. Matches the cred.go pattern: explicit 0600 on create, plus a
 // follow-up Chmod so pre-existing files written by an older binary at the
 // default 0644 get tightened on the next write.
-func writeGatewayTOML(path string, p Policy) error {
+func writeGatewayTOML(path string, p Policy) (err error) {
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
-	if err := toml.NewEncoder(f).Encode(policyTOML{
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+	if err = toml.NewEncoder(f).Encode(policyTOML{
 		UpstreamURL:         p.UpstreamURL,
 		ProtectedRefs:       p.ProtectedRefs,
 		DeleteProtectedRefs: p.DeleteProtectedRefs,
@@ -137,14 +142,12 @@ func writeGatewayTOML(path string, p Policy) error {
 		MaxInputSize:        p.MaxInputSize,
 		Notification:        notificationConfigToTOML(p.Notification),
 	}); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
 		return err
 	}
 	// Enforce 0600 even if the file pre-existed with looser perms (e.g.,
 	// written by an earlier binary that used os.Create's default mode).
+	// Chmod works by path and does not require the handle to be closed first;
+	// the deferred close runs after this return value is set.
 	return os.Chmod(path, 0o600)
 }
 

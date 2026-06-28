@@ -27,7 +27,7 @@ type Event struct {
 // AppendEvent writes one event line to <policyRoot>/_events.jsonl, creating the
 // file if needed. O_APPEND writes of one JSON-encoded line are atomic on Linux
 // for buffers <= PIPE_BUF - events are well under that, so no flock needed.
-func AppendEvent(policyRoot string, e Event) error {
+func AppendEvent(policyRoot string, e Event) (err error) {
 	if e.Timestamp.IsZero() {
 		e.Timestamp = time.Now().UTC()
 	}
@@ -42,8 +42,15 @@ func AppendEvent(policyRoot string, e Event) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(e)
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+	if err = json.NewEncoder(f).Encode(e); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ReadEvents stream-decodes the events file and returns events the keep

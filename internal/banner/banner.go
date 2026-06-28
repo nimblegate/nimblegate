@@ -73,20 +73,26 @@ func HasSeen(projectRoot string) bool {
 // intro. Best-effort: errors are returned for the caller's awareness but
 // the calling code should not abort on failure (a missing marker just
 // means the intro shows again next time, no worse than before).
-func MarkSeen(projectRoot string) error {
+func MarkSeen(projectRoot string) (err error) {
 	path, err := markerPath(projectRoot)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("banner: mkdir %s: %w", filepath.Dir(path), err)
 	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("banner: write %s: %w", path, err)
 	}
-	defer f.Close()
-	_, _ = f.WriteString(projectRoot + "\n")
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+	if _, werr := f.WriteString(projectRoot + "\n"); werr != nil {
+		return werr
+	}
 	return nil
 }
 

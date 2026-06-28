@@ -103,7 +103,7 @@ func (h *sshKeyHandlers) listKeys() ([]sshKey, error) {
 
 // addKey validates and appends a new pubkey line. Returns the parsed sshKey on
 // success or an error suitable for display to the user (NOT a 500).
-func (h *sshKeyHandlers) addKey(line string) (sshKey, error) {
+func (h *sshKeyHandlers) addKey(line string) (_ sshKey, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -157,8 +157,12 @@ func (h *sshKeyHandlers) addKey(line string) (sshKey, error) {
 	if err != nil {
 		return sshKey{}, err
 	}
-	defer f.Close()
-	if _, err := f.WriteString(line + "\n"); err != nil {
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = f.WriteString(line + "\n"); err != nil {
 		return sshKey{}, err
 	}
 	return sshKey{Type: pk.Type(), Fingerprint: fp, Comment: comment, Raw: line}, nil
