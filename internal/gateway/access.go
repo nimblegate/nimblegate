@@ -37,6 +37,9 @@ func (s AccessStore) path(repo string) string {
 
 // Load returns the repo's grants, or an empty list if the file is absent.
 func (s AccessStore) Load(repo string) (AccessList, error) {
+	if !safeRepoName(repo) {
+		return AccessList{}, fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	b, err := os.ReadFile(s.path(repo))
 	if errors.Is(err, fs.ErrNotExist) {
 		return AccessList{Version: accessVersion}, nil
@@ -52,6 +55,9 @@ func (s AccessStore) Load(repo string) (AccessList, error) {
 }
 
 func (s AccessStore) save(repo string, al AccessList) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	if err := os.MkdirAll(filepath.Dir(s.path(repo)), 0o755); err != nil {
 		return err
 	}
