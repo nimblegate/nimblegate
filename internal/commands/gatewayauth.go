@@ -256,31 +256,17 @@ func (h *authHandlers) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.setCookie(w, r, sid)
-	http.Redirect(w, r, localRedirectTarget(next), http.StatusSeeOther)
-}
-
-// localRedirectTarget turns a user-supplied `next` into a guaranteed same-site
-// path. It first applies the structural gate (safeNextPath rejects "//" and
-// "/\" forms), then parses the value and keeps ONLY its path and query,
-// discarding any scheme or host - extracting url.URL.EscapedPath is the
-// recognized sanitizer for go/unvalidated-url-redirection. Anything that fails
-// either step falls back to "/".
-func localRedirectTarget(next string) string {
-	if !safeNextPath(next) {
-		return "/"
+	// Redirect only to a local path. Per CodeQL go/unvalidated-url-redirection:
+	// normalize backslashes (some browsers read "\" as "/"), parse, and accept
+	// the target only when it has no host (i.e. it is relative/same-site);
+	// otherwise fall back to "/". safeNextPath is a cheap structural pre-gate.
+	target := "/"
+	if safeNextPath(next) {
+		if u, err := url.Parse(strings.ReplaceAll(next, `\`, "/")); err == nil && u.Hostname() == "" {
+			target = u.String()
+		}
 	}
-	u, err := url.Parse(next)
-	if err != nil {
-		return "/"
-	}
-	target := u.EscapedPath()
-	if target == "" {
-		target = "/"
-	}
-	if u.RawQuery != "" {
-		target += "?" + u.RawQuery
-	}
-	return target
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 // logout deletes the session row + clears the cookie. GET is accepted so a

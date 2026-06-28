@@ -212,17 +212,16 @@ func TestSafeUpstreamURL(t *testing.T) {
 	}
 }
 
-func TestGitBareNeutralizesDashLeadingBareDir(t *testing.T) {
-	// A bareDir that begins with "-" must never reach git as an option-looking
-	// argument. gitBare "./"-prefixes it so git treats it as a path.
-	cmd := gitBare("-evil", "status")
+func TestGitBareKeepsBareDirOutOfArgs(t *testing.T) {
+	// bareDir must never appear in the command argv (it goes via cmd.Dir + env),
+	// so git can never read it as an option and CodeQL sees no tainted arg.
+	cmd := gitBare("/srv/gateway/repos/foo.git", "for-each-ref")
 	for _, a := range cmd.Args {
-		if a == "-evil" || a == "safe.directory=-evil" {
-			t.Fatalf("bareDir reached git unneutralized: args=%v", cmd.Args)
+		if strings.Contains(a, "foo.git") {
+			t.Fatalf("bareDir leaked into argv: %v", cmd.Args)
 		}
 	}
-	joined := strings.Join(cmd.Args, " ")
-	if !strings.Contains(joined, "./-evil") {
-		t.Fatalf("expected ./-evil in args, got %v", cmd.Args)
+	if cmd.Dir != "/srv/gateway/repos/foo.git" {
+		t.Fatalf("cmd.Dir = %q, want the bare dir", cmd.Dir)
 	}
 }

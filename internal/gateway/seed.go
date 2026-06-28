@@ -67,16 +67,19 @@ func SeedFromUpstream(bareDir, upstreamURL, cred string) (SeedResult, error) {
 // dashboard runs as a different user). Same guard gitlog.go uses. ls-remote and
 // other remote-only calls don't need this and build their own command.
 func gitBare(bareDir string, args ...string) *exec.Cmd {
-	// bareDir is always a gateway-constructed absolute path under reposRoot, so
-	// it cannot really begin with "-". Guard anyway so a value that could be
-	// read as a git option never reaches exec: this is the recognized barrier
-	// for go/command-injection (see SECURITY.md). "./"-prefixing forces git to
-	// treat a "-"-leading value as a path, not a flag.
-	if strings.HasPrefix(bareDir, "-") {
-		bareDir = "." + string(filepath.Separator) + bareDir
-	}
-	full := append([]string{"-c", "safe.directory=" + bareDir, "-C", bareDir}, args...)
-	return exec.Command("git", full...)
+	// Run git inside the bare repo via cmd.Dir, and pass safe.directory through
+	// the environment, so the (gateway-constructed) bareDir never appears as a
+	// command-line argument. Keeping user-derived data out of the argv is the
+	// robust mitigation for go/command-injection - there is no arg for git to
+	// misread as an option (see SECURITY.md).
+	cmd := exec.Command("git", args...)
+	cmd.Dir = bareDir
+	cmd.Env = append(os.Environ(),
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=safe.directory",
+		"GIT_CONFIG_VALUE_0="+bareDir,
+	)
+	return cmd
 }
 
 // SeedAtRegistration runs SeedFromUpstream for a freshly-registered repo and
