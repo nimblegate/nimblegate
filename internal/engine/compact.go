@@ -90,7 +90,7 @@ func CompactAudit(projectRoot string, quiescence time.Duration) (CompactionResul
 		return res, fmt.Errorf("compact: mkdir: %w", err)
 	}
 	maxBytes := envOrDefaultInt64("APPFRAMES_AUDIT_MAX_BYTES", DefaultAuditMaxBytes)
-	maxFiles := int(envOrDefaultInt64("APPFRAMES_AUDIT_MAX_FILES", DefaultAuditMaxFiles))
+	maxFiles := clampToInt(envOrDefaultInt64("APPFRAMES_AUDIT_MAX_FILES", DefaultAuditMaxFiles))
 
 	for _, part := range parts {
 		data, err := os.ReadFile(part)

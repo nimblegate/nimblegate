@@ -13,6 +13,18 @@ import (
 	"nimblegate/internal/frames"
 )
 
+func TestClampToInt(t *testing.T) {
+	if got := clampToInt(-5); got != 0 {
+		t.Errorf("clampToInt(-5)=%d want 0", got)
+	}
+	if got := clampToInt(10); got != 10 {
+		t.Errorf("clampToInt(10)=%d want 10", got)
+	}
+	if got := clampToInt(1 << 40); got != int(^uint32(0)>>1) {
+		t.Errorf("clampToInt(huge)=%d want MaxInt32", got)
+	}
+}
+
 func TestAudit_AppendsJSONLine(t *testing.T) {
 	tmp := t.TempDir()
 	logPath := filepath.Join(tmp, "audit.log")

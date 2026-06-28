@@ -5,6 +5,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -96,7 +97,7 @@ func OpenAudit(path string) (*Audit, error) {
 		path:     path,
 		partPath: partPath,
 		maxBytes: envOrDefaultInt64("APPFRAMES_AUDIT_MAX_BYTES", DefaultAuditMaxBytes),
-		maxFiles: int(envOrDefaultInt64("APPFRAMES_AUDIT_MAX_FILES", DefaultAuditMaxFiles)),
+		maxFiles: clampToInt(envOrDefaultInt64("APPFRAMES_AUDIT_MAX_FILES", DefaultAuditMaxFiles)),
 	}
 	if info, err := f.Stat(); err == nil {
 		a.curBytes = info.Size()
@@ -314,6 +315,19 @@ func RotatedFiles(currentPath string) []string {
 		return []string{currentPath}
 	}
 	return rotated
+}
+
+// clampToInt converts an int64 (e.g. an operator-set env value) to int without
+// overflow: negatives become 0, values above MaxInt32 are capped. MaxInt32 is
+// used (not MaxInt) so the bound is identical on 32- and 64-bit builds.
+func clampToInt(v int64) int {
+	if v < 0 {
+		return 0
+	}
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int(v)
 }
 
 // envOrDefaultInt64 reads an int64 from env (or returns dflt if unset / invalid).
