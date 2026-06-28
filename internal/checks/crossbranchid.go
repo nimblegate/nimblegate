@@ -52,11 +52,6 @@ func CrossBranchIDConsistency(ctx engine.CheckContext) engine.CheckResult {
 		valid[v] = true
 	}
 
-	excludes := ctx.ExcludedDirs
-	if len(excludes) == 0 {
-		excludes = DefaultExcludes()
-	}
-
 	var unknownHits []string
 	var hitsStruct []engine.Hit
 	scanFile := func(path string) {

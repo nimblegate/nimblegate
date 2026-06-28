@@ -119,11 +119,6 @@ func MarkdownLinkCheckInternal(ctx engine.CheckContext) engine.CheckResult {
 		FrameID:  "documentation/markdown-link-check-internal",
 		Category: frames.CategoryDocumentation,
 	}
-	excludes := ctx.ExcludedDirs
-	if len(excludes) == 0 {
-		excludes = DefaultExcludes()
-	}
-
 	ignored := loadIgnoredPrefixes(ctx.ProjectRoot)
 
 	files := ctx.ChangedFiles
