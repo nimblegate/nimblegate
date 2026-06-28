@@ -111,11 +111,34 @@ func headExists(bareDir, branch string) bool {
 	return gitBare(bareDir, "show-ref", "--verify", "--quiet", "refs/heads/"+branch).Run() == nil
 }
 
+// safeUpstreamURL reports whether u is a plausible, non-option-injecting clone
+// URL. It blocks a leading "-" (which git would treat as an option) and
+// requires a known transport scheme, excluding local/ext transports that can
+// execute commands.
+func safeUpstreamURL(u string) bool {
+	if u == "" || strings.HasPrefix(u, "-") {
+		return false
+	}
+	for _, p := range []string{"https://", "http://", "ssh://", "git://"} {
+		if strings.HasPrefix(u, p) {
+			return true
+		}
+	}
+	// scp-like syntax: user@host:path (no scheme). Require an "@" and a ":".
+	if strings.Contains(u, "@") && strings.Contains(u, ":") && !strings.Contains(u, "://") {
+		return true
+	}
+	return false
+}
+
 // remoteDefaultBranch asks the upstream which branch HEAD points at, via
 // ls-remote --symref. Returns "" if it can't be determined.
 func remoteDefaultBranch(upstreamURL, cred string) string {
+	if !safeUpstreamURL(upstreamURL) {
+		return ""
+	}
 	url := authedURL(upstreamURL, cred)
-	out, err := exec.Command("git", "ls-remote", "--symref", url, "HEAD").Output()
+	out, err := exec.Command("git", "ls-remote", "--symref", "--", url, "HEAD").Output()
 	if err != nil {
 		return ""
 	}
