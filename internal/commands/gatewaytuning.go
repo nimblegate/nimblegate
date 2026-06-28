@@ -1181,7 +1181,7 @@ func renderPolicyHTTP(w http.ResponseWriter, vm policyVM, opts policyPageOpts) {
 func renderFrameRow(w http.ResponseWriter, repo, frameID, sev string, saved bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if saved {
-		_, _ = w.Write([]byte(`<span class="ok">saved ` + string(gwicons.HTML("ok")) + ` ` + frameID + ` ` + sev + `</span>`))
+		_, _ = w.Write([]byte(`<span class="ok">saved ` + string(gwicons.HTML("ok")) + ` ` + htmlEsc(frameID) + ` ` + htmlEsc(sev) + `</span>`))
 	}
 }
 
@@ -1403,9 +1403,9 @@ func (h policyHandlers) userKitForm(w http.ResponseWriter, r *http.Request) {
 	}
 	allFrames, _ := stdlib.Load()
 	fmt.Fprintf(w, `<form class="gw-userkit-form" hx-post="/policy/kits/create" hx-target="closest .gw-policy-kits" hx-swap="outerHTML">
-  <input type="hidden" name="repo" value=%q>
+  <input type="hidden" name="repo" value="%s">
   <label>Name: <input type="text" name="name" required></label>
-  <div class="gw-userkit-pick"><strong>Frames:</strong>`, repo)
+  <div class="gw-userkit-pick"><strong>Frames:</strong>`, htmlEsc(repo))
 	for _, f := range allFrames {
 		fmt.Fprintf(w, `
     <label><input type="checkbox" name="frames" value=%q> <code>%s</code></label>`,
