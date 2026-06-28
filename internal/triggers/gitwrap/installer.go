@@ -106,7 +106,7 @@ func RCFile(shell string) (string, error) {
 }
 
 // Install appends the shell snippet to the user's rc file if not already present.
-func Install(shell string) error {
+func Install(shell string) (err error) {
 	rc, err := RCFile(shell)
 	if err != nil {
 		return err
@@ -119,8 +119,12 @@ func Install(shell string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	if _, err := f.WriteString("\n" + ShellSnippet(shell)); err != nil {
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = f.WriteString("\n" + ShellSnippet(shell)); err != nil {
 		return err
 	}
 	return nil

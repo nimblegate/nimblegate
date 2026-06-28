@@ -69,11 +69,6 @@ func DatedTodo(ctx engine.CheckContext) engine.CheckResult {
 		FrameID:  "documentation/dated-todo",
 		Category: frames.CategoryDocumentation,
 	}
-	excludes := ctx.ExcludedDirs
-	if len(excludes) == 0 {
-		excludes = DefaultExcludes()
-	}
-
 	files := ctx.ChangedFiles
 	if len(files) == 0 && ctx.Trigger == engine.TriggerCLI {
 		_ = filepath.WalkDir(ctx.ProjectRoot, func(path string, d fs.DirEntry, err error) error {

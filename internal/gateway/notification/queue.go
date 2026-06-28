@@ -54,7 +54,7 @@ type WebhookAuth struct {
 // absent, mode 0600). Atomic per-line: a partial write doesn't corrupt
 // previously appended records because each line ends with '\n' and parsers
 // skip malformed lines (see ReadQueueRecords).
-func AppendQueueRecord(path string, rec QueueRecord) error {
+func AppendQueueRecord(path string, rec QueueRecord) (err error) {
 	if rec.QueuedAt.IsZero() {
 		rec.QueuedAt = time.Now().UTC()
 	}
@@ -66,11 +66,15 @@ func AppendQueueRecord(path string, rec QueueRecord) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 	if _, err = f.Write(append(b, '\n')); err != nil {
-		f.Close()
 		return err
 	}
-	return f.Close()
+	return nil
 }
 
 // ReadQueueRecords returns every parseable record from path. Missing file =
@@ -271,23 +275,30 @@ func RequeueDeadletter(queuePath, deadletterPath string) (int, error) {
 
 // writeQueueAtomic rewrites path with records via temp + rename. If the
 // rewrite is interrupted, the original file is unchanged.
+// Close is explicit (not deferred) because the temp file must be closed
+// before os.Rename; a defer would close after the return value is set,
+// which is after Rename runs.
 func writeQueueAtomic(path string, records []QueueRecord) error {
 	tmp := path + ".tmp"
 	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
-	for _, r := range records {
-		b, err := json.Marshal(r)
-		if err != nil {
-			f.Close()
+	abort := func(origErr error) error {
+		if cerr := f.Close(); cerr != nil {
 			os.Remove(tmp)
-			return err
+			return cerr
 		}
-		if _, err := f.Write(append(b, '\n')); err != nil {
-			f.Close()
-			os.Remove(tmp)
-			return err
+		os.Remove(tmp)
+		return origErr
+	}
+	for _, r := range records {
+		b, merr := json.Marshal(r)
+		if merr != nil {
+			return abort(merr)
+		}
+		if _, werr := f.Write(append(b, '\n')); werr != nil {
+			return abort(werr)
 		}
 	}
 	if err := f.Close(); err != nil {

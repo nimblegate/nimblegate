@@ -41,7 +41,7 @@ type NotificationStatus struct {
 }
 
 // AppendAudit appends one record as a JSON line to path (created if absent).
-func AppendAudit(path string, rec AuditRecord) error {
+func AppendAudit(path string, rec AuditRecord) (err error) {
 	if rec.Time.IsZero() {
 		rec.Time = time.Now().UTC()
 	}
@@ -49,14 +49,17 @@ func AppendAudit(path string, rec AuditRecord) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 	b, err := json.Marshal(rec)
 	if err != nil {
-		f.Close()
 		return err
 	}
 	if _, err = f.Write(append(b, '\n')); err != nil {
-		f.Close()
 		return err
 	}
-	return f.Close()
+	return nil
 }
