@@ -43,7 +43,7 @@ func SeedFromUpstream(bareDir, upstreamURL, cred string) (SeedResult, error) {
 	url := authedURL(upstreamURL, cred)
 	// Mirror heads + tags into the bare. Force (+) so a re-run converges on the
 	// upstream's commits rather than failing on non-fast-forward.
-	if out, err := gitBare(bareDir, "fetch", url,
+	if out, err := gitBare(bareDir, "fetch", "--", url,
 		"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*").CombinedOutput(); err != nil {
 		msg := redactURLUserinfo(redactCred(string(out), cred))
 		return SeedResult{}, fmt.Errorf("seed from %s failed: %w\n%s",
