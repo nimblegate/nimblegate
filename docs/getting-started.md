@@ -335,6 +335,11 @@ live at `http://<gateway>:7900/feed`.
 > the long form is `ssh://git@192.0.2.10:2222/~/myapp.git` - **note the `~/`, it's
 > required.**
 >
+> **Port depends on install type:** the Docker image publishes the gate on
+> **2222** (used in the examples here); a **bare-metal** install runs sshd on the
+> default **22**, so drop the port: `ssh://git@192.0.2.10/~/myapp.git`. See
+> [server setup](server/README.md).
+>
 > **Why `~/` and not a bare `/myapp.git`:** on the gateway the SSH user is locked
 > to **git-shell** - it can run `git` push/clone and *nothing else* (no shell, no
 > arbitrary commands, no reading the gateway's stored upstream token), and

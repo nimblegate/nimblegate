@@ -153,7 +153,7 @@ func TestHealthHandler_rendersExpectedSurfaces(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/health", nil)
 	rec := httptest.NewRecorder()
-	healthHandler(root, "").ServeHTTP(rec, req)
+	healthHandler(root, "", "").ServeHTTP(rec, req)
 
 	if rec.Code != 200 {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -179,7 +179,7 @@ func TestHealthHandler_rendersExpectedSurfaces(t *testing.T) {
 func TestHealthHandler_wrongPath404s(t *testing.T) {
 	req := httptest.NewRequest("GET", "/health/nope", nil)
 	rec := httptest.NewRecorder()
-	healthHandler(t.TempDir(), "").ServeHTTP(rec, req)
+	healthHandler(t.TempDir(), "", "").ServeHTTP(rec, req)
 	if rec.Code != 404 {
 		t.Errorf("wrong path should 404, got %d", rec.Code)
 	}

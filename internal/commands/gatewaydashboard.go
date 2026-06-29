@@ -244,7 +244,7 @@ func gatewayDashboard(args []string) int {
 	})
 	mux.HandleFunc("/feed/export", feedExportHandler(*policyRoot))
 	mux.HandleFunc("/feed/reset-loop", feedResetLoopHandler(*policyRoot, token))
-	mux.HandleFunc("/health", healthHandler(*policyRoot, *reposRoot))
+	mux.HandleFunc("/health", healthHandler(*policyRoot, *reposRoot, *sshKeysPath))
 	mux.HandleFunc("/auto-pr", autoPRHandler(*policyRoot, *allowEdits, func() string { return token }))
 	mux.HandleFunc("/auto-pr/config", autoPRSetupHandler(*policyRoot, *allowEdits, func() string { return token }))
 	mux.HandleFunc("/auto-pr/retry", autoPRRetryHandler(*policyRoot, *allowEdits, func() string { return token }))

@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,6 +140,13 @@ func TestRunDoctorHasFail(t *testing.T) {
 }
 
 func TestRunDoctorAuthorizedKeys(t *testing.T) {
+	// Point the bare-metal default at a guaranteed-absent path so the empty /
+	// no-path cases deterministically FAIL rather than picking up a real
+	// /home/git/.ssh/authorized_keys on the test host.
+	orig := bareMetalGitKeys
+	bareMetalGitKeys = filepath.Join(t.TempDir(), "absent_git_keys")
+	defer func() { bareMetalGitKeys = orig }()
+
 	policyRoot, reposRoot := doctorRoots(t)
 	keysPath, wantFP := writeKeysFile(t, t.TempDir(), "alice@box")
 
@@ -172,6 +180,60 @@ func TestRunDoctorAuthorizedKeys(t *testing.T) {
 	repNoPath := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
 	if c, ok := findCheck(repNoPath, "", "Authorized keys"); !ok || c.Status != DoctorFail {
 		t.Fatalf("no keys path: want FAIL, got %+v ok=%v", c, ok)
+	}
+}
+
+func TestRunDoctorBareMetalSplit(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	// sshd reads keys from the bare-metal default; the dashboard manages a
+	// different, absent path. Expect a WARN with the bridge fix, not a FAIL.
+	bmPath, _ := writeKeysFile(t, t.TempDir(), "dev@box")
+	orig := bareMetalGitKeys
+	bareMetalGitKeys = bmPath
+	defer func() { bareMetalGitKeys = orig }()
+
+	dashPath := filepath.Join(t.TempDir(), "authorized_keys")
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, AuthorizedKeysPath: dashPath, Offline: true})
+
+	c, ok := findCheck(rep, "", "Authorized keys")
+	if !ok || c.Status != DoctorWarn {
+		t.Fatalf("split: want WARN, got %+v ok=%v", c, ok)
+	}
+	if len(rep.Keys) != 1 {
+		t.Fatalf("split: keys from the sshd path should be surfaced, got %d", len(rep.Keys))
+	}
+	if !strings.Contains(c.Fix, "ln -sf") {
+		t.Fatalf("split WARN should carry the bridge fix, got %q", c.Fix)
+	}
+	if rep.HasFail {
+		t.Fatalf("split is a WARN, not a FAIL")
+	}
+}
+
+func TestRunDoctorGatePort(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	openPort := ln.Addr().(*net.TCPAddr).Port
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, GatePorts: []int{openPort}})
+	if c, ok := findCheck(rep, "", "SSH gate"); !ok || c.Status != DoctorOK {
+		t.Fatalf("open gate port: want OK, got %+v ok=%v", c, ok)
+	}
+
+	ln2, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closedPort := ln2.Addr().(*net.TCPAddr).Port
+	_ = ln2.Close()
+	rep2 := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, GatePorts: []int{closedPort}})
+	if c, ok := findCheck(rep2, "", "SSH gate"); !ok || c.Status != DoctorWarn {
+		t.Fatalf("closed gate port: want WARN, got %+v ok=%v", c, ok)
 	}
 }
 
