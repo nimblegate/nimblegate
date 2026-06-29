@@ -16,6 +16,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   validated, and contacts no server. A "Get a license" link points to the
   commercial-license purchase path.
 
+### Changed
+
+- New repos now default their protected refs to `refs/heads/*` (gate every
+  branch) instead of `refs/heads/main`, so the auto-PR fix-loop works on agent
+  feature branches out of the box. Content-gating only; branch deletion stays
+  protected on `main`/`master`, so feature branches remain deletable. Existing
+  repos keep their stored setting.
+
 ### Security
 
 - Reject unsafe repo names before any path is constructed across the policy and
