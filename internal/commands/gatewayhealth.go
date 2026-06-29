@@ -356,7 +356,8 @@ func healthHandler(policyRoot, reposRoot string) http.HandlerFunc {
 		var body bytes.Buffer
 		body.WriteString(healthTabStrip(tab))
 		if tab == "diagnostics" {
-			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, r.Host)))
+			online := r.URL.Query().Get("online") == "1"
+			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, r.Host, online)))
 		} else {
 			now := time.Now()
 			data := collectHealth(policyRoot, reposRoot, dashStartTime, now)

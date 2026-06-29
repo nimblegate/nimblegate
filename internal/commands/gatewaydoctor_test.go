@@ -21,7 +21,9 @@ func TestRenderHealthDiagnostics(t *testing.T) {
 	}
 	seedActiveRepo(t, policyRoot, reposRoot, "demo")
 
-	html := string(renderHealthDiagnostics(policyRoot, reposRoot, "127.0.0.1:7900"))
+	// Config-only view (online=false): renders without running live checks and
+	// offers the opt-in link rather than dialing the SSH gate or the upstream.
+	html := string(renderHealthDiagnostics(policyRoot, reposRoot, "127.0.0.1:7900", false))
 	if !strings.Contains(html, "Diagnostics") {
 		t.Fatalf("diagnostics body missing header: %s", html)
 	}
@@ -30,6 +32,9 @@ func TestRenderHealthDiagnostics(t *testing.T) {
 	}
 	if !strings.Contains(html, "Connect a dev box") {
 		t.Fatalf("expected a connect block: %s", html)
+	}
+	if !strings.Contains(html, "online=1") {
+		t.Fatalf("config-only view should offer the live-checks opt-in link: %s", html)
 	}
 
 	strip := healthTabStrip("diagnostics")

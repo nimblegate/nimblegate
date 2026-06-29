@@ -184,6 +184,7 @@ type doctorPageVM struct {
 	Global []doctorCheckVM
 	Repos  []doctorRepoVM
 	Keys   []gateway.DoctorKey
+	Online bool
 }
 
 func doctorStatusClassIcon(s gateway.DoctorStatus) (string, string) {
@@ -200,17 +201,20 @@ func doctorStatusClassIcon(s gateway.DoctorStatus) (string, string) {
 }
 
 // renderHealthDiagnostics runs the doctor engine and renders the /health
-// Diagnostics tab body. rawHost is r.Host (port stripped here).
-func renderHealthDiagnostics(policyRoot, reposRoot, rawHost string) template.HTML {
+// Diagnostics tab body. rawHost is r.Host (port stripped here). The live
+// connectivity checks (SSH gate dial + upstream auth) run only when online is
+// set, so a normal page view stays fast and never hangs on a slow upstream.
+func renderHealthDiagnostics(policyRoot, reposRoot, rawHost string, online bool) template.HTML {
 	rep := gateway.RunDoctor(gateway.DoctorConfig{
 		PolicyRoot:         policyRoot,
 		ReposRoot:          reposRoot,
 		AuthorizedKeysPath: defaultAuthorizedKeysPath,
 		Host:               hostNoPort(rawHost),
 		Version:            version.Resolved(),
+		Offline:            !online,
 	})
 
-	vm := doctorPageVM{Keys: rep.Keys}
+	vm := doctorPageVM{Keys: rep.Keys, Online: online}
 	for _, c := range rep.Checks {
 		if c.Repo != "" {
 			continue
@@ -271,6 +275,7 @@ var doctorTmpl = template.Must(template.New("doctor").Funcs(template.FuncMap{"ic
 </style>
 <h2 class="gw-pagehead">Diagnostics</h2>
 <p class="gw-pagedesc">Read-only preflight: global gateway health, per-repo policy, and a copy-paste block to connect a dev box. Nothing here changes state.</p>
+{{if .Online}}<p class="sub">Live connectivity checks ran (SSH gate dial + upstream auth).</p>{{else}}<p class="sub">Config-only view for speed. <a href="/health?tab=diagnostics&amp;online=1" style="color:var(--gw-accent)">Run live connectivity checks</a> (SSH gate + upstream auth; may take a few seconds per repo).</p>{{end}}
 
 <section class="frame">
 <h3 class="gw-section-head">Global</h3>
