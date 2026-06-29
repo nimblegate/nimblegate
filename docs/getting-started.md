@@ -100,10 +100,11 @@ Two things make this safe and low-friction:
   instantly on every push (no human needed); you stay the final authority on the
   PR merge.
 
-For the agent's *feature* branches to be gated - not just `main` - set the repo's
-**protected refs to `refs/heads/*`** (in Step 4, or via *Edit repo settings*
-later). The default `refs/heads/main` only checks `main`, so feature-branch
-pushes would sail through unchecked.
+The agent's *feature* branches are gated by default - not just `main` - because a
+new repo's **protected refs default to `refs/heads/*`** (changeable in Step 4, or
+via *Edit repo settings* later). If you narrow it to `refs/heads/main`, only
+`main` is checked and feature-branch pushes sail through unchecked, so the auto-PR
+loop never fires on them.
 
 ---
 
@@ -409,7 +410,7 @@ scripting or when the web UI isn't handy. These run **on the gateway machine**:
 |---|---|
 | `nimblegate version` | Print the running version/commit. Use it after a binary update to confirm the new code is actually live (a stale gateway is almost always a binary that was never copied over). |
 | `nimblegate gateway setup-token` | Print the one-time admin setup token for `/setup` (bare-metal equivalent of `docker logs nimblegate \| grep nbg-setup`). |
-| `nimblegate gateway add --name <n> --upstream <url>` | Register a repo: the CLI form of **Repos → Add** (Step 4). Add `--protected refs/heads/*` to gate every branch. |
+| `nimblegate gateway add --name <n> --upstream <url>` | Register a repo: the CLI form of **Repos → Add** (Step 4). `--protect` defaults to `refs/heads/*` (gate every branch); pass `--protect refs/heads/main` to narrow it to `main` only. |
 | `nimblegate gateway archive --name <n>` | Deactivate a repo but keep its data (removes the activation symlinks; the bare repo and history stay). |
 | `nimblegate gateway restore --name <n>` | Re-activate a previously archived repo. |
 | `nimblegate gateway delete --name <n> --yes` | **Permanently** delete a repo and all its data (bare repo + policy). No undo. |

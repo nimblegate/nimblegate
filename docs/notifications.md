@@ -15,7 +15,7 @@ For the design rationale + invariants, see [`docs/superpowers/specs/2026-06-04-a
 
 If there's **no open PR on the rejected ref**, the PR-comment step is skipped silently; the webhook still fires. Direct-to-main pushes still produce a notification to whatever receiver is wired up.
 
-**Prerequisite - gate the branches agents push to.** The loop fires on a *rejected* push, and only **gated** refs are checked. Coding agents work on feature branches (often in git worktrees) and open one PR per branch, so the rejected ref is a feature branch, not `main`. To gate those PRs, set the repo's **protected refs to `refs/heads/*`** (Repos → the repo → Edit policy → **Edit repo settings**). The default `refs/heads/main` gates only `main`, so feature-branch pushes sail through ungated and never trigger the loop.
+**Prerequisite - gate the branches agents push to.** The loop fires on a *rejected* push, and only **gated** refs are checked. Coding agents work on feature branches (often in git worktrees) and open one PR per branch, so the rejected ref is a feature branch, not `main`. New repos **default their protected refs to `refs/heads/*`** (Repos → the repo → Edit policy → **Edit repo settings**), so feature-branch pushes are gated out of the box. If you narrow it to `refs/heads/main`, only `main` is gated and feature-branch pushes sail through ungated and never trigger the loop.
 
 ## What the consumer sees
 
