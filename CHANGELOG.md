@@ -9,6 +9,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Relay health surfacing.** The reconcile backstop now records each repo's
+  relay outcome (last attempt/success, ok, redacted error, refs re-pushed) and
+  the relay-service logs failures on state transition and reconciles once at
+  startup, so a relay that silently stopped delivering (accepted pushes the
+  upstream never received) is now visible: a Relay column on the Health page, a
+  "relay failing" badge on the repo row, and a Relay check in `gateway doctor`.
+  All read persisted status with no extra network calls.
 - **`gateway doctor` preflight diagnostics.** A read-only command (and a new
   Diagnostics sub-tab on the Health page) that reports first-run and connect
   problems as OK/WARN/FAIL with fix hints: version/stale-binary, dashboard bind
