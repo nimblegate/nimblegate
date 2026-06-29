@@ -349,16 +349,25 @@ func healthHandler(policyRoot, reposRoot string) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		now := time.Now()
-		data := collectHealth(policyRoot, reposRoot, dashStartTime, now)
-		// Pull live maintenance status from the daemon's provider, if running.
-		if st, ok := getMaintenanceStatus(); ok {
-			data.Maintenance = maintenanceHealthFromStatus(st, now)
+		tab := "status"
+		if r.URL.Query().Get("tab") == "diagnostics" {
+			tab = "diagnostics"
 		}
 		var body bytes.Buffer
-		if err := renderHealth(&body, data); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		body.WriteString(healthTabStrip(tab))
+		if tab == "diagnostics" {
+			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, r.Host)))
+		} else {
+			now := time.Now()
+			data := collectHealth(policyRoot, reposRoot, dashStartTime, now)
+			// Pull live maintenance status from the daemon's provider, if running.
+			if st, ok := getMaintenanceStatus(); ok {
+				data.Maintenance = maintenanceHealthFromStatus(st, now)
+			}
+			if err := renderHealth(&body, data); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		renderGwShell(w, gwLayout{
 			Title:   "gateway: health",

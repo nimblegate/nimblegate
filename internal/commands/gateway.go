@@ -81,7 +81,7 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 // Gateway dispatches `nimblegate gateway <sub>`.
 func Gateway(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: nimblegate gateway <add|archive|delete|restore|rescan|migrate-layout|pre-receive|post-receive|relay-service|harden-sshd|shell|access|dashboard|setup-token|analytics|token|bind|tls-setup|benchmark> ...")
+		fmt.Fprintln(os.Stderr, "usage: nimblegate gateway <add|archive|delete|restore|rescan|migrate-layout|pre-receive|post-receive|relay-service|harden-sshd|shell|access|doctor|dashboard|setup-token|analytics|token|bind|tls-setup|benchmark> ...")
 		return 2
 	}
 	sub, rest := args[0], args[1:]
@@ -124,6 +124,8 @@ func Gateway(args []string) int {
 		return gatewayGitShell(rest)
 	case "access":
 		return gatewayAccess(rest)
+	case "doctor":
+		return gatewayDoctor(rest)
 	default:
 		fmt.Fprintf(os.Stderr, "nimblegate gateway: unknown subcommand %q\n", sub)
 		return 2
