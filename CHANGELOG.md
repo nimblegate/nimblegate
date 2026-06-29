@@ -9,6 +9,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`gateway doctor` preflight diagnostics.** A read-only command (and a new
+  Diagnostics sub-tab on the Health page) that reports first-run and connect
+  problems as OK/WARN/FAIL with fix hints: version/stale-binary, dashboard bind
+  host + remote-tunnel hint, SSH gate reachability, authorized keys (listed by
+  fingerprint + label), and per repo the bare-repo path + exact push URL, HTTPS
+  upstream, credential, gated refs, active frames, notification state, and (live)
+  upstream auth. Includes a copy-paste block to connect a dev box or agent. The
+  CLI exits non-zero on any FAIL; the dashboard tab runs live connectivity checks
+  only on request.
 - **Commercial-license self-attestation.** A status pill in the dashboard top
   bar reads "Non-commercial use" by default and flips to "Licensed" once you
   record a license on Settings -> About (checkbox + optional Lemon Squeezy order
