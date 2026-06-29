@@ -134,7 +134,7 @@ func gatewayAdd(args []string) int {
 	fs := flag.NewFlagSet("gateway add", flag.ExitOnError)
 	name := fs.String("name", "", "logical repo name")
 	upstream := fs.String("upstream", "", "true upstream URL to relay accepted pushes to")
-	protect := fs.String("protect", "refs/heads/main", "comma-separated protected ref globs")
+	protect := fs.String("protect", "refs/heads/*", "comma-separated protected ref globs")
 	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
 	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "bare-repo root")
 	disabled := fs.Bool("disabled", false, "register but do not gate (pass-through)")

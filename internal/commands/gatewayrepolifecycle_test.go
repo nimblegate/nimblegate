@@ -107,6 +107,7 @@ func TestRepoLifecycle_addHandler_normalizesProtectedRefs(t *testing.T) {
 		{"bareBranch", "main", []string{"refs/heads/main"}},
 		{"multipleBare", "main develop", []string{"refs/heads/main", "refs/heads/develop"}},
 		{"fullRef", "refs/heads/main", []string{"refs/heads/main"}},
+		{"defaultGateAll", "refs/heads/*", []string{"refs/heads/*"}},
 		{"tagRef", "refs/tags/v*", []string{"refs/tags/v*"}},
 		{"mixed", "main refs/tags/v*", []string{"refs/heads/main", "refs/tags/v*"}},
 		{"whitespace", "  main   release/*  ", []string{"refs/heads/main", "refs/heads/release/*"}},

@@ -36,7 +36,7 @@ type repoLifecycleHandlers struct {
 // `refs/` is passed through unchanged (so operators can still write
 // `refs/tags/v*` for tag patterns). Empty / whitespace tokens are dropped.
 //
-// Background: the form pre-fills `refs/heads/main` so most operators won't
+// Background: the form pre-fills `refs/heads/*` so most operators won't
 // hit this path. But if someone types `main` (or copies a branch list from
 // `git branch`), the gate would have silently never fired. This is the
 // "every dashboard-registered repo ships ungated" foot-gun T5 surfaced.
