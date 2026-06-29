@@ -343,7 +343,7 @@ func renderHealth(w *bytes.Buffer, data healthData) error {
 // health data, renders the body, wraps it in the gateway shell.
 // reposRoot may be empty (the page still renders; the Repo skeleton line
 // is suppressed).
-func healthHandler(policyRoot, reposRoot string) http.HandlerFunc {
+func healthHandler(policyRoot, reposRoot, sshKeysPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			http.NotFound(w, r)
@@ -357,7 +357,7 @@ func healthHandler(policyRoot, reposRoot string) http.HandlerFunc {
 		body.WriteString(healthTabStrip(tab))
 		if tab == "diagnostics" {
 			online := r.URL.Query().Get("online") == "1"
-			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, r.Host, online)))
+			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, r.Host, online)))
 		} else {
 			now := time.Now()
 			data := collectHealth(policyRoot, reposRoot, dashStartTime, now)

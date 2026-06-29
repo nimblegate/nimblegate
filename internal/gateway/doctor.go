@@ -90,10 +90,21 @@ type DoctorConfig struct {
 	RepoFilter         string
 	Offline            bool
 
+	// GatePorts are the loopback ports the SSH-gate reachability check dials.
+	// Empty means probe the defaults (2222 for the container publish, 22 for a
+	// bare-metal sshd).
+	GatePorts []int
+
 	// UpstreamAuthCheck is a test seam. If nil, RunDoctor uses the real
 	// registry-based check.
 	UpstreamAuthCheck func(upstreamURL, cred string) error
 }
+
+// bareMetalGitKeys is sshd's default authorized_keys file for the git user on a
+// bare-metal install. The dashboard manages its own path; on bare-metal the two
+// must be bridged (symlink) or sshd never sees dashboard-added keys. A var (not
+// const) so tests can point it at a temp file.
+var bareMetalGitKeys = "/home/git/.ssh/authorized_keys"
 
 // RunDoctor assembles the diagnostics report. Every check is read-only: it never
 // reconciles, writes, or mutates upstream.
@@ -144,15 +155,26 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 	}
 
 	if !cfg.Offline {
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:2222", 2*time.Second)
-		if err == nil {
-			_ = conn.Close()
-			add(DoctorCheck{Name: "SSH gate", Status: DoctorOK, Reason: "reachable on 127.0.0.1:2222"})
+		ports := cfg.GatePorts
+		if len(ports) == 0 {
+			ports = []int{2222, 22}
+		}
+		reached := 0
+		for _, p := range ports {
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p), 2*time.Second)
+			if err == nil {
+				_ = conn.Close()
+				reached = p
+				break
+			}
+		}
+		if reached != 0 {
+			add(DoctorCheck{Name: "SSH gate", Status: DoctorOK, Reason: fmt.Sprintf("reachable on 127.0.0.1:%d (push to this port from your dev box)", reached)})
 		} else {
 			add(DoctorCheck{
 				Name:   "SSH gate",
 				Status: DoctorWarn,
-				Reason: "could not reach the SSH gate on 127.0.0.1:2222 from here; if pushes fail with connection-refused, the gate is not listening",
+				Reason: fmt.Sprintf("could not reach the SSH gate on 127.0.0.1 (tried %s) from here; if pushes fail with connection-refused, the gate is not listening", joinPorts(ports)),
 			})
 		}
 	}
@@ -165,18 +187,30 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 		})
 	} else {
 		rep.Keys = parseAuthorizedKeys(cfg.AuthorizedKeysPath)
-		if len(rep.Keys) == 0 {
+		switch {
+		case len(rep.Keys) > 0:
+			add(DoctorCheck{
+				Name:   "Authorized keys",
+				Status: DoctorOK,
+				Reason: fmt.Sprintf("%d key(s) authorized at %s", len(rep.Keys), cfg.AuthorizedKeysPath),
+			})
+		case splitKeysAt(cfg.AuthorizedKeysPath) != nil:
+			// Bare-metal split: the dashboard manages an empty/absent path while
+			// sshd reads keys from /home/git/.ssh/authorized_keys directly.
+			bm := splitKeysAt(cfg.AuthorizedKeysPath)
+			rep.Keys = bm
+			add(DoctorCheck{
+				Name:   "Authorized keys",
+				Status: DoctorWarn,
+				Reason: fmt.Sprintf("%d key(s) found at %s (what sshd reads), but the dashboard manages %s; pushes work, yet dashboard key changes will not take effect", len(bm), bareMetalGitKeys, cfg.AuthorizedKeysPath),
+				Fix:    fmt.Sprintf("unify so the dashboard manages the file sshd reads (preserves existing keys): mkdir -p %s; cp %s %s; chown git:git %s; chmod 600 %s; ln -sf %s %s; chown -h git:git %s", filepath.Dir(cfg.AuthorizedKeysPath), bareMetalGitKeys, cfg.AuthorizedKeysPath, cfg.AuthorizedKeysPath, cfg.AuthorizedKeysPath, cfg.AuthorizedKeysPath, bareMetalGitKeys, bareMetalGitKeys),
+			})
+		default:
 			add(DoctorCheck{
 				Name:   "Authorized keys",
 				Status: DoctorFail,
 				Reason: "no SSH keys authorized; no dev box can push",
 				Fix:    "add a dev box key at /ssh-keys",
-			})
-		} else {
-			add(DoctorCheck{
-				Name:   "Authorized keys",
-				Status: DoctorOK,
-				Reason: fmt.Sprintf("%d key(s) authorized", len(rep.Keys)),
 			})
 		}
 	}
@@ -340,6 +374,29 @@ func parseAuthorizedKeys(path string) []DoctorKey {
 		})
 	}
 	return out
+}
+
+func joinPorts(ports []int) string {
+	parts := make([]string, len(ports))
+	for i, p := range ports {
+		parts[i] = fmt.Sprintf("%d", p)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// splitKeysAt reports a bare-metal keys-path split: keys present at sshd's
+// default git authorized_keys file while the dashboard manages a different
+// (empty/absent) path. Returns nil when there is no split (same path, or no keys
+// at the sshd default).
+func splitKeysAt(configuredPath string) []DoctorKey {
+	if configuredPath == bareMetalGitKeys {
+		return nil
+	}
+	keys := parseAuthorizedKeys(bareMetalGitKeys)
+	if len(keys) == 0 {
+		return nil
+	}
+	return keys
 }
 
 func isLoopbackHostHint(h string) bool {

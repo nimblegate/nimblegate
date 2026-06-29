@@ -23,7 +23,7 @@ func TestRenderHealthDiagnostics(t *testing.T) {
 
 	// Config-only view (online=false): renders without running live checks and
 	// offers the opt-in link rather than dialing the SSH gate or the upstream.
-	html := string(renderHealthDiagnostics(policyRoot, reposRoot, "127.0.0.1:7900", false))
+	html := string(renderHealthDiagnostics(policyRoot, reposRoot, "", "127.0.0.1:7900", false))
 	if !strings.Contains(html, "Diagnostics") {
 		t.Fatalf("diagnostics body missing header: %s", html)
 	}

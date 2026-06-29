@@ -30,8 +30,13 @@ func gatewayDoctor(args []string) int {
 	offline := fs.Bool("offline", false, "skip network checks (SSH gate dial + upstream auth)")
 	jsonOut := fs.Bool("json", false, "emit the report as JSON")
 	host := fs.String("host", "", "gateway reachable host for connect URLs (default: placeholder)")
+	gatePort := fs.Int("gate-port", 0, "SSH gate port to probe (0 = probe 2222 then 22)")
 	_ = fs.Parse(args)
 
+	var gatePorts []int
+	if *gatePort != 0 {
+		gatePorts = []int{*gatePort}
+	}
 	rep := gateway.RunDoctor(gateway.DoctorConfig{
 		PolicyRoot:         *policyRoot,
 		ReposRoot:          *reposRoot,
@@ -40,6 +45,7 @@ func gatewayDoctor(args []string) int {
 		Version:            version.Resolved(),
 		RepoFilter:         *repo,
 		Offline:            *offline,
+		GatePorts:          gatePorts,
 	})
 
 	if *jsonOut {
@@ -204,11 +210,14 @@ func doctorStatusClassIcon(s gateway.DoctorStatus) (string, string) {
 // Diagnostics tab body. rawHost is r.Host (port stripped here). The live
 // connectivity checks (SSH gate dial + upstream auth) run only when online is
 // set, so a normal page view stays fast and never hangs on a slow upstream.
-func renderHealthDiagnostics(policyRoot, reposRoot, rawHost string, online bool) template.HTML {
+func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string, online bool) template.HTML {
+	if sshKeysPath == "" {
+		sshKeysPath = defaultAuthorizedKeysPath
+	}
 	rep := gateway.RunDoctor(gateway.DoctorConfig{
 		PolicyRoot:         policyRoot,
 		ReposRoot:          reposRoot,
-		AuthorizedKeysPath: defaultAuthorizedKeysPath,
+		AuthorizedKeysPath: sshKeysPath,
 		Host:               hostNoPort(rawHost),
 		Version:            version.Resolved(),
 		Offline:            !online,
