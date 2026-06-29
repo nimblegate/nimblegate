@@ -76,6 +76,11 @@ func renderReposPage(w io.Writer, opts reposPageOpts) error {
 	var rows []repoRow
 	for _, name := range activeRepos {
 		row := repoRow{Name: name, RelayFailing: relayFailing[name]}
+		// The backstop reconcile records its own per-repo outcome; a failing
+		// backstop also flips the badge even if no live push has happened since.
+		if rs, ok := gateway.ReadRelayStatus(opts.PolicyRoot, name); ok && !rs.OK {
+			row.RelayFailing = true
+		}
 		p, err := (gateway.FilePolicyStore{Root: opts.PolicyRoot}).Load(name)
 		if err == nil {
 			row.UpstreamURL = p.UpstreamURL

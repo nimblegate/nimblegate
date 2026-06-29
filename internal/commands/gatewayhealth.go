@@ -81,6 +81,13 @@ type healthRepo struct {
 	QueueDepth      int
 	LastDrainAgo    string // "-" if no delivered notifications on file
 	DeadletterCount int
+
+	// Relay health from the persisted backstop status (read-only, no network).
+	// RelayKnown is false when the backstop has not recorded a status yet.
+	RelayKnown   bool
+	RelayOK      bool
+	RelayError   string
+	RelayDrifted int
 }
 
 // collectHealth walks the policy root and returns a healthData snapshot.
@@ -174,6 +181,14 @@ func collectHealth(policyRoot, reposRoot string, startTime time.Time, now time.T
 		// Deadletter count: same shape, same read path, different file.
 		dlrec, _ := notification.ReadQueueRecords(filepath.Join(policyRoot, repo, "pr-comment-deadletter.jsonl"))
 		hr.DeadletterCount = len(dlrec)
+
+		// Relay health: persisted backstop status only (no network call).
+		if rs, ok := gateway.ReadRelayStatus(policyRoot, repo); ok {
+			hr.RelayKnown = true
+			hr.RelayOK = rs.OK
+			hr.RelayError = rs.Error
+			hr.RelayDrifted = rs.DriftedRefs
+		}
 
 		// Last drain + 24h success rates per repo: derived from the audit
 		// log's NotificationStatus.
@@ -274,6 +289,7 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 .gw-health dd{margin:0;color:var(--gw-text);font-variant-numeric:tabular-nums}
 .gw-health-status-ok{color:#5ee68e}
 .gw-health-status-warn{color:#e6905e}
+.gw-health-status-fail{color:#ff6b6b}
 .gw-health-rate{display:flex;align-items:center;gap:14px;margin:10px 0;font-size:13px}
 .gw-health-rate .label{color:var(--gw-text-muted);min-width:180px}
 .gw-health-rate .value{font-weight:600;color:var(--gw-text);font-variant-numeric:tabular-nums}
@@ -311,9 +327,9 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 <h3 class="gw-section-head">Notification queue per repo</h3>
 {{if .Repos}}
 <table class="fr gw-feed">
-  <thead><tr><td class="k">Repo</td><td class="k">Queue</td><td class="k">Last drain</td><td class="k">Deadletter</td></tr></thead>
+  <thead><tr><td class="k">Repo</td><td class="k">Queue</td><td class="k">Last drain</td><td class="k">Deadletter</td><td class="k">Relay</td></tr></thead>
   <tbody>{{range .Repos}}
-  <tr><td>Repo: {{.Name}}</td><td>Queue: {{.QueueDepth}}</td><td>{{.LastDrainAgo}}</td><td>Deadletter: {{.DeadletterCount}}{{if gt .DeadletterCount 0}} <button type="button" hx-post="/health/investigate?repo={{.Name}}">Investigate</button>{{end}}</td></tr>
+  <tr><td>Repo: {{.Name}}</td><td>Queue: {{.QueueDepth}}</td><td>{{.LastDrainAgo}}</td><td>Deadletter: {{.DeadletterCount}}{{if gt .DeadletterCount 0}} <button type="button" hx-post="/health/investigate?repo={{.Name}}">Investigate</button>{{end}}</td><td>{{if .RelayKnown}}{{if .RelayOK}}<span class="gw-health-status-ok">{{icon "ok"}}</span> relay ok{{if gt .RelayDrifted 0}} <span class="gw-health-status-warn">was out of sync ({{.RelayDrifted}} refs re-pushed)</span>{{end}}{{else}}<span class="gw-health-status-fail">{{icon "reject"}}</span> relay failing: {{.RelayError}}{{end}}{{end}}</td></tr>
   {{end}}</tbody>
 </table>
 {{else}}

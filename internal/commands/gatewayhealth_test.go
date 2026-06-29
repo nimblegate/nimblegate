@@ -3,6 +3,7 @@
 package commands
 
 import (
+	"bytes"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -173,6 +174,31 @@ func TestHealthHandler_rendersExpectedSurfaces(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("health page missing %q\n%s", want, body)
 		}
+	}
+}
+
+// A failing persisted relay status renders a visible failing line on /health.
+func TestHealth_failingRelayRenders(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "repoR")
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "gateway.toml"),
+		[]byte(`upstream-url = "https://example.test/repoR.git"`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := gateway.WriteRelayStatus(root, "repoR", gateway.RelayStatus{OK: false, Error: "relay to upstream failed"}); err != nil {
+		t.Fatal(err)
+	}
+
+	d := collectHealth(root, "", time.Now().Add(-time.Minute), time.Now())
+	var buf bytes.Buffer
+	if err := renderHealth(&buf, d); err != nil {
+		t.Fatalf("renderHealth: %v", err)
+	}
+	if body := buf.String(); !strings.Contains(body, "relay failing: relay to upstream failed") {
+		t.Errorf("health page missing failing-relay line\n%s", body)
 	}
 }
 

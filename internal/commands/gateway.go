@@ -306,15 +306,41 @@ func gatewayRelayService(args []string) int {
 	}
 	fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: listening on %s (policy-root=%s repos-root=%s)\n", *socket, *policyRoot, *reposRoot)
 	// Reconciler backstop: periodically re-push any ref the upstream is missing
-	// or behind (recovers pushes accepted while the service was down).
+	// or behind (recovers pushes accepted while the service was down). Runs once
+	// at startup, then on the ticker. relayOK tracks last-known OK per repo so a
+	// failing relay is logged on every state TRANSITION (ok<->fail), not silently
+	// swallowed nor re-logged every tick.
 	if *reconcileEvery > 0 {
+		relayOK := map[string]bool{}
+		runReconcile := func(startup bool) {
+			results, err := gateway.ReconcileAll(*reposRoot, *policyRoot)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: reconcile: %v\n", err)
+				return
+			}
+			total := 0
+			for _, r := range results {
+				total += r.Drifted
+				ok := r.Err == nil
+				prev, seen := relayOK[r.Repo]
+				switch {
+				case !ok && (startup || !seen || prev):
+					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: relay FAILING for %s: %v\n", r.Repo, r.Err)
+				case ok && seen && !prev:
+					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: relay recovered for %s\n", r.Repo)
+				}
+				relayOK[r.Repo] = ok
+			}
+			if total > 0 {
+				fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: reconciled %d drifted ref(s)\n", total)
+			}
+		}
+		runReconcile(true)
 		go func() {
 			t := time.NewTicker(*reconcileEvery)
 			defer t.Stop()
 			for range t.C {
-				if n, err := gateway.ReconcileAll(*reposRoot, *policyRoot); err == nil && n > 0 {
-					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: reconciled %d drifted ref(s)\n", n)
-				}
+				runReconcile(false)
 			}
 		}()
 	}

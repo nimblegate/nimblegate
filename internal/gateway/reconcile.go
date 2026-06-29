@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // reconcileRepo re-pushes any head whose value in the gated bare repo differs
@@ -73,26 +74,50 @@ func parseRefMap(s string) map[string]string {
 	return m
 }
 
+// ReconcileResult is one repo's outcome from a ReconcileAll pass. Err is the
+// repo's reconcile error (already redacted in the persisted RelayStatus);
+// Drifted is the number of refs re-pushed.
+type ReconcileResult struct {
+	Repo    string
+	Drifted int
+	Err     error
+}
+
 // ReconcileAll reconciles every ACTIVE repo under reposRoot against its
-// upstream. Best-effort per repo: an unresolvable repo or a single failed
-// reconcile is skipped, not fatal. Returns the total refs re-pushed.
-func ReconcileAll(reposRoot, policyRoot string) (int, error) {
+// upstream and records each repo's outcome as a RelayStatus. Best-effort per
+// repo: an unresolvable repo is skipped; a failed reconcile is recorded, not
+// fatal. The returned error is only for a listing/setup failure - per-repo
+// failures travel in the results.
+func ReconcileAll(reposRoot, policyRoot string) ([]ReconcileResult, error) {
 	names, err := listActiveRepos(reposRoot)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	resolve := NewRepoResolver(reposRoot, policyRoot)
-	total := 0
+	var results []ReconcileResult
 	for _, name := range names {
 		bare, url, cred, err := resolve(name)
 		if err != nil || url == "" {
 			continue // unresolvable or no upstream to relay to
 		}
-		if n, err := reconcileRepo(bare, url, cred); err == nil {
-			total += n
+		n, rerr := reconcileRepo(bare, url, cred)
+		now := time.Now()
+		prev, _ := ReadRelayStatus(policyRoot, name)
+		s := RelayStatus{
+			LastAttempt: now,
+			LastSuccess: prev.LastSuccess,
+			OK:          rerr == nil,
+			DriftedRefs: n,
 		}
+		if rerr == nil {
+			s.LastSuccess = now
+		} else {
+			s.Error = redactURLUserinfo(redactCred(rerr.Error(), cred))
+		}
+		_ = WriteRelayStatus(policyRoot, name, s)
+		results = append(results, ReconcileResult{Repo: name, Drifted: n, Err: rerr})
 	}
-	return total, nil
+	return results, nil
 }
 
 // listActiveRepos returns the logical names of active repos under reposRoot:
