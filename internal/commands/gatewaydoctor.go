@@ -92,7 +92,7 @@ func renderDoctorText(w io.Writer, rep gateway.DoctorReport) {
 		}
 	}
 	for _, rc := range rep.Repos {
-		fmt.Fprintf(w, "\nConnect a dev box / agent - %s\n", rc.Name)
+		fmt.Fprintf(w, "\nConnect a dev machine / agent - %s\n", rc.Name)
 		for i, step := range doctorConnectSteps(rep.Host, rc.Name) {
 			fmt.Fprintf(w, "  %d. %s\n", i+1, step.Note)
 			for _, cmd := range step.Cmds {
@@ -123,7 +123,7 @@ func doctorRepoOrder(rep gateway.DoctorReport) []string {
 }
 
 // doctorConnectStep is one copy-paste onboarding step: a note line plus zero or
-// more shell commands to run on the dev box.
+// more shell commands to run on the dev machine.
 type doctorConnectStep struct {
 	Note string
 	Cmds []string
@@ -133,7 +133,7 @@ func doctorConnectSteps(host, repo string) []doctorConnectStep {
 	pushURL := "ssh://git@" + host + ":2222/~/" + repo + ".git"
 	return []doctorConnectStep{
 		{
-			Note: "On your dev box, print your key + fingerprint (your key may not be the default; `ls ~/.ssh/*.pub` to find it, or `ssh-keygen -t ed25519` to create one):",
+			Note: "On your dev machine, print your key + fingerprint (your key may not be the default; `ls ~/.ssh/*.pub` to find it, or `ssh-keygen -t ed25519` to create one):",
 			Cmds: []string{"cat ~/.ssh/id_ed25519.pub", "ssh-keygen -lf ~/.ssh/id_ed25519.pub"},
 		},
 		{
@@ -144,7 +144,7 @@ func doctorConnectSteps(host, repo string) []doctorConnectStep {
 			Cmds: []string{"git remote set-url origin " + pushURL},
 		},
 		{
-			Note: "Confirm auth + repo from your dev box:",
+			Note: "Confirm auth + repo from your dev machine:",
 			Cmds: []string{"git ls-remote " + pushURL},
 		},
 	}
@@ -270,6 +270,7 @@ var doctorTmpl = template.Must(template.New("doctor").Funcs(template.FuncMap{"ic
 .gw-doc-warn{color:#e6905e}
 .gw-doc-fail{color:#e06c75}
 .gw-doc-info{color:var(--gw-text-muted)}
+.gw-content .gw-doc-sec{margin:0 0 14px;padding:12px 16px;background:var(--gw-bg-control);border-radius:8px}
 .gw-doc-list{list-style:none;margin:6px 0;padding:0}
 .gw-doc-list li{padding:5px 0;border-bottom:1px solid var(--gw-border-subtle);font-size:13px}
 .gw-doc-list li:last-child{border-bottom:0}
@@ -283,10 +284,10 @@ var doctorTmpl = template.Must(template.New("doctor").Funcs(template.FuncMap{"ic
 .gw-doc-steps pre{background:var(--gw-bg-control);padding:6px 10px;border-radius:4px;overflow-x:auto;font-size:12px;margin:4px 0 0}
 </style>
 <h2 class="gw-pagehead">Diagnostics</h2>
-<p class="gw-pagedesc">Read-only preflight: global gateway health, per-repo policy, and a copy-paste block to connect a dev box. Nothing here changes state.</p>
+<p class="gw-pagedesc">Read-only preflight: global gateway health, per-repo policy, and a copy-paste block to connect a dev machine. Nothing here changes state.</p>
 {{if .Online}}<p class="sub">Live connectivity checks ran (SSH gate dial + upstream auth).</p>{{else}}<p class="sub">Config-only view for speed. <a href="/health?tab=diagnostics&amp;online=1" style="color:var(--gw-accent)">Run live connectivity checks</a> (SSH gate + upstream auth; may take a few seconds per repo).</p>{{end}}
 
-<section class="frame">
+<section class="frame gw-doc-sec">
 <h3 class="gw-section-head">Global</h3>
 <ul class="gw-doc-list">
 {{range .Global}}<li><span class="{{.Class}}">{{icon .Icon}}</span><span class="gw-doc-name">{{.Name}}</span> <span class="gw-doc-reason">- {{.Reason}}</span>{{if .Fix}}<span class="gw-doc-fix">{{.Fix}}</span>{{end}}</li>
@@ -297,12 +298,12 @@ var doctorTmpl = template.Must(template.New("doctor").Funcs(template.FuncMap{"ic
 </section>
 
 {{range .Repos}}
-<section class="frame">
+<section class="frame gw-doc-sec">
 <h3 class="gw-section-head">Repo: {{.Name}}</h3>
 <ul class="gw-doc-list">
 {{range .Checks}}<li><span class="{{.Class}}">{{icon .Icon}}</span><span class="gw-doc-name">{{.Name}}</span> <span class="gw-doc-reason">- {{.Reason}}</span>{{if .Fix}}<span class="gw-doc-fix">{{.Fix}}</span>{{end}}</li>
 {{end}}</ul>
-{{if .Conn}}<details><summary>Connect a dev box / agent</summary>
+{{if .Conn}}<details><summary>Connect a dev machine / agent</summary>
 <ol class="gw-doc-steps">
 {{range .Steps}}<li>{{.Note}}{{range .Cmds}}<pre>{{.}}</pre>{{end}}</li>
 {{end}}</ol>

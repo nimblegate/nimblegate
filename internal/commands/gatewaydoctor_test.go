@@ -30,7 +30,7 @@ func TestRenderHealthDiagnostics(t *testing.T) {
 	if !strings.Contains(html, `class="gw-doc-fail"`) {
 		t.Fatalf("expected a FAIL line (seed repo has no gated refs): %s", html)
 	}
-	if !strings.Contains(html, "Connect a dev box") {
+	if !strings.Contains(html, "Connect a dev machine") {
 		t.Fatalf("expected a connect block: %s", html)
 	}
 	if !strings.Contains(html, "online=1") {
