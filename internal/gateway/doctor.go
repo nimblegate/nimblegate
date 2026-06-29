@@ -294,6 +294,19 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		add(DoctorCheck{Repo: name, Name: "Notifications", Status: DoctorOK, Reason: "notifications on"})
 	}
 
+	// Relay health from the persisted backstop status - read-only, no network,
+	// so it works even when Offline.
+	switch rs, known := ReadRelayStatus(cfg.PolicyRoot, name); {
+	case !known:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorInfo, Reason: "no relay status yet (backstop has not run)"})
+	case rs.OK && rs.DriftedRefs == 0:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorOK, Reason: "relay healthy"})
+	case rs.OK:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorWarn, Reason: fmt.Sprintf("last reconcile re-pushed %d ref(s) the upstream was missing", rs.DriftedRefs)})
+	default:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorFail, Reason: "relay failing: " + rs.Error, Fix: "check the upstream token/host; see gateway logs"})
+	}
+
 	if !cfg.Offline && strings.HasPrefix(pol.UpstreamURL, "https://") {
 		check := cfg.UpstreamAuthCheck
 		if check == nil {

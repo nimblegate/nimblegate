@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -113,6 +114,40 @@ func TestRunDoctorFrames(t *testing.T) {
 	}
 	if c, ok := findCheck(rep, "unframed", "Frames"); !ok || c.Status != DoctorFail {
 		t.Fatalf("unframed: want FAIL, got %+v ok=%v", c, ok)
+	}
+}
+
+func TestRunDoctorRelay(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "norelay", AddOptions{UpstreamURL: "https://github.com/x/norelay.git", GateAllRefs: true})
+	doctorSeed(t, policyRoot, reposRoot, "healthy", AddOptions{UpstreamURL: "https://github.com/x/healthy.git", GateAllRefs: true})
+	doctorSeed(t, policyRoot, reposRoot, "drifted", AddOptions{UpstreamURL: "https://github.com/x/drifted.git", GateAllRefs: true})
+	doctorSeed(t, policyRoot, reposRoot, "failing", AddOptions{UpstreamURL: "https://github.com/x/failing.git", GateAllRefs: true})
+
+	now := time.Now()
+	if err := WriteRelayStatus(policyRoot, "healthy", RelayStatus{LastAttempt: now, LastSuccess: now, OK: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteRelayStatus(policyRoot, "drifted", RelayStatus{LastAttempt: now, LastSuccess: now, OK: true, DriftedRefs: 3}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteRelayStatus(policyRoot, "failing", RelayStatus{LastAttempt: now, OK: false, Error: "upstream auth failed"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
+
+	if c, ok := findCheck(rep, "norelay", "Relay"); !ok || c.Status != DoctorInfo {
+		t.Fatalf("norelay: want INFO, got %+v ok=%v", c, ok)
+	}
+	if c, ok := findCheck(rep, "healthy", "Relay"); !ok || c.Status != DoctorOK {
+		t.Fatalf("healthy: want OK, got %+v ok=%v", c, ok)
+	}
+	if c, ok := findCheck(rep, "drifted", "Relay"); !ok || c.Status != DoctorWarn {
+		t.Fatalf("drifted: want WARN, got %+v ok=%v", c, ok)
+	}
+	if c, ok := findCheck(rep, "failing", "Relay"); !ok || c.Status != DoctorFail {
+		t.Fatalf("failing: want FAIL, got %+v ok=%v", c, ok)
 	}
 }
 
