@@ -15,7 +15,7 @@ A flat, simple license for using nimblegate in a for-profit setting (including g
 - A proper invoice / receipt is issued at purchase (handled by Lemon Squeezy as Merchant of Record, including applicable tax).
 - Per company; renews annually. If the license lapses, use reverts to the non-commercial terms.
 
-**[Buy a commercial license →](mailto:contact@nimblegate.com?subject=nimblegate%20commercial%20license)** *(self-serve checkout is being set up - email to purchase in the meantime)*
+**[Buy a commercial license →](https://store.nimblegate.com/checkout/buy/5cae2f3a-0745-474f-a3d8-622e276c88fc)** *(self-serve checkout via Lemon Squeezy)*
 
 ## Larger organisations / custom needs
 
