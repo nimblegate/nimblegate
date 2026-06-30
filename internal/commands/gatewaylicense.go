@@ -9,10 +9,8 @@ import (
 	"nimblegate/internal/gateway"
 )
 
-// licenseBuyURL is the "Get a license" destination. Email fallback until the
-// Lemon Squeezy store is approved; swap this one line to the LS checkout URL
-// when it is.
-const licenseBuyURL = "mailto:contact@nimblegate.com?subject=nimblegate%20commercial%20license"
+// licenseBuyURL is the "Get a license" destination - the Lemon Squeezy checkout.
+const licenseBuyURL = "https://store.nimblegate.com/checkout/buy/5cae2f3a-0745-474f-a3d8-622e276c88fc"
 
 // licenseHandlers owns POST /settings/license - the write half of the
 // self-attestation nudge. Honor system: it records the operator's declaration
