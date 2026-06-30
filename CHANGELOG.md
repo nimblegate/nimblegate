@@ -5,7 +5,7 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] - (set date at tag time)
+## [0.2.0] - 2026-06-30
 
 ### Added
 
