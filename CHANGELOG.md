@@ -5,6 +5,67 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-30
+
+### Added
+
+- **Relay health surfacing.** The reconcile backstop now records each repo's
+  relay outcome (last attempt/success, ok, redacted error, refs re-pushed) and
+  the relay-service logs failures on state transition and reconciles once at
+  startup, so a relay that silently stopped delivering (accepted pushes the
+  upstream never received) is now visible: a Relay column on the Health page, a
+  "relay failing" badge on the repo row, and a Relay check in `gateway doctor`.
+  All read persisted status with no extra network calls.
+- **`gateway doctor` preflight diagnostics.** A read-only command (and a new
+  Diagnostics sub-tab on the Health page) that reports first-run and connect
+  problems as OK/WARN/FAIL with fix hints: version/stale-binary, dashboard bind
+  host + remote-tunnel hint, SSH gate reachability (probes both the container
+  2222 and bare-metal 22 ports), authorized keys (listed by fingerprint + label,
+  read from the dashboard's configured path), and per repo the bare-repo path +
+  exact push URL, HTTPS upstream, credential, gated refs, active frames,
+  notification state, and (live) upstream auth. Detects the bare-metal keys-path
+  split (keys at sshd's `/home/git/.ssh/authorized_keys` while the dashboard
+  manages a different file) and emits the bridge fix. Includes a copy-paste block
+  to connect a dev box or agent. The CLI exits non-zero on any FAIL; the
+  dashboard tab runs live connectivity checks only on request.
+- **Commercial-license self-attestation.** A status pill in the dashboard top
+  bar reads "Non-commercial use" by default and flips to "Licensed" once you
+  record a license on Settings -> About (checkbox + optional Lemon Squeezy order
+  reference). Honor-system only: it is stored locally in `license.toml`, is never
+  validated, and contacts no server. A "Get a license" link points to the
+  commercial-license purchase path.
+
+### Changed
+
+- New repos now default their protected refs to `refs/heads/*` (gate every
+  branch) instead of `refs/heads/main`, so the auto-PR fix-loop works on agent
+  feature branches out of the box. Content-gating only; branch deletion stays
+  protected on `main`/`master`, so feature branches remain deletable. Existing
+  repos keep their stored setting.
+
+### Security
+
+- Reject unsafe repo names before any path is constructed across the policy and
+  access stores (defense-in-depth path-confinement; repo names are already
+  validated at every HTTP entry).
+- Validate upstream URLs and add the `--` option terminator to git invocations
+  in seeding and reconciliation, preventing a hostile URL from being read as a
+  git option. The upstream URL never appears in argv where it could be misread.
+- HTML-escape reflected dashboard output (frame id, severity, repo name).
+- Restrict the post-login redirect to same-site local paths (reject `//` and
+  `/\` forms; host-checked).
+- Bounds-check the audit retention integer conversion.
+- Document in `SECURITY.md` that test fixtures and rule definitions intentionally
+  contain detection patterns, which produce expected scanner false positives.
+
+### Fixed
+
+- Handle close/flush errors when writing the audit log, event log, and
+  notification queue, so a failed flush can no longer silently lose a record.
+- Make active fix-loop selection deterministic on ties (sort by PR number).
+- Close files in the demo static-build script; remove dead code in several
+  frame checks.
+
 ## [0.1.0] - 2026-06-25
 
 Initial public release. nimblegate is a self-hosted git push gateway that checks
