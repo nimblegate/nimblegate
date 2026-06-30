@@ -296,7 +296,7 @@ Add this to `~/.ssh/config`:
 ```
 Host nimblegate
   Hostname  192.0.2.10          # ← the gateway's address (IP or hostname)
-  Port      2222                  # the gateway's git port
+  Port      2222                  # the gateway's git port (bare-metal: 22)
   User      git
   IdentityFile   ~/.ssh/nimblegate # the key from Step 3
   IdentitiesOnly yes              # use ONLY this key
@@ -331,22 +331,30 @@ live at `http://<gateway>:7900/feed`.
 
 > **The `nimblegate:myapp.git` shorthand** uses the `Host nimblegate` block above
 > (scp-style, so the path is *relative* - git-shell resolves it under the git
-> user's home, which is the repos root). If you'd rather not use `~/.ssh/config`,
-> the long form is `ssh://git@192.0.2.10:2222/~/myapp.git` - **note the `~/`, it's
-> required.**
+> user's home). On the **Docker image** the git user's home *is* the repos root,
+> so the relative path lands on your repo. If you'd rather not use `~/.ssh/config`,
+> the long form is `ssh://git@192.0.2.10:2222/~/myapp.git` - **note the `~/`.**
 >
-> **Port depends on install type:** the Docker image publishes the gate on
-> **2222** (used in the examples here); a **bare-metal** install runs sshd on the
-> default **22**, so drop the port: `ssh://git@192.0.2.10/~/myapp.git`. See
-> [server setup](server/README.md).
+> **Bare-metal differs in BOTH port and path.** A bare-metal install runs sshd on
+> the default **22** (so drop the `:2222`), and it keeps the git user's home at
+> `/home/git` while repos live under `/srv/gateway/repos/`. So the `~/` shorthand
+> (and the scp `nimblegate:myapp.git` form) point at the wrong place - use the
+> **absolute path** instead:
 >
-> **Why `~/` and not a bare `/myapp.git`:** on the gateway the SSH user is locked
-> to **git-shell** - it can run `git` push/clone and *nothing else* (no shell, no
-> arbitrary commands, no reading the gateway's stored upstream token), and
-> git-shell resolves repo paths relative to its home. So the absolute
-> `ssh://…:2222/myapp.git` does **not** resolve - use the `~/` form or the scp
-> shorthand. This is deliberate security: a dev/agent key can *only* move git data
-> through the gate, so it can't bypass the gate or lift your upstream credential.
+> ```
+> ssh://git@192.0.2.10/srv/gateway/repos/myapp.git
+> ```
+>
+> See [server setup](server/README.md).
+>
+> **Why git-shell, and what resolves:** on the gateway the SSH user is locked to
+> **git-shell** - it can run `git` push/clone and *nothing else* (no shell, no
+> arbitrary commands, no reading the gateway's stored upstream token). It accepts
+> any path that points at a real bare repo - the `~/` shorthand on the container,
+> or the full `/srv/gateway/repos/...` path on bare-metal; a bare `/myapp.git`
+> fails because nothing lives at the filesystem root. This is deliberate security:
+> a dev/agent key can *only* move git data through the gate, so it can't bypass the
+> gate or lift your upstream credential.
 >
 > **Do not** use the `git@192.0.2.10:2222/myapp.git` form - there `:2222` is read
 > as part of the *path*, not the port (see Troubleshooting).
