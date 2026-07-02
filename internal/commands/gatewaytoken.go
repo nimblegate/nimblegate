@@ -60,6 +60,10 @@ func gatewayToken(args []string) int {
 	store, err := auth.Open(dbPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
+		fmt.Fprintf(os.Stderr, "hint: tokens live in the gateway's auth DB (default <policy-root>/_auth.db; tried %s).\n", dbPath)
+		fmt.Fprintln(os.Stderr, "hint: run this on the gateway host as the user that owns that file, and point at the")
+		fmt.Fprintln(os.Stderr, "hint: real location with --policy-root <dir> or --auth-db <file>.")
+		fmt.Fprintln(os.Stderr, "hint: container install: docker exec -u git nimblegate nimblegate gateway token ...")
 		return 1
 	}
 	defer store.Close()

@@ -22,6 +22,21 @@ func openTestStore(t *testing.T) *Store {
 	return s
 }
 
+func TestOpen_unopenablePath_errorNamesThePath(t *testing.T) {
+	// A path whose parent directory doesn't exist can't be created by sqlite.
+	// The raw driver error ("unable to open database file (14)") names no
+	// path, which strands the operator on the wrong box / wrong --policy-root
+	// with nothing to check; Open must add it.
+	bad := filepath.Join(t.TempDir(), "no-such-dir", "_auth.db")
+	_, err := Open(bad)
+	if err == nil {
+		t.Fatal("Open succeeded on a path under a missing directory")
+	}
+	if !strings.Contains(err.Error(), bad) {
+		t.Fatalf("error does not name the path %q: %v", bad, err)
+	}
+}
+
 func TestStore_UserCount_initiallyZero(t *testing.T) {
 	s := openTestStore(t)
 	n, err := s.UserCount()

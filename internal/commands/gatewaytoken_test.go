@@ -3,7 +3,10 @@
 package commands
 
 import (
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"nimblegate/internal/auth"
@@ -31,6 +34,33 @@ func TestGatewayTokenLifecycleViaCLI(t *testing.T) {
 	}
 	if code := gatewayToken([]string{}); code != 2 {
 		t.Errorf("no args must exit 2, got %d", code)
+	}
+}
+
+func TestGatewayTokenUnopenableDB_hintNamesPathAndFlags(t *testing.T) {
+	// Wrong box / wrong --policy-root is the common failure ("error: ping:
+	// unable to open database file (14)" with nothing to act on). The command
+	// must exit 1 and the stderr hint must name the path it tried and the
+	// flags that fix it.
+	badRoot := filepath.Join(t.TempDir(), "no-such-dir")
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStderr := os.Stderr
+	os.Stderr = w
+	code := gatewayToken([]string{"new", "x", "--policy-root", badRoot})
+	os.Stderr = oldStderr
+	_ = w.Close()
+	out, _ := io.ReadAll(r)
+	if code != 1 {
+		t.Fatalf("unopenable auth db must exit 1, got %d", code)
+	}
+	msg := string(out)
+	for _, want := range []string{filepath.Join(badRoot, "_auth.db"), "--policy-root", "--auth-db"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("stderr missing %q:\n%s", want, msg)
+		}
 	}
 }
 

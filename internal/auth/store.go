@@ -59,18 +59,22 @@ func Open(path string) (*Store, error) {
 	if path == "" {
 		return nil, errors.New("auth.Open: empty path")
 	}
-	dsn := "file:" + filepath.Clean(path) + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
+	// Errors name the path: the raw driver text ("unable to open database
+	// file (14)") doesn't, and the operator's usual mistake is a wrong
+	// --policy-root / wrong host, which only the path makes visible.
+	clean := filepath.Clean(path)
+	dsn := "file:" + clean + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("sql.Open: %w", err)
+		return nil, fmt.Errorf("open auth db %s: %w", clean, err)
 	}
 	if err := db.Ping(); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("ping: %w", err)
+		return nil, fmt.Errorf("open auth db %s: %w", clean, err)
 	}
 	if _, err := db.Exec(schemaDDL); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("schema: %w", err)
+		return nil, fmt.Errorf("auth db %s: schema: %w", clean, err)
 	}
 	return &Store{db: db}, nil
 }
