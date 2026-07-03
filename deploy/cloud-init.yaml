@@ -1,0 +1,73 @@
+#cloud-config
+# nimblegate - one-file VPS deploy.
+#
+# Paste this file into the "user data" / cloud-init field when creating a
+# small cloud server (target image: Ubuntu 24.04 LTS; the smallest
+# DigitalOcean or Hetzner Cloud instance is plenty). The box boots with:
+#
+#   * Docker + compose installed and the gateway running (image from ghcr).
+#   * Firewall: inbound 22 (admin SSH) + 2222 (git push) ONLY. The dashboard
+#     (7900) stays on host loopback - reach it over an SSH tunnel.
+#   * SSH hardened: key-only auth, no passwords.
+#   * A first-login banner showing your setup token and next steps.
+#
+# After the server is up, log in over SSH and follow the banner, or continue
+# at Step 2 of docs/getting-started.md. Adding your provider's cloud firewall
+# (same rules: 22 + 2222) on top gives you a second, independent layer.
+#
+# Security note: keep the dashboard on loopback (the default). Do NOT set
+# NIMBLEGATE_DASHBOARD_HOST=0.0.0.0 on an internet-facing box - the tunnel is
+# the supported access path (see "Dashboard access" in getting-started).
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - docker.io
+  - docker-compose-v2
+  - ufw
+  - curl
+
+# Cloud images install your SSH key at creation; passwords stay off.
+ssh_pwauth: false
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-nimblegate-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin prohibit-password
+
+  - path: /etc/update-motd.d/99-nimblegate
+    permissions: "0755"
+    content: |
+      #!/bin/sh
+      # First-login hints, installed by deploy/cloud-init.yaml.
+      [ -f /opt/nimblegate/compose.yaml ] || exit 0
+      LINE=$(docker logs nimblegate 2>&1 | grep nbg-setup | tail -1)
+      echo ""
+      echo "nimblegate gateway"
+      if [ -n "$LINE" ]; then
+        echo "  $LINE"
+      else
+        echo "  setup token: run   docker logs nimblegate | grep nbg-setup"
+      fi
+      echo "  dashboard: from YOUR computer   ssh -L 7900:127.0.0.1:7900 <user>@<this-host>"
+      echo "             then open http://localhost:7900/setup   (use 127.0.0.1, not localhost, in -L)"
+      echo "  push URL:  ssh://git@<this-host>:2222/~/<repo>.git"
+      echo "  walkthrough: https://github.com/nimblegate/nimblegate/blob/main/docs/getting-started.md"
+      echo ""
+
+runcmd:
+  # Firewall first, and allow both SSH doors BEFORE enabling so this can
+  # never lock you out of a remote box.
+  - ufw allow 22/tcp
+  - ufw allow 2222/tcp
+  - ufw --force enable
+  - systemctl restart ssh
+  # Fetch the current compose recipe instead of embedding a copy - one source
+  # of truth, nothing here to drift when compose.yaml changes.
+  - mkdir -p /opt/nimblegate
+  - curl -fsSL -o /opt/nimblegate/compose.yaml https://raw.githubusercontent.com/nimblegate/nimblegate/main/compose.yaml
+  - docker compose -f /opt/nimblegate/compose.yaml up -d
