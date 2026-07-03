@@ -124,6 +124,14 @@ docker compose up -d
 That's the whole install. The recipe starts one container with the dashboard on
 port **7900** (admin web UI, bound to localhost) and git-push on port **2222**.
 
+**Fresh cloud VPS?** There's a one-file deploy:
+[`deploy/cloud-init.yaml`](../deploy/cloud-init.yaml). Paste it into the
+"user data" / cloud-init field when creating the server (Ubuntu 24.04; the
+smallest DigitalOcean/Hetzner instance is plenty). The box boots with Docker +
+the gateway running, a firewall allowing only ports 22 and 2222 inbound,
+key-only SSH, and a first-login banner showing your setup token. Then continue
+at Step 2.
+
 **Air-gapped / can't reach the internet from the gateway?** Build the image on a
 machine that *can*, then transfer it:
 

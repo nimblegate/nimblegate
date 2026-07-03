@@ -43,6 +43,11 @@ curl -O https://raw.githubusercontent.com/nimblegate/nimblegate/main/compose.yam
 docker compose up -d
 ```
 
+> **Deploying to a fresh cloud VPS?** One file does the whole box:
+> [`deploy/cloud-init.yaml`](deploy/cloud-init.yaml) - paste it as user data at
+> server creation and it boots hardened (firewall, key-only SSH) with the
+> gateway running.
+
 **2. Claim the admin account.** Grab the one-time setup token, then set your password:
 
 ```bash
