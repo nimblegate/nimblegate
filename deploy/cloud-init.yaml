@@ -15,6 +15,11 @@
 # at Step 2 of docs/getting-started.md. Adding your provider's cloud firewall
 # (same rules: 22 + 2222) on top gives you a second, independent layer.
 #
+# IMPORTANT: select/add your SSH key in the provider's create-server form.
+# This file disables password login over SSH, so a server created WITHOUT an
+# SSH key cannot be logged into (the provider's emailed root password only
+# works on the web console). Key at creation is mandatory, not optional.
+#
 # Security note: keep the dashboard on loopback (the default). Do NOT set
 # NIMBLEGATE_DASHBOARD_HOST=0.0.0.0 on an internet-facing box - the tunnel is
 # the supported access path (see "Dashboard access" in getting-started).
