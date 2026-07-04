@@ -300,6 +300,10 @@ relay setup is in [`docs/server/README.md`](server/README.md).
 *On your computer.* This is where the three-places model matters most: you point
 your repo's `origin` at the **nimblegate gateway**, never the upstream.
 
+> **Per-OS steps (Windows/macOS/Linux), the agent workflow, running multiple
+> agents, and a troubleshooting table:** see [Connecting your machine and
+> agents](connecting.md). The essentials are below.
+
 **Set up an SSH shortcut once** so you don't have to remember the port and key.
 Add this to `~/.ssh/config`:
 
