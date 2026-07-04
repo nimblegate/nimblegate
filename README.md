@@ -149,11 +149,12 @@ Day to day, the gate fits the normal feature-branch flow:
 1. **Your agent works on a feature branch** - coding agents often use a git
    worktree per task, so several branches are in flight at once (one task, one
    branch) - and pushes it **to the gateway**.
-2. The gate checks that push. **Clean** → forwarded to your upstream, where a PR
-   is opened (`feature → main`). **Finding** → **rejected**, and the bad commit
-   never reaches the upstream.
+2. The gate checks that push. **Clean** → forwarded to your upstream, where you
+   or the agent open a PR (`feature → main`), as usual. **Finding** →
+   **rejected**, and the bad commit never reaches the upstream.
 3. On a rejection with an open PR, the gate posts the finding as a PR comment
    (see Auto-PR below) - the agent reads it, fixes, and re-pushes until it passes.
+   (The gate comments on a PR; it doesn't open one - your git host does that.)
 4. **You review the PR and merge it to `main`** on your git host, as usual.
 
 Because rejected commits bounce at the gate, the branch on your upstream only
