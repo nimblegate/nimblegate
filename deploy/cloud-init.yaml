@@ -36,6 +36,18 @@ packages:
 # Cloud images install your SSH key at creation; passwords stay off.
 ssh_pwauth: false
 
+# Optional but recommended: put your key IN this file so you don't depend on
+# the provider's key-selection form at all (forgetting it = locked out,
+# since password login is disabled). Uncomment ONE of the two blocks:
+#
+# (a) embed the public key itself:
+# ssh_authorized_keys:
+#   - ssh-ed25519 AAAA...your-public-key... you@machine
+#
+# (b) or fetch your public keys from GitHub at first boot:
+# ssh_import_id:
+#   - gh:your-github-username
+
 write_files:
   - path: /etc/ssh/sshd_config.d/99-nimblegate-hardening.conf
     permissions: "0644"
