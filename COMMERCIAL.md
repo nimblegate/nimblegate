@@ -17,6 +17,35 @@ A flat, simple license for using nimblegate in a for-profit setting (including g
 
 **[Buy a commercial license →](https://store.nimblegate.com/checkout/buy/5cae2f3a-0745-474f-a3d8-622e276c88fc)** *(self-serve checkout via Lemon Squeezy)*
 
+## Which use needs a license? Common cases
+
+Short answer first: the free and licensed versions are the **same full app** -
+no feature is locked behind the license. The only question is whether your use
+is commercial. The cases people ask about most:
+
+- **"Does the free version leave anything out?"** No. Free is the complete app -
+  all built-in frames, Auto-PR, the dashboard, MCP analytics - with no time
+  limit. The license grants the *right to use it commercially*; it does not
+  unlock features.
+- **"I'm a solo developer or freelancer using it on paid work."** That's
+  commercial - a license is needed. Using it on client projects, or on anything
+  you're paid for, is commercial use.
+- **"Can we try it at our company before deciding?"** Yes - evaluating it before
+  a commercial decision is free. Take the time you need; there is no trial clock.
+- **"It's only internal tooling - we don't resell nimblegate."** Still
+  commercial: using it inside a for-profit business needs a license, whether or
+  not nimblegate is part of what you sell.
+- **"We have 30 developers / lots of repos / several gateways."** Still one
+  license - $99/year is per company and covers all your developers, repos, and
+  servers. There is nothing to count.
+- **"We're a non-profit, or it's a personal side project that earns nothing."**
+  Free. If a non-profit has meaningful commercial activity, or a side project
+  starts earning, just ask and we will sort it out.
+
+Still unsure? The [LICENSE](LICENSE) is authoritative, and you can always email
+`contact@nimblegate.com` - a quick question is cheaper than a wrong guess, for
+both of us.
+
 ## Larger organisations / custom needs
 
 An SLA, signed agreement, SSO/RBAC, compliance-evidence export, or bespoke features are **not** part of the self-serve license - those are handled per deal. Email `contact@nimblegate.com` with how you'd use it and we'll scope it.
