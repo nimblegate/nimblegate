@@ -52,7 +52,7 @@ const displayPrefsHTML = `<section class="frame">
 const aboutStaticHTML = `<section class="frame">
 <h3 class="gw-section-head">License</h3>
 <p>nimblegate is source-available under the <a href="https://github.com/nimblegate/nimblegate/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--gw-accent)">PolyForm Noncommercial 1.0.0</a> license. Non-commercial use is free and unrestricted, today and for good.</p>
-<p class="sub">Commercial use requires a commercial license - <a href="https://github.com/nimblegate/nimblegate/blob/main/COMMERCIAL.md" target="_blank" rel="noopener" style="color:var(--gw-accent)">$99/year per company</a>. Larger orgs: email <a href="mailto:contact@nimblegate.com" style="color:var(--gw-accent)">contact@nimblegate.com</a>.</p>
+<p class="sub">Commercial use requires a commercial license - <a href="https://github.com/nimblegate/nimblegate/blob/main/COMMERCIAL.md" target="_blank" rel="noopener" style="color:var(--gw-accent)">$10/month or $99/year per company</a>. Larger orgs: email <a href="mailto:contact@nimblegate.com" style="color:var(--gw-accent)">contact@nimblegate.com</a>.</p>
 </section>
 
 <section class="frame">

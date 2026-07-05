@@ -324,8 +324,8 @@ You get:
 ## Commercial use
 
 Using nimblegate in a for-profit setting requires a commercial license - a flat
-**$99/year per company** (all your devs, the app as-is, best-effort email support,
-no SLA). Terms and the buy link: **[commercial license](COMMERCIAL.md)**.
+**$10/month or $99/year per company** (all your devs, the app as-is, best-effort
+email support, no SLA). Terms and the buy links: **[commercial license](COMMERCIAL.md)**.
 
 Larger organisations needing an SLA, signed terms, or bespoke features: email
 `contact@nimblegate.com`.
@@ -349,7 +349,7 @@ to it* and sends nothing anywhere except your configured upstream. See
 nimblegate is source-available under **[PolyForm Noncommercial 1.0.0](LICENSE)**,
 provided AS-IS without warranty. Non-commercial use is free and unrestricted,
 today and for good. **Commercial use requires a [commercial license](COMMERCIAL.md)**
-($99/year per company; email `contact@nimblegate.com` for larger orgs).
+($10/month or $99/year per company; email `contact@nimblegate.com` for larger orgs).
 
 ## Contributing · Security
 

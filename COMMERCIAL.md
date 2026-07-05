@@ -8,14 +8,14 @@ nimblegate is free for non-commercial use under the [PolyForm Noncommercial Lice
 
 A flat, simple license for using nimblegate in a for-profit setting (including gating code that ships a paid product):
 
-- **$99 / year, per company** - covers all your developers, the app as-is.
-- Grants the right to use the current nimblegate release commercially, plus any updates published during your licensed year.
+- **$10 / month or $99 / year, per company** (yearly saves $21 - 2 months free) - covers all your developers, the app as-is.
+- Grants the right to use the current nimblegate release commercially, plus any updates published while your subscription is active.
 - **Best-effort email support** (`contact@nimblegate.com`) - no guaranteed response time.
 - Provided **as-is, without warranty, with no SLA.**
 - A proper invoice / receipt is issued at purchase (handled by Lemon Squeezy as Merchant of Record, including applicable tax).
-- Per company; renews annually. If the license lapses, use reverts to the non-commercial terms.
+- Per company; renews monthly or annually per your plan, and you can switch plans self-serve. If the license lapses, use reverts to the non-commercial terms.
 
-**[Buy a commercial license →](https://store.nimblegate.com/checkout/buy/5cae2f3a-0745-474f-a3d8-622e276c88fc)** *(self-serve checkout via Lemon Squeezy)*
+**[Buy yearly - 2 months free →](https://store.nimblegate.com/checkout/buy/621aa432-ff6b-46bf-9030-87cabd656f45)** or **[buy monthly →](https://store.nimblegate.com/checkout/buy/5cae2f3a-0745-474f-a3d8-622e276c88fc)** *(self-serve checkout via Lemon Squeezy)*
 
 ## Which use needs a license? Common cases
 
@@ -36,8 +36,8 @@ is commercial. The cases people ask about most:
   commercial: using it inside a for-profit business needs a license, whether or
   not nimblegate is part of what you sell.
 - **"We have 30 developers / lots of repos / several gateways."** Still one
-  license - $99/year is per company and covers all your developers, repos, and
-  servers. There is nothing to count.
+  license - $10/month or $99/year is per company and covers all your developers,
+  repos, and servers. There is nothing to count.
 - **"We're a non-profit, or it's a personal side project that earns nothing."**
   Free. If a non-profit has meaningful commercial activity, or a side project
   starts earning, just ask and we will sort it out.

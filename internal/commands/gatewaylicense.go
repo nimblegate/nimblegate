@@ -9,8 +9,9 @@ import (
 	"nimblegate/internal/gateway"
 )
 
-// licenseBuyURL is the "Get a license" destination - the Lemon Squeezy checkout.
-const licenseBuyURL = "https://store.nimblegate.com/checkout/buy/5cae2f3a-0745-474f-a3d8-622e276c88fc"
+// licenseBuyURL is the "Get a license" destination - the Lemon Squeezy checkout
+// (yearly variant; the checkout page offers the monthly plan as a switch).
+const licenseBuyURL = "https://store.nimblegate.com/checkout/buy/621aa432-ff6b-46bf-9030-87cabd656f45"
 
 // licenseHandlers owns POST /settings/license - the write half of the
 // self-attestation nudge. Honor system: it records the operator's declaration
