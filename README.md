@@ -198,7 +198,12 @@ into one-click **kits**:
 - **`web-app`** / **`cf-pages-project`** / **`cf-workers-project`**: stack-shaped
   bundles (HTML/SEO, Cloudflare Pages + D1, Workers).
 - **`security-strict`** / **`encoding-strict`**: the invisible-Unicode attack
-  class and paste-corruption that silently breaks parsers. Stackable on any kit.
+  class, checksum-validated personal data in fixtures (payment cards, IBANs,
+  SSNs), and paste-corruption that silently breaks parsers. Stackable on any kit.
+- **Supply-chain**: `commands/approved-registries-only` flags dependency
+  sources (Maven/Gradle repositories, npm registries, pip index URLs) that
+  bypass your approved registry mirror (Nexus/Artifactory) - declare your
+  hosts once, catch the agent-added bypass at push time.
 
 Plus your own **regex rules**, authored from the dashboard with a live "would have
 flagged N files" preview: no code, no rebuild. Choosing and authoring policy:
