@@ -12,6 +12,8 @@ sysadmin-side reference.
 - [Forgot the admin password](#forgot-the-admin-password)
 - [Self-maintaining storage](#self-maintaining-storage)
 - [Hardening: outbound allowlist (optional)](#hardening-outbound-allowlist-optional)
+- [Credential lifecycle: what lives where, when to rotate](#credential-lifecycle-what-lives-where-when-to-rotate)
+- [If you suspect the gateway is compromised](#if-you-suspect-the-gateway-is-compromised)
 
 ---
 
@@ -203,3 +205,70 @@ mechanism; `DOCKER-USER` rules survive Docker restarts by design.)
 **What to expect after enabling:** pushes relay, PR comments post, `docker
 pull` and OS updates work (all HTTPS). Anything that breaks is a protocol
 you forgot you depended on - add it deliberately, one rule at a time.
+
+---
+
+## Credential lifecycle: what lives where, when to rotate
+
+Everything secret on the gateway, in one view:
+
+| Secret | Lives at rest in | Rotate when |
+|---|---|---|
+| Upstream PAT (per repo) | `<policy-root>/<repo>/gateway.toml` (cfg volume) | On your git host's expiry cadence; immediately on any compromise suspicion |
+| Admin login | `_auth.db` (cfg volume, hashed) | On personnel change; recovery via setup-token reset (above) |
+| Agent API tokens | `_auth.db` (cfg volume, SHA-256 hashes only) | Mint one per consumer; revoke by ID when a consumer is retired |
+| Webhook secret (HMAC/bearer) | `gateway.toml [notification]` | Together with the receiver; it is a shared secret |
+| SSH host keys | ssh volume | Practically never (rotating re-warns every dev machine) |
+| Pusher public keys | ssh volume / dashboard Keys page | These are PUBLIC keys - nothing to leak. Remove entries when a person or agent is offboarded |
+
+Three practical consequences:
+
+- **The cfg volume is the sensitive one.** Backups contain it - encrypt them
+  at rest and store off-host (see Backup and recovery).
+- **Private keys never live on the gateway.** Developers' and agents' private
+  SSH keys stay on their machines; the gateway holds only the public halves.
+  A gateway compromise does not compromise any dev machine.
+- **One credential per consumer beats one shared credential.** Per-repo PATs,
+  per-agent pusher keys, per-consumer API tokens - each makes revocation
+  surgical instead of a company-wide rotation event.
+
+---
+
+## If you suspect the gateway is compromised
+
+Assume-breach runbook. What an attacker on the gateway box has, worst case:
+the upstream PATs (write access to the repos the gateway relays), the bare
+repo mirrors (your source code), the audit log, and the webhook secret. What
+they do NOT have: any developer's private SSH key (only public keys are
+stored), access to dev machines, or anything beyond the repos the PATs are
+scoped to - which is why per-repo fine-grained PATs matter.
+
+In order:
+
+1. **Revoke the upstream PATs at the git host** (GitHub/GitLab/Gitea settings,
+   not on the gateway). This kills the stolen credential's value instantly,
+   even before you touch the box. Relaying stops until you issue new ones -
+   that is the point.
+2. **Freeze pushes:** stop the gateway (`docker compose stop` / stop the
+   systemd unit) or block 2222 at the firewall.
+3. **Verify upstream history integrity.** The gateway relays byte-for-byte,
+   so compare: branch tips upstream vs your team's local clones
+   (`git ls-remote` both sides). Diverged or unexpected refs upstream =
+   escalate to your git host's support + treat as a code-integrity incident.
+4. **Review the audit log** (`audit.log` in the cfg volume, or the dashboard
+   feed from a restored copy): what relayed during the suspicious window, from
+   which keys.
+5. **Rebuild, don't clean.** Fresh host or re-provision via
+   `deploy/cloud-init.yaml`, restore the three volumes from a KNOWN-GOOD
+   backup (or re-register repos from scratch - they re-sync from upstream),
+   issue NEW PATs, set a new webhook secret, reset the admin login.
+6. **Re-key the pushers:** remove all pusher keys in the dashboard and have
+   each developer/agent re-submit. Their keys were never exposed, but this
+   guarantees the authorized set matches reality after the incident.
+7. **Rotate agent API tokens** (`nimblegate gateway token list` / `revoke`,
+   then mint fresh ones).
+
+Postmortem material is built in: the audit log is append-only and the
+decision history survives in backups, so "what went through the gate and
+when" is answerable after the fact - that record is the reason several of
+these steps are possible at all.
