@@ -1,0 +1,8 @@
+<project>
+  <repositories>
+    <repository>
+      <id>corp</id>
+      <url>https://nexus.corp.example.com/repository/maven-public</url>
+    </repository>
+  </repositories>
+</project>
