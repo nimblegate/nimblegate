@@ -11,6 +11,7 @@ sysadmin-side reference.
 - [Backup and recovery](#backup-and-recovery)
 - [Forgot the admin password](#forgot-the-admin-password)
 - [Self-maintaining storage](#self-maintaining-storage)
+- [Hardening: outbound allowlist (optional)](#hardening-outbound-allowlist-optional)
 
 ---
 
@@ -140,3 +141,65 @@ weekly maintenance loop runs `git gc --auto` per bare repo so pack files don't
 accumulate forever, and prunes old deadletter records. Tunable in
 `<policy-root>/gateway.toml` `[maintenance]`; defaults are sane and most
 operators never touch it.
+
+---
+
+## Hardening: outbound allowlist (optional)
+
+The gateway's legitimate outbound traffic is small and known: HTTPS to your
+upstream git host(s), DNS, NTP, and OS/package updates. Everything else it
+might ever send is, by definition, not something you configured. Restricting
+egress is defense-in-depth: even a hypothetically compromised gateway then
+has nowhere to exfiltrate to. Inbound is already covered (22 + 2222 only,
+see the cloud-init deploy); this section is the outbound half.
+
+This is optional. The gateway is safe without it - the point is limiting
+blast radius further on boxes where that matters (regulated environments,
+strict network policies).
+
+**Bare-metal install** (gateway binary runs as a host process) - ufw:
+
+```bash
+ufw default deny outgoing
+ufw allow out on lo
+ufw allow out 53          # DNS (scope to your resolver IP if it is static)
+ufw allow out 123/udp     # NTP
+ufw allow out 443/tcp     # HTTPS: upstream relay + PR comments + OS updates
+```
+
+Port-level (443 to anywhere) rather than per-host is the honest, robust
+version: git hosts publish rotating IP ranges (GitHub's change; see their
+`/meta` API), and pinning them turns hardening into a maintenance chore that
+eventually breaks relaying. Port-level already removes every non-HTTPS
+exfiltration path. If your upstream is a fixed internal host (self-hosted
+Gitea/GitLab), tighten to its address:
+
+```bash
+ufw allow out to <upstream-ip> port 443 proto tcp
+```
+
+**Docker install:** host `ufw` outgoing rules do NOT govern container
+traffic - Docker routes it through the FORWARD chain, which ufw's outgoing
+policy never sees. Container egress is filtered in the `DOCKER-USER` chain
+instead. Two details matter: match only container-ORIGINATED packets
+(`-i <bridge>`), or the final DROP also kills inbound pushes to 2222; and
+INSERT the rules (`-I`), because Docker pre-installs a `RETURN` at the end
+of the chain that appended rules would sit behind, never evaluated:
+
+```bash
+# BR = docker0, or your compose network's bridge (docker network ls → br-<id>)
+BR=docker0
+iptables -I DOCKER-USER -i $BR -j DROP
+iptables -I DOCKER-USER -i $BR -p tcp --dport 443 -j RETURN
+iptables -I DOCKER-USER -i $BR -p udp --dport 53 -j RETURN
+iptables -I DOCKER-USER -i $BR -m state --state ESTABLISHED,RELATED -j RETURN
+```
+
+(Inserted in reverse so the final order reads: established / DNS / HTTPS /
+drop-the-rest. Inbound pushes arrive on the host interface, not `$BR`, so
+they pass untouched. Persist with your distro's iptables-persistence
+mechanism; `DOCKER-USER` rules survive Docker restarts by design.)
+
+**What to expect after enabling:** pushes relay, PR comments post, `docker
+pull` and OS updates work (all HTTPS). Anything that breaks is a protocol
+you forgot you depended on - add it deliberately, one rule at a time.
