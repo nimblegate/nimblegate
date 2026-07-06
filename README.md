@@ -202,7 +202,7 @@ into one-click **kits**:
   SSNs), and paste-corruption that silently breaks parsers. Stackable on any kit.
 - **Supply-chain**: `commands/approved-registries-only` flags dependency
   sources (Maven/Gradle repositories, npm registries, pip index URLs) that
-  bypass your approved registry mirror (Nexus/Artifactory) - declare your
+  bypass your approved registry mirror - declare your
   hosts once, catch the agent-added bypass at push time.
 
 Plus your own **regex rules**, authored from the dashboard with a live "would have

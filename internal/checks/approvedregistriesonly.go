@@ -44,7 +44,7 @@ func approvedRegistriesApplicableFile(path string) bool {
 }
 
 // arPrivateHost reports whether a host is clearly not a public registry:
-// loopback, or a bare intranet hostname without a dot (http://nexus:8081).
+// loopback, or a bare intranet hostname without a dot (http://repo:8081).
 func arPrivateHost(host string) bool {
 	h := strings.ToLower(host)
 	if h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0" {

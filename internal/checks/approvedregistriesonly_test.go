@@ -87,9 +87,9 @@ func TestApprovedRegistriesOnly_NpmrcAndPipFire(t *testing.T) {
 
 func TestApprovedRegistriesOnly_AllowlistedHostPasses(t *testing.T) {
 	root := t.TempDir()
-	arWrite(t, root, ".appframes/_canonical/approved-registries.toml", "[registries]\nnexus = \"nexus.corp.example.com\"\n")
+	arWrite(t, root, ".appframes/_canonical/approved-registries.toml", "[registries]\nmirror = \"registry.corp.example.com\"\n")
 	arWrite(t, root, "pom.xml", `<project><repositories><repository>
-  <url>https://nexus.corp.example.com/repository/maven-public</url>
+  <url>https://registry.corp.example.com/repository/maven-public</url>
 </repository></repositories></project>`)
 	res := ApprovedRegistriesOnly(arCtx(root))
 	if res.Outcome != engine.OutcomePass {
@@ -99,7 +99,7 @@ func TestApprovedRegistriesOnly_AllowlistedHostPasses(t *testing.T) {
 
 func TestApprovedRegistriesOnly_AllowlistPresentUnlistedHostFires(t *testing.T) {
 	root := t.TempDir()
-	arWrite(t, root, ".appframes/_canonical/approved-registries.toml", "[registries]\nnexus = \"nexus.corp.example.com\"\n")
+	arWrite(t, root, ".appframes/_canonical/approved-registries.toml", "[registries]\nmirror = \"registry.corp.example.com\"\n")
 	arWrite(t, root, ".npmrc", "registry=https://registry.npmjs.org/\n")
 	res := ApprovedRegistriesOnly(arCtx(root))
 	if res.Outcome != engine.OutcomeWarn {
@@ -120,7 +120,7 @@ func TestApprovedRegistriesOnly_AllowlistedGradleShortcutPasses(t *testing.T) {
 func TestApprovedRegistriesOnly_PrivateHostsPass(t *testing.T) {
 	root := t.TempDir()
 	arWrite(t, root, ".npmrc", "registry=http://localhost:4873/\n")
-	arWrite(t, root, "pip.conf", "[global]\nindex-url = http://nexus:8081/repository/pypi/simple\n")
+	arWrite(t, root, "pip.conf", "[global]\nindex-url = http://repo:8081/repository/pypi/simple\n")
 	res := ApprovedRegistriesOnly(arCtx(root))
 	if res.Outcome != engine.OutcomePass {
 		t.Fatalf("want PASS, got %v (%s)", res.Outcome, res.Reason)

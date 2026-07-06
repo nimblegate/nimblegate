@@ -1,2 +1,2 @@
 [registries]
-nexus = "nexus.corp.example.com"
+mirror = "registry.corp.example.com"

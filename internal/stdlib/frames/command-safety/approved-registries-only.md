@@ -34,8 +34,8 @@ selection-stats:
 # Approved registries only
 
 Flag dependency-source declarations that route around the organisation's
-approved registry. Teams that run an internal mirror (Nexus, Artifactory)
-gate every dependency through one policied chokepoint; a build file that
+approved registry. Teams that run an internal registry mirror gate every
+dependency through one policied chokepoint; a build file that
 declares a direct public source - added in seconds by an agent resolving a
 missing package - bypasses that chokepoint invisibly. This frame makes the
 bypass visible at push time.
@@ -52,7 +52,7 @@ bypass visible at push time.
 | `pip.conf` / `pip.ini` | `index-url =`, `extra-index-url =` |
 
 Hosts that are clearly private are never flagged: `localhost`, loopback
-addresses, and bare intranet hostnames without a dot (`http://nexus:8081`).
+addresses, and bare intranet hostnames without a dot (`http://repo:8081`).
 
 ## The allowlist
 
@@ -60,7 +60,7 @@ Declare approved hosts in `.appframes/_canonical/approved-registries.toml`:
 
 ```toml
 [registries]
-nexus  = "nexus.corp.example.com"
+mirror = "registry.corp.example.com"
 proxy  = "artifacts.corp.example.com:8443"
 # gradle shortcut names can be allowed by name:
 # central = "mavenCentral"

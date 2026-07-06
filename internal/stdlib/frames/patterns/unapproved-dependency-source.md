@@ -9,7 +9,7 @@ anticipated-siblings: []
 A build file quietly gains a `<repository>` URL, a `mavenCentral()` call, a
 `registry=` line, an `--extra-index-url` flag - and from that moment the
 project pulls code from a source nobody vetted. Organisations that run an
-internal registry mirror (Nexus, Artifactory) do it precisely so every
+internal registry mirror do it precisely so every
 dependency passes one policied chokepoint; a direct-to-public source in a
 build file routes around that chokepoint entirely.
 
