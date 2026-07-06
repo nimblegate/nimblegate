@@ -155,7 +155,7 @@ Stdlib ships six starter kits:
 | `web-app` | Projects shipping HTML pages (any backend). Includes `core`. | 27 |
 | `cf-pages-project` | SvelteKit / Astro / Next on CF Pages with D1. Includes `web-app`. | 29 |
 | `cf-workers-project` | Cloudflare Workers + Tunnels + Access, no HTML. Includes `core`. | 20 |
-| `security-strict` | Adds every `security/*` frame on top of whatever else is applied (includes Trojan Source / tag-char / zero-width / homoglyph attack-class). Stackable with any other kit. | 9 |
+| `security-strict` | Adds every `security/*` frame on top of whatever else is applied (includes Trojan Source / tag-char / zero-width / homoglyph attack-class, plus PII detection). Stackable with any other kit. | 10 |
 | `encoding-strict` | Adds every `encoding/*` frame: BOM, smart quotes, YAML tabs, line endings, mixed indent, en-dash flags, non-printable controls, ZWSP in docs. Stackable with any other kit. | 8 |
 
 Kit CLI:

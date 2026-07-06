@@ -144,6 +144,7 @@ frames = [
     "security/no-invisible-tag-chars",
     "security/no-zero-width-in-source",
     "security/no-homoglyph-identifiers",
+    "security/no-pii-in-source",
 ]
 
 [encoding-strict]

@@ -16,9 +16,10 @@ func TestBuildV2FrameMap_walksEntireV2Tree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildV2FrameMap: %v", err)
 	}
-	// Phase A3 classification placed exactly 44 frames into v2 layout.
-	if got := len(m.IDToBucket); got != 44 {
-		t.Errorf("V2FrameMap has %d entries, want 44 (classification table)", got)
+	// Phase A3 classification placed 44 frames into v2 layout; approved-registries-only
+	// and no-pii-in-source (2026-07-06) bring it to 46.
+	if got := len(m.IDToBucket); got != 46 {
+		t.Errorf("V2FrameMap has %d entries, want 46 (classification table)", got)
 	}
 }
 

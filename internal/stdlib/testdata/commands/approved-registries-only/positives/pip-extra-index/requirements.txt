@@ -1,0 +1,2 @@
+--extra-index-url https://pypi.org/simple
+requests==2.31.0

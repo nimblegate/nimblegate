@@ -1,0 +1,4 @@
+<project>
+  <url>https://example.com/my-project</url>
+  <scm><url>https://github.com/acme/repo</url></scm>
+</project>

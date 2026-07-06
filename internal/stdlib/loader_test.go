@@ -140,6 +140,8 @@ func TestLoadStdlibFrames_TierMetadataPresent(t *testing.T) {
 		"git/no-lfsconfig-changes":                     1,
 		"commands/apt-purge-preview":                   1,
 		"commands/curl-pipe-shell":                     1,
+		"commands/approved-registries-only":            2,
+		"security/no-pii-in-source":                    2,
 		"database/migration-script-explicit-env":       1,
 		"database/migration-verification-step":         1,
 		"database/sqlite-migration-idempotent-wrapper": 1,
