@@ -138,14 +138,10 @@ func buildFramesCatalogTree(stdlibFrames []frames.Frame) framesCatalogTree {
 		return out
 	}
 
-	// Surface canonical framework sub-buckets even when no frame declares
-	// one - matches /policy page so the axis shape is visible.
-	for _, fw := range canonicalFrameworks {
-		if _, ok := framework[fw]; !ok {
-			framework[fw] = nil
-		}
-	}
-
+	// Unlike /policy (a selection surface, where the empty framework axis
+	// shows operators where framework rules will land), this read-only
+	// catalog hides axes with zero frames - an empty accordion on a browse
+	// page reads as unfinished, not as roadmap.
 	platformSubs := buildNestedPlatformCatalogSubs(platform)
 	sortSubsByDisplay(platformSubs)
 	for i := range platformSubs {
@@ -170,7 +166,7 @@ func buildFramesCatalogTree(stdlibFrames []frames.Frame) framesCatalogTree {
 		for _, s := range subs {
 			count += countCatalogFrames(s)
 		}
-		if count == 0 && ax.id != v2AxisCore && ax.id != v2AxisFramework {
+		if count == 0 && ax.id != v2AxisCore {
 			continue
 		}
 		cats = append(cats, framesCatalogCategory{
