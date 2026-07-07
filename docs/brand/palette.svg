@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate 5-step brand palette — strip derived by interpolating between
+  nimblegate 5-step brand palette - strip derived by interpolating between
   the two locked-in source colors: the brand surface (#0b0d11, base dark)
   and the brand accent (#79c0ff, primary). Use this strip in slide decks,
   brand-guideline docs, design files; the canonical hex list is in
@@ -14,7 +14,7 @@
   <rect x="600" y="0" width="200" height="200" fill="#5e93c4"/>
   <rect x="800" y="0" width="200" height="200" fill="#79c0ff"/>
 
-  <!-- Hex labels — light text on dark steps, dark text on light steps -->
+  <!-- Hex labels - light text on dark steps, dark text on light steps -->
   <g font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="18" text-anchor="middle">
     <text x="100" y="186" fill="#cdd">#0b0d11</text>
     <text x="300" y="186" fill="#cdd">#263a4c</text>

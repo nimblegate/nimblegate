@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate YouTube channel art — 2048×1152 (16:9, YouTube's recommended size).
+  nimblegate YouTube channel art - 2048×1152 (16:9, YouTube's recommended size).
   Designed differently from header.svg because YouTube has a "TV-safe" area of
   ~1235×338 centered on the canvas that's visible on every device; everything
   outside is desktop-only and gets cropped on mobile/tablet. So the orb +
@@ -8,8 +8,8 @@
   surface filling the wider canvas for desktop views.
   Rebuild PNG: rsvg-convert -w 2048 -h 1152 header-yt.svg -o header-yt.png
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 1152" width="2048" height="1152" role="img" aria-label="nimblegate — Git push guardrails for AI agents">
-  <title>nimblegate — Git push guardrails for AI agents</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 1152" width="2048" height="1152" role="img" aria-label="nimblegate - Git push guardrails for AI agents">
+  <title>nimblegate - Git push guardrails for AI agents</title>
   <defs>
     <radialGradient id="vignette" cx="50%" cy="50%" r="65%">
       <stop offset="0%" stop-color="#10151c" stop-opacity="1"/>
@@ -21,7 +21,7 @@
     Safe area: x ∈ [407, 1642] (width 1235), y ∈ [407, 745] (height 338).
     Orb placed on the left of the safe area, wordmark + tagline + URL on the right.
     Orb scale 3.75 × 64-unit viewBox = 240 px diameter. translate(440 456)
-    puts orb center at (560, 576) — comfortably inside the safe-area vertical
+    puts orb center at (560, 576) - comfortably inside the safe-area vertical
     midline; orb extent x=440-680, y=456-696, all inside [407, 745].
   -->
   <g transform="translate(440 456) scale(3.75)" fill="#79c0ff">

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate social banner — 1500×500 (X/LinkedIn/dev.to standard). Dark brand
+  nimblegate social banner - 1500×500 (X/LinkedIn/dev.to standard). Dark brand
   surface with a subtle vignette so it doesn't read as flat at banner scale.
   Particle orb on the left, wordmark + tagline + URL stacked on the right.
   Rebuild PNG: rsvg-convert -w 1500 -h 500 header.svg -o header.png
   YouTube channel-art variant (2048×1152): rsvg-convert -w 2048 -h 1152 ...
 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500" role="img" aria-label="nimblegate — Git push guardrails for AI agents">
-  <title>nimblegate — Git push guardrails for AI agents</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500" role="img" aria-label="nimblegate - Git push guardrails for AI agents">
+  <title>nimblegate - Git push guardrails for AI agents</title>
   <defs>
     <radialGradient id="vignette" cx="50%" cy="50%" r="75%">
       <stop offset="0%" stop-color="#10151c" stop-opacity="1"/>
@@ -18,7 +18,7 @@
   <!--
     Orb placement math: 64-unit viewBox × 4.375 = 280 px render area.
     translate(150 110) puts the orb's drawing area at (150-430, 110-390);
-    orb center at (310, 250) — vertically centered on the 500-tall canvas,
+    orb center at (310, 250) - vertically centered on the 500-tall canvas,
     sitting on the left third of the 1500-wide canvas. The wordmark begins
     at x=520, leaving ~90 px gap between orb's right edge and the text.
   -->

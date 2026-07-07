@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate social avatar — 400×400 square, dark brand surface, centered
+  nimblegate social avatar - 400×400 square, dark brand surface, centered
   particle-orb mark + wordmark below. Orb scaled to 220 px diameter inside a
   64-unit viewBox that's now properly centered on (32, 32), so the orb sits
   on the canvas's vertical axis at x=200. Upload avatar.png to every social
@@ -14,7 +14,7 @@
     Orb placement math: 64-unit viewBox × 3.4375 = 220 px render area.
     translate(90 60) puts the viewBox top-left at (90, 60); orb center
     (32, 32 in viewBox units) lands at (200, 170) on the 400×400 canvas
-    — visually centered horizontally + above the wordmark.
+    - visually centered horizontally + above the wordmark.
   -->
   <g transform="translate(90 60) scale(3.4375)" fill="#79c0ff">
     <circle cx="32.00" cy="4.00" r="2.50" opacity="0.65"/>
@@ -48,6 +48,6 @@
     <circle cx="28.54" cy="58.07" r="2.12" opacity="0.53"/>
     <circle cx="32.00" cy="60.00" r="2.50" opacity="0.65"/>
   </g>
-  <!-- Wordmark below the orb — Montserrat Light, nimble + GATE -->
+  <!-- Wordmark below the orb - Montserrat Light, nimble + GATE -->
   <text x="200" y="358" text-anchor="middle" font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="44" letter-spacing="0.88" fill="#79c0ff">nimblegate</text>
 </svg>

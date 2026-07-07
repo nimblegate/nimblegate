@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate wordmark — Montserrat Light (weight 300), set as two tspans so
+  nimblegate wordmark - Montserrat Light (weight 300), set as two tspans so
   "nimble" stays lowercase and "GATE" is uppercase, both sharing the same
   weight + size. Letter-spacing is slightly opened (0.02em) because Montserrat
   Light reads better with a touch of breathing room than a tightly-tracked
@@ -8,7 +8,7 @@
   text element when placing on a coloured surface that needs a different
   foreground. If the rasteriser doesn't have Montserrat installed it will
   fallback through the stack (Helvetica Neue → system-ui → sans-serif),
-  which is acceptable for emergency use but loses the geometric feel — install
+  which is acceptable for emergency use but loses the geometric feel - install
   fonts-montserrat (Debian/Ubuntu) before re-exporting PNGs.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 80" width="460" height="80" role="img" aria-label="nimblegate">

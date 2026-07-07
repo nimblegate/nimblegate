@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate canonical logo — orb + wordmark horizontal lockup. Transparent
+  nimblegate canonical logo - orb + wordmark horizontal lockup. Transparent
   background; both elements in the locked brand accent (#79c0ff). Use this
   file inline in README headers, slide decks, doc footers, any surface that
   wants the brand mark without the dark surface (which is what avatar.svg /
@@ -10,7 +10,7 @@
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" width="320" height="64" role="img" aria-label="nimblegate">
   <title>nimblegate</title>
-  <!-- Orb — 30 dots scaled to fit a 64×64 box on the left -->
+  <!-- Orb - 30 dots scaled to fit a 64×64 box on the left -->
   <g fill="#79c0ff">
     <circle cx="32.00" cy="4.00" r="2.50" opacity="0.65"/>
     <circle cx="24.47" cy="5.93" r="2.77" opacity="0.74"/>
@@ -43,6 +43,6 @@
     <circle cx="28.54" cy="58.07" r="2.12" opacity="0.53"/>
     <circle cx="32.00" cy="60.00" r="2.50" opacity="0.65"/>
   </g>
-  <!-- Wordmark — Montserrat Light, baseline aligned to the orb's vertical centre -->
+  <!-- Wordmark - Montserrat Light, baseline aligned to the orb's vertical centre -->
   <text x="78" y="42" font-family="Montserrat, 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="300" font-size="36" letter-spacing="0.72" fill="#79c0ff">nimblegate</text>
 </svg>

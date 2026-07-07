@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  nimblegate icon — particle-orb mark.
-  Inspired by Nate Wiley's "Particle Orb CSS" CodePen — adapted to a static
+  nimblegate icon - particle-orb mark.
+  Inspired by Nate Wiley's "Particle Orb CSS" CodePen - adapted to a static
   Fibonacci-sphere distribution of 30 dots, orthographically projected, with
   apparent depth driven by radius + opacity. Centered at (32, 32) inside the
   64×64 viewBox so derived assets (avatar, header) don't appear off-axis when
