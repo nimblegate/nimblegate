@@ -62,6 +62,26 @@ var credentialPatterns = []credentialPattern{
 	{Name: "Google API key", Pattern: regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{35}\b`), Severity: engine.OutcomeBlock},
 }
 
+// credentialDocSentinels are provider-published documentation values -
+// fake by design, excluded entirely rather than downgraded (same
+// philosophy as the PII frame's publishable test cards). AWS uses these
+// two in its own docs everywhere.
+var credentialDocSentinels = map[string]bool{
+	"AKIAIOSFODNN7EXAMPLE": true,
+	"AKIAI44QH8DHBEXAMPLE": true,
+}
+
+// credentialLineFires reports whether the pattern matches something on
+// the line that is NOT a known documentation sentinel.
+func credentialLineFires(p credentialPattern, line string) bool {
+	for _, m := range p.Pattern.FindAllString(line, -1) {
+		if !credentialDocSentinels[m] {
+			return true
+		}
+	}
+	return false
+}
+
 const credentialsDisableMarker = "appframes:disable security/no-hardcoded-credentials"
 const credentialsDisableLineMarker = "appframes:disable-next-line security/no-hardcoded-credentials"
 
@@ -139,7 +159,7 @@ filesLoop:
 				continue
 			}
 			for _, p := range credentialPatterns {
-				if p.Pattern.MatchString(line) {
+				if credentialLineFires(p, line) {
 					// Reason intentionally does NOT include the matched bytes.
 					hit := fmt.Sprintf("%s:%d - %s", file, i+1, p.Name)
 					hitStruct := engine.Hit{File: file, Line: i + 1, Label: p.Name}

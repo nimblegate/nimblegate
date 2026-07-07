@@ -19,8 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 3/3
-  negatives: 3/3
-  last-run: 2026-05-20T11:45:47Z
+  negatives: 4/4
+  last-run: 2026-07-07T19:28:19Z
 ---
 
 # No hardcoded credentials
@@ -126,6 +126,12 @@ that the project has decided are not subject to this scan
 (generated/vendored configs). When in doubt: don't disable; rotate.
 
 ## What's NOT detected
+
+- **Provider documentation sentinels** (`AKIAIOSFODNN7EXAMPLE`,
+  `AKIAI44QH8DHBEXAMPLE`) - AWS's own published example keys are fake by
+  design and excluded entirely, not downgraded; docs quoting them never
+  fire. A non-sentinel key on the same line still fires.
+
 
 Documented so a future "why didn't it catch X?" has an answer:
 

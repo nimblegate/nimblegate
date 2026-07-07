@@ -24,7 +24,7 @@ func runCredCheck(t *testing.T, fileBody string) engine.CheckResult {
 }
 
 func TestNoHardcodedCredentials_AWSAccessKey(t *testing.T) {
-	got := runCredCheck(t, `const KEY = "AKIAIOSFODNN7EXAMPLE";`+"\n")
+	got := runCredCheck(t, `const KEY = "AKIAZZZZTESTFIXTURE0";`+"\n")
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK", got.Outcome)
 	}
@@ -32,7 +32,7 @@ func TestNoHardcodedCredentials_AWSAccessKey(t *testing.T) {
 		t.Errorf("reason missing pattern name: %s", got.Reason)
 	}
 	// CRITICAL: the raw matched bytes must NEVER appear in the reason.
-	if strings.Contains(got.Reason, "AKIAIOSFODNN7EXAMPLE") {
+	if strings.Contains(got.Reason, "AKIAZZZZTESTFIXTURE0") {
 		t.Errorf("REDACTION FAILURE: raw secret leaked into reason: %s", got.Reason)
 	}
 }
@@ -190,7 +190,7 @@ func TestNoHardcodedCredentials_PerFileDisableSuppresses(t *testing.T) {
 	root := t.TempDir()
 	writeSource(t, root, "src/quiet.go",
 		`# appframes:disable security/no-hardcoded-credentials
-const K = "AKIAIOSFODNN7EXAMPLE";`+"\n")
+const K = "AKIAZZZZTESTFIXTURE0";`+"\n")
 	got := NoHardcodedCredentials(engine.CheckContext{
 		Trigger:      engine.TriggerCLI,
 		ProjectRoot:  root,
@@ -205,7 +205,7 @@ func TestNoHardcodedCredentials_PerLineDisableSuppresses(t *testing.T) {
 	root := t.TempDir()
 	writeSource(t, root, "src/quiet.go",
 		`// appframes:disable-next-line security/no-hardcoded-credentials
-const FAKE = "AKIAIOSFODNN7EXAMPLE";`+"\n")
+const FAKE = "AKIAZZZZTESTFIXTURE0";`+"\n")
 	got := NoHardcodedCredentials(engine.CheckContext{
 		Trigger:      engine.TriggerCLI,
 		ProjectRoot:  root,
@@ -221,7 +221,7 @@ const FAKE = "AKIAIOSFODNN7EXAMPLE";`+"\n")
 func TestNoHardcodedCredentials_NoiseDirsExcluded(t *testing.T) {
 	root := t.TempDir()
 	writeSource(t, root, "node_modules/dep/leak.js",
-		`const K = "AKIAIOSFODNN7EXAMPLE";`+"\n")
+		`const K = "AKIAZZZZTESTFIXTURE0";`+"\n")
 	got := NoHardcodedCredentials(engine.CheckContext{
 		Trigger:      engine.TriggerCLI,
 		ProjectRoot:  root,
@@ -235,7 +235,7 @@ func TestNoHardcodedCredentials_NoiseDirsExcluded(t *testing.T) {
 // TestNoHardcodedCredentials_PreCommitEmptyChangesPasses - file-scan scope.
 func TestNoHardcodedCredentials_PreCommitEmptyChangesPasses(t *testing.T) {
 	root := t.TempDir()
-	writeSource(t, root, "src/leak.go", `const K = "AKIAIOSFODNN7EXAMPLE";`+"\n")
+	writeSource(t, root, "src/leak.go", `const K = "AKIAZZZZTESTFIXTURE0";`+"\n")
 	got := NoHardcodedCredentials(engine.CheckContext{
 		Trigger:      engine.TriggerPreCommit,
 		ProjectRoot:  root,
@@ -250,7 +250,7 @@ func TestNoHardcodedCredentials_PreCommitEmptyChangesPasses(t *testing.T) {
 // TestNoHardcodedCredentials_PreCommitStagedScansThoseOnly
 func TestNoHardcodedCredentials_PreCommitStagedScansThoseOnly(t *testing.T) {
 	root := t.TempDir()
-	writeSource(t, root, "src/staged.go", `const K = "AKIAIOSFODNN7EXAMPLE";`+"\n")
+	writeSource(t, root, "src/staged.go", `const K = "AKIAZZZZTESTFIXTURE0";`+"\n")
 	writeSource(t, root, "src/untouched.go", `const K2 = "ghp_1234567890abcdefghijklmnopqrstuvwxyz";`+"\n")
 	got := NoHardcodedCredentials(engine.CheckContext{
 		Trigger:      engine.TriggerPreCommit,
@@ -278,7 +278,7 @@ func TestNoHardcodedCredentials_LargeFileSkipped(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Build a >1MB file with a real-shaped secret inside.
-	big := strings.Repeat("x", 2*1024*1024) + "\nAKIAIOSFODNN7EXAMPLE\n"
+	big := strings.Repeat("x", 2*1024*1024) + "\nAKIAZZZZTESTFIXTURE0\n"
 	if err := os.WriteFile(filepath.Join(dir, "big.bin"), []byte(big), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +296,7 @@ func TestNoHardcodedCredentials_LargeFileSkipped(t *testing.T) {
 func TestNoHardcodedCredentials_HitCap(t *testing.T) {
 	var b strings.Builder
 	for i := 0; i < 50; i++ {
-		b.WriteString(`const K = "AKIAIOSFODNN7EXAMPLE`)
+		b.WriteString(`const K = "AKIAZZZZTESTFIXTURE0`)
 		// Pad to keep the 16-after-AKIA char-class valid across iterations.
 		b.WriteString(`";`)
 		b.WriteString("\n")
@@ -309,5 +309,23 @@ func TestNoHardcodedCredentials_HitCap(t *testing.T) {
 	hits := strings.Count(got.Reason, " - ")
 	if hits != 10 {
 		t.Errorf("expected exactly 10 hits (cap), got %d in reason: %s", hits, got.Reason)
+	}
+}
+
+func TestNoHardcodedCredentials_AWSDocSentinelExcluded(t *testing.T) {
+	root := t.TempDir()
+	piiWrite(t, root, "docs/setup.md", "example: aws_access_key_id = AKIAIOSFODNN7EXAMPLE\n")
+	res := NoHardcodedCredentials(piiCtx(root))
+	if res.Outcome != engine.OutcomePass {
+		t.Fatalf("doc sentinel should be excluded, got %v (%s)", res.Outcome, res.Reason)
+	}
+}
+
+func TestNoHardcodedCredentials_SentinelPlusRealKeyStillFires(t *testing.T) {
+	root := t.TempDir()
+	piiWrite(t, root, "cfg.py", "keys = ['AKIAIOSFODNN7EXAMPLE', 'AKIAZZZZMIGRATION007']\n")
+	res := NoHardcodedCredentials(piiCtx(root))
+	if res.Outcome != engine.OutcomeBlock {
+		t.Fatalf("non-sentinel key on same line must still BLOCK, got %v (%s)", res.Outcome, res.Reason)
 	}
 }
