@@ -189,7 +189,7 @@ a **Retry now** button. Full setup + receiver examples:
 
 ## What it catches and how it acts
 
-nimblegate ships **47 rules ("frames")** for the mistakes agents make most, grouped
+nimblegate ships **51 rules ("frames")** for the mistakes agents make most, grouped
 into one-click **kits**:
 
 - **`core`** *(every repo)*: hardcoded credentials, committed private keys,
@@ -315,7 +315,7 @@ You get:
 - **One combined container** (sshd + dashboard, s6-supervised, auto-restart).
 - **Single-admin auth** built in (bcrypt, server-side sessions, setup-token bootstrap).
 - **Same-rules-every-time gate** across pre-commit / pre-receive / post-receive.
-- **47 built-in frames** + your own regex linters.
+- **51 built-in frames** + your own regex linters.
 - **Auto-PR rail** (vendor-neutral): structured PR comment + webhook on every
   rejected push, `@bot` mention + multi-bot rotation, loop guardrails, fix-loop
   closure, exponential-backoff delivery with deadletter. Gitea + GitHub adapters.

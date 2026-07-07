@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://10.0.0.1:6443
+  name: prod
+users:
+- name: admin
+  user:
+    client-certificate-data: LS0tRkFLRS1DRVJULS0t
+    client-key-data: LS0tRkFLRS1LRVktLS0=

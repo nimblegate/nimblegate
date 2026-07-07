@@ -17,9 +17,11 @@ func TestBuildV2FrameMap_walksEntireV2Tree(t *testing.T) {
 		t.Fatalf("BuildV2FrameMap: %v", err)
 	}
 	// Phase A3 classification placed 44 frames into v2 layout; approved-registries-only
-	// and no-pii-in-source (2026-07-06) bring it to 46.
-	if got := len(m.IDToBucket); got != 46 {
-		t.Errorf("V2FrameMap has %d entries, want 46 (classification table)", got)
+	// and no-pii-in-source (2026-07-06) brought it to 46; the
+	// files-that-never-belong-in-history pack (2026-07-08: env file,
+	// tfstate, kubeconfig, database dump) brings it to 50.
+	if got := len(m.IDToBucket); got != 50 {
+		t.Errorf("V2FrameMap has %d entries, want 50 (classification table)", got)
 	}
 }
 

@@ -84,8 +84,8 @@ func TestRepoLifecycle_addHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load frame policy: %v", err)
 	}
-	if len(fp.Enabled) != 15 {
-		t.Fatalf("core kit should enable 15 frames; got %d: %v", len(fp.Enabled), fp.Enabled)
+	if len(fp.Enabled) != 18 {
+		t.Fatalf("core kit should enable 18 frames; got %d: %v", len(fp.Enabled), fp.Enabled)
 	}
 	events, _ := gateway.ReadEvents(policyRoot, func(e gateway.Event) bool { return e.Event == "add" })
 	if len(events) != 1 || events[0].Repo != "newrepo" {

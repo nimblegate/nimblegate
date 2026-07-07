@@ -27,11 +27,11 @@ func TestLoadStdlib_ReturnsAllBuiltinKits(t *testing.T) {
 	}
 }
 
-func TestLoadStdlib_CoreHas15Frames(t *testing.T) {
+func TestLoadStdlib_CoreHas18Frames(t *testing.T) {
 	ks, _ := LoadStdlib()
 	core, _ := ks.Get("core")
-	if len(core.Frames) != 15 {
-		t.Errorf("core kit: got %d frames, want 15", len(core.Frames))
+	if len(core.Frames) != 18 {
+		t.Errorf("core kit: got %d frames, want 18", len(core.Frames))
 	}
 }
 

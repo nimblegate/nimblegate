@@ -78,8 +78,8 @@ func TestKits_ApplyClearRoundtrip(t *testing.T) {
 		t.Fatalf("apply core: rc=%d", rc)
 	}
 	enabled := readLocalEnabled(t, ".")
-	if len(enabled) != 15 {
-		t.Errorf("after apply: %d frames, want 15", len(enabled))
+	if len(enabled) != 18 {
+		t.Errorf("after apply: %d frames, want 18", len(enabled))
 	}
 	if rc := Kits([]string{"clear", "core"}); rc != 0 {
 		t.Fatalf("clear core: rc=%d", rc)

@@ -697,8 +697,8 @@ func TestApplyKitWritesFrames(t *testing.T) {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
 	enabled := readEnabledList(t, tmp)
-	if len(enabled) != 15 {
-		t.Errorf("core apply: got %d enabled, want 15", len(enabled))
+	if len(enabled) != 18 {
+		t.Errorf("core apply: got %d enabled, want 18", len(enabled))
 	}
 	applied := readAppliedKitsList(t, tmp)
 	if len(applied) != 1 || applied[0] != "core" {
