@@ -59,7 +59,7 @@ func (h whitelistHandlers) add(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid repo", http.StatusBadRequest)
 		return
 	}
-	if _, ok := stdlibFrameByID()[frame]; !ok {
+	if !whitelistKnownIDs(h.policyRoot, repo)[frame] && !strings.Contains(frame, "*") {
 		http.Error(w, "unknown frame", http.StatusBadRequest)
 		return
 	}

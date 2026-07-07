@@ -23,9 +23,11 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"nimblegate/internal/config"
 	"nimblegate/internal/gateway"
 	"nimblegate/internal/gwicons"
 	"nimblegate/internal/kits"
+	"nimblegate/internal/linters"
 	"nimblegate/internal/stdlib"
 	"nimblegate/internal/whitelist"
 )
@@ -685,11 +687,17 @@ func renderPolicyPage(w io.Writer, vm policyVM, opts policyPageOpts) error {
 	}
 	if vm.Repo != "" && opts.PolicyRoot != "" {
 		wlPath := filepath.Join(opts.PolicyRoot, vm.Repo, ".appframes", "_canonical", "whitelist.toml")
-		known := map[string]bool{}
-		for id := range stdlibFrameByID() {
-			known[id] = true
+		known := whitelistKnownIDs(opts.PolicyRoot, vm.Repo)
+		wl, wlErr := whitelist.Load(wlPath, known, time.Now().UTC())
+		if wlErr != nil {
+			// Fail-closed must be VISIBLE: an invalid whitelist previously
+			// rendered as an empty panel, which reads as "no entries" while
+			// the gate is actually ignoring the whole file.
+			data.Whitelisted = append(data.Whitelisted, whitelistRow{
+				Frame: "(whitelist failed to load - all entries inactive)", Path: "", Reason: wlErr.Error(),
+			})
 		}
-		if wl, err := whitelist.Load(wlPath, known, time.Now().UTC()); err == nil && wl != nil {
+		if wlErr == nil && wl != nil {
 			for _, ev := range wl.Entries() {
 				data.Whitelisted = append(data.Whitelisted, whitelistRow{Frame: ev.Frame, Path: ev.Path, Reason: ev.Reason})
 			}
@@ -1722,4 +1730,22 @@ func containsStr(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// whitelistKnownIDs is the valid-frame set for whitelist entries as the
+// dashboard sees it: stdlib frames plus the repo's custom linter rules
+// (e.g. app-correctness/todo-markers). The scan path accepts linter IDs
+// (see knownIDsWithLinters); the dashboard must match or a whitelist the
+// gate honors fail-closes in the UI.
+func whitelistKnownIDs(policyRoot, repo string) map[string]bool {
+	known := map[string]bool{}
+	for id := range stdlibFrameByID() {
+		known[id] = true
+	}
+	if cfg, err := config.LoadProject(filepath.Join(policyRoot, repo, "appframes.toml")); err == nil {
+		for _, id := range linters.EnabledIDs(cfg.Linters) {
+			known[id] = true
+		}
+	}
+	return known
 }
