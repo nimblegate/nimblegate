@@ -139,20 +139,28 @@ machine that *can*, then transfer it:
 
 ```bash
 # on a build machine with the source checked out:
-docker build -t ghcr.io/nimblegate/nimblegate:0.1.0 .
-docker save ghcr.io/nimblegate/nimblegate:0.1.0 | gzip > nimblegate.tar.gz
+docker build -t ghcr.io/nimblegate/nimblegate:0.2.0 .
+docker save ghcr.io/nimblegate/nimblegate:0.2.0 | gzip > nimblegate.tar.gz
 # copy nimblegate.tar.gz to the gateway, then on the gateway:
 docker load -i nimblegate.tar.gz
 docker compose up -d
 ```
 
+The tag you build must match the one `compose.yaml` pins (`0.2.0`) - an
+air-gapped box can't fall back to pulling if they differ.
+
 **Port already in use?** Set `NIMBLEGATE_DASHBOARD_PORT` / `NIMBLEGATE_SSH_PORT`
 inline or in a `.env` file next to `compose.yaml`, no need to edit the recipe.
 
-**Reaching the dashboard.** It binds to localhost on the gateway by default (it's
-an admin surface). To open it from your laptop, either SSH-tunnel
-(`ssh -L 7900:localhost:7900 you@gateway`) or set
-`NIMBLEGATE_DASHBOARD_HOST=0.0.0.0`, but only behind a reverse proxy with auth.
+**Reaching the dashboard.** It binds to loopback on the gateway by default (it's
+an admin surface). From your laptop, tunnel to it - use **`127.0.0.1`**, not
+`localhost`, in the forward:
+
+```bash
+ssh -L 7900:127.0.0.1:7900 <user>@<gateway-host>   # then open http://localhost:7900
+```
+
+LAN and public-TLS options: [Dashboard access](#dashboard-access).
 
 ---
 
@@ -254,9 +262,11 @@ give it a label, and click **Authorize key**. It's active immediately.
   on **GitLab** use **`api`**; on **GitHub** classic `repo` already covers it
   (fine-grained: add **Pull requests: Read** to find the PR **and Issues: Read
   and write** to post the comment - PR comments use the Issues API). See Step 6.)*
-- **Protected refs**: which branches the gate actually checks. `refs/heads/main`
-  by default. To check **every** branch (recommended if your agent works on
-  feature branches), use `refs/heads/*`.
+- **Protected refs**: which branches the gate actually checks. `refs/heads/*` by
+  default, which checks **every** branch - what you want when your agent works on
+  feature branches, and what the auto-PR loop needs. Narrow it to
+  `refs/heads/main` only if you deliberately want `main`-only checks; feature
+  branches then push through unchecked.
 - **Status**: leave **enabled** ticked. Leave **observe-only** *unticked* to
   actually enforce. (Observe mode records findings but never blocks and is
   silent, for measuring an agent, not for protection.)

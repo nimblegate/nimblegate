@@ -7,9 +7,14 @@ on GitHub Container Registry), and verifying anonymous `docker pull` works
 before announcing the URL anywhere.
 
 Don't skip the verification step. Until the package visibility is flipped,
-the README quickstart (`docker compose up -d` against `ghcr.io/nimblegate/nimblegate:0.1.0`)
-returns `manifest unknown` for every reader who isn't signed into a GitHub
+the README quickstart (`docker compose up -d` against the tag `compose.yaml`
+pins) returns `manifest unknown` for every reader who isn't signed into a GitHub
 account that owns the package.
+
+> **Where things stand:** v0.1.0 and v0.2.0 are both tagged, and `compose.yaml`
+> pins `0.2.0`. The walkthrough below is written around the v0.1.0 first
+> release and is kept as the worked example; for a routine release go to
+> [Subsequent releases](#subsequent-releases-v020).
 
 ## Prerequisites (one-time, only on the first release)
 

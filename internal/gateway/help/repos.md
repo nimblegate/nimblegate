@@ -27,7 +27,7 @@ If you run `gateway add` from a CLI session under a different Unix user than the
 
 ## Auto-generated files
 
-Registration writes every file a fully-wired repo needs, so there's no "click Apply kit → nothing happens" trap on a fresh registration. As of v0.1.0 the seed includes:
+Registration writes every file a fully-wired repo needs, so there's no "click Apply kit → nothing happens" trap on a fresh registration. The seed includes:
 
 - `<policy-root>/<repo>/gateway.toml`: per-repo upstream URL + protected refs + status (mode 0600 because notification webhooks may carry secrets).
 - `<policy-root>/<repo>/appframes.toml`: empty `[frames]` section so the dashboard's frame toggle / kit apply handlers find a parseable file. Without this seed, the first click silently no-ops until a save creates it; the trap surfaced during ai-assistant onboarding.

@@ -2,7 +2,7 @@
 
 > Git push guardrails for AI agents: block unsafe pushes consistently, forward safe ones, record every decision.
 
-**Status:** v0.1.0 · used in production since early 2026
+**Status:** v0.2.0 · used in production since early 2026
 
 nimblegate sits **between your AI agent and your real git host**. Every push your
 agent makes is checked against the rules you turned on; clean pushes forward to
@@ -20,6 +20,7 @@ install to your first guarded push, step by step, no git expertise assumed.**
 
 - [Quick install](#quick-install)
 - [How it works](#how-it-works)
+- [Why not a pre-commit hook?](#why-not-a-pre-commit-hook-branch-protection-or-codeowners)
 - [The workflow](#the-workflow)
 - [Auto-PR: the agent fix-loop](#auto-pr-the-agent-fix-loop)
 - [What it catches and how it acts](#what-it-catches-and-how-it-acts)
@@ -73,7 +74,7 @@ Open **http://localhost:7900/setup**, paste the token, choose your admin passwor
 
   *(Auto-PR's fix-loop needs a little more - see [Getting Started](docs/getting-started.md#step-4-register-the-repo-to-guard).)*
 
-Click **Register**. If the upstream **already has commits**, click **Sync from upstream** on the repo row so the gateway mirrors its current history (so your existing clones push cleanly) - a brand-new/empty upstream needs no sync. The **core** rule kit applies automatically. → [other git hosts, scoped access](docs/getting-started.md)
+Click **Register**. If the upstream **already has commits**, the gateway mirrors its history down automatically at registration, so your existing clones push cleanly. If that seed couldn't run (a missing or wrong credential, say), the repo row shows a one-click **Sync from upstream** - fix the credential, click it, done. The **core** rule kit applies automatically. → [other git hosts, scoped access](docs/getting-started.md)
 
 **4. Authorize your push key.** On your dev machine, print your SSH **public** key:
 
@@ -142,6 +143,32 @@ Started](docs/getting-started.md)**.
 
 ---
 
+## Why not a pre-commit hook, branch protection, or CODEOWNERS?
+
+Because each of those either lives somewhere the agent can reach, or fires after
+the code has already landed.
+
+- **A pre-commit hook runs on the machine the agent controls.** It can be
+  bypassed (`git push --no-verify`), edited, or simply never installed in a fresh
+  worktree. nimblegate runs on a separate box the agent has no shell on, and it
+  holds the only credential to your real host - so there's nothing to skip and
+  nowhere to go around.
+- **Branch protection and CODEOWNERS gate the *merge*, not the *push*.** By the
+  time they fire, a leaked key is already an object in your upstream's history;
+  deleting the branch doesn't unleak it, and rotating the credential is your only
+  real remedy. The gate rejects the push, so the object never reaches your host
+  at all.
+- **CI runs after the push landed** - and its config lives in the repo the agent
+  is editing. Same exposure, one step later.
+- **The fix-loop needs a reviewer that answers the same way every time.** "Push →
+  fail → fix → pass" only converges against a deterministic gate. Pattern checks
+  are; an AI reviewer isn't.
+
+None of these replace each other - keep your hooks and your branch protection.
+The gate is the one layer that sits outside the machine writing the code.
+
+---
+
 ## The workflow
 
 Day to day, the gate fits the normal feature-branch flow:
@@ -160,8 +187,9 @@ Day to day, the gate fits the normal feature-branch flow:
 Because rejected commits bounce at the gate, the branch on your upstream only
 ever holds gated-clean code - so by the time you review a PR, it has already
 passed the automated checks; you spend review time on judgment, not hunting for
-leaked keys or `rm -rf`. Set the repo's **protected refs to `refs/heads/*`** so
-the agent's *feature* branches are gated, not just `main`.
+leaked keys or `rm -rf`. A new repo's **protected refs default to `refs/heads/*`**,
+so the agent's *feature* branches are gated, not just `main` - leave it there
+unless you deliberately want `main`-only checks.
 
 ---
 
