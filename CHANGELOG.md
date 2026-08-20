@@ -5,6 +5,57 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-21
+
+### Added
+
+- **Six new built-in frames, 45 -> 51.** A files-that-never-belong-in-history
+  pack, plus `commands/approved-registries-only` (flags Maven/Gradle, npm and
+  pip dependency sources that bypass your approved registry mirror) and a PII
+  frame that catches checksum-validated personal data in source and fixtures.
+- **One-file VPS deploy.** `deploy/cloud-init.yaml` is pasted into the user-data
+  field at server creation and boots the box with Docker, the gateway running, a
+  firewall allowing only 22 and 2222 inbound, key-only SSH, and the setup token
+  on the login banner. Documents the embedded-key options
+  (`ssh_authorized_keys` / `ssh_import_id`) and warns that a server created
+  without a key at creation time cannot be logged into.
+- **`docs/connecting.md`**, a cross-platform guide for pointing a machine and
+  its agents at the gateway (Windows/macOS/Linux, the agent workflow, running
+  several agents, and a troubleshooting table).
+- **Monthly commercial plan** at $10/month alongside the existing $99/year, and
+  a licensing FAQ in `COMMERCIAL.md` covering the common free-vs-commercial
+  cases.
+- **Operations guidance** for credential lifecycle (rotation cadence table) and
+  a compromise-recovery runbook, plus an optional outbound-allowlist hardening
+  section.
+
+### Changed
+
+- The frames catalog hides browse axes with zero frames, so empty Platform and
+  Framework columns no longer appear.
+- The dashboard whitelist accepts custom linter IDs and surfaces load errors
+  instead of rendering an empty panel.
+- `security/no-hardcoded-credentials` no longer flags the documentation
+  sentinels published in AWS examples.
+- Registry frame docs and examples no longer name specific vendors.
+
+### Fixed
+
+- `gateway token` reports an actionable error when the auth database cannot be
+  opened, instead of failing opaquely on first run.
+- Install docs: the dashboard tunnel now uses the IPv4 `127.0.0.1` form (the
+  `localhost` form silently connects to nothing over IPv6), the protected-refs
+  default is stated correctly as `refs/heads/*`, the air-gapped build tag is
+  matched to the tag `compose.yaml` pins, and the bare-metal push URL uses the
+  absolute repos path rather than the `~/` shorthand.
+- README no longer implies the gateway opens pull requests; it comments on
+  existing ones.
+
+### Security
+
+- Bumped `golang.org/x/net` 0.54.0 -> 0.55.0, fixing an HTML-parser
+  denial-of-service reachable through the HTML frames.
+
 ## [0.2.0] - 2026-06-30
 
 ### Added
