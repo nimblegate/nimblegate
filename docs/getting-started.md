@@ -435,13 +435,20 @@ forwarding) is in [`docs/server/DEV-MACHINE-SETUP.md`](server/DEV-MACHINE-SETUP.
 ## Command-line reference (on the gateway)
 
 Most operating is done from the dashboard, but everything has a CLI equivalent for
-scripting or when the web UI isn't handy. These run **on the gateway machine**:
+scripting or when the web UI isn't handy. These run **on the gateway machine**.
+
+**Pass the gateway's paths on every invocation** - container installs included.
+Left off, the CLI falls back to `/etc/nimblegate-gateway` rather than your install:
+commands that write fail with `mkdir /etc/nimblegate-gateway: permission denied`,
+and commands that read answer from that empty fallback, so `setup-token` reports
+`No pending setup token` while a valid token is sitting in the real config dir. Use
+`--policy-root /srv/gateway/cfg`, adding `--repos-root /srv/gateway/repos` for the
+commands that touch repos (`setup-token` accepts only the former):
 
 - **Container install:** prefix with `docker exec -u git nimblegate` - e.g.
-  `docker exec -u git nimblegate nimblegate gateway setup-token`.
-- **Bare-metal install:** run `nimblegate gateway …` directly, adding
-  `--policy-root /srv/gateway/cfg --repos-root /srv/gateway/repos` (the dirs from
-  your install).
+  `docker exec -u git nimblegate nimblegate gateway setup-token --policy-root /srv/gateway/cfg`.
+- **Bare-metal install:** run `nimblegate gateway …` directly with the same flags,
+  using the dirs from your install.
 
 | Command | What it does |
 |---|---|

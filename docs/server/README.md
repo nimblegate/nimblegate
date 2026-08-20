@@ -39,7 +39,7 @@ A `debian:trixie-slim` image with `git` + `openssh-server` + the `nimblegate` bi
 docker compose -f deploy/gateway/docker-compose.yml up -d --build
 ```
 
-Three persistent volumes hold the state: `/srv/gateway/repos` (bare gated repos), `/srv/gateway/cfg` (per-repo policy + credentials + audit log), `/srv/gateway/ssh` (host keys + the git user's `authorized_keys`). Add dev keys by appending to the `ssh` volume's `authorized_keys` and restarting; register repos with `docker exec -u git nimblegate-gateway nimblegate gateway add …`.
+Three persistent volumes hold the state: `/srv/gateway/repos` (bare gated repos), `/srv/gateway/cfg` (per-repo policy + credentials + audit log), `/srv/gateway/ssh` (host keys + the git user's `authorized_keys`). Add dev keys by appending to the `ssh` volume's `authorized_keys` and restarting; register repos with `docker exec -u git nimblegate nimblegate gateway add --name <repo> --upstream <url> --policy-root /srv/gateway/cfg --repos-root /srv/gateway/repos` (the path flags are required - without them the CLI falls back to `/etc/nimblegate-gateway` and fails with `permission denied`).
 
 ### Sizing (Debian host)
 
