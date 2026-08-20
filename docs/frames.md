@@ -64,23 +64,29 @@ taxonomy validation.
 ## Canonical category list
 
 Every frame declares exactly one `category`. The loader validates it against
-this set. Dashboard hides categories with zero frames (Framework is hidden in
-v0.1.0).
+this set. The dashboard hides categories with zero frames, so **Platform and
+Framework don't appear as categories today** - no built-in frame declares
+either as its `category`. Platform still shows up in the browse tree, populated
+through the `platform:` cross-listing array described below.
 
-| # | Category | What it covers | v0.1.0 subcategories |
+Note that these are the `category:` frontmatter values, which are deliberately
+not the directory names that form frame IDs: `git-safety/folder-branch-lock`
+declares `category: git`.
+
+| # | Category | What it covers | Subcategories |
 |---|---|---|---|
 | 1 | `security` | Credentials, XSS / content safety, security headers, transport, invisible-payload attacks (Trojan Source / tag-char / zero-width / homoglyph) | `credentials`, `content-safety`, `headers`, `transport`, `invisible-payload`, `identifier-confusable` |
 | 2 | `network` | Proxy / reverse-proxy configs, routing, DNS resolution | `proxy-config`, `routing` |
 | 3 | `filesystem` | Destructive paths, mount points, file ops | `destructive-paths` |
-| 4 | `git` | Branch discipline, history integrity, push-gate integrity | `branch-discipline`, `history-integrity`, `gate-integrity` |
+| 4 | `git` | Branch discipline, history integrity, push-gate integrity, LFS redirection | `branch-discipline`, `history-integrity`, `gate-integrity`, `lfs-redirection` |
 | 5 | `commands` | Shell safety, trusted execution, package management | `trusted-execution`, `package-management` |
 | 6 | `app-correctness` | Env config, data fetching, module loading, routing | `env-config`, `data-fetching`, `module-loading`, `routing` |
 | 7 | `database` | Migrations, schema drift | `migrations`, `schema-drift` |
 | 8 | `web` | HTML, SEO, a11y, markup validity | `html`, `seo`, `a11y`, `markup-validity` |
 | 9 | `documentation` | Markdown, doc drift, TODO discipline, branch consistency | `markdown`, `doc-drift`, `todo-discipline`, `branch-consistency` |
 | 10 | `encoding` | BOM, smart quotes, YAML tabs, line endings, mixed indent, en-dash flags, non-printable controls, zero-width in prose | `byte-order-mark`, `smart-quotes`, `yaml`, `line-endings`, `indent`, `dash-substitution`, `control-chars`, `invisible-chars` |
-| 11 | `platform` | Hosting/runtime platforms (Cloudflare, CF Pages) | `cloudflare`, `cf-pages` |
-| 12 | `framework` | Application frameworks: **reserved, empty in v0.1.0** | none |
+| 11 | `platform` | Hosting/runtime platforms (Cloudflare, CF Pages): **reserved as a category, currently unused** - platform grouping comes from the `platform:` array instead | `cloudflare`, `cf-pages` |
+| 12 | `framework` | Application frameworks: **reserved, currently unused** | none |
 
 Subcategory is free-form within a category. New frames may introduce new
 subcategories without prior registration; the loader only requires the field
@@ -129,7 +135,7 @@ Rules for the `enabled` list:
 
 - **Flat IDs only.** Each entry is `<dir>/<name>` exactly as shown in the
   frame catalog.
-- **No `@`-prefixes.** The `@group-name` syntax is removed in v0.1.0. See
+- **No `@`-prefixes.** The `@group-name` syntax was removed in v0.1.0. See
   the [migration section](#migration-from-prefixed-group-configs) below.
 - **No wildcards.** `security/*` is not valid. Tick frames individually or
   apply a kit.
@@ -224,7 +230,7 @@ estimates** if the stdlib defaults don't fit your cost model.
 
 ## Migration from `@`-prefixed group configs
 
-The `@group-name` config syntax is removed in v0.1.0. Any config with
+The `@group-name` config syntax was removed in v0.1.0. Any config with
 `@`-prefixed entries or category wildcards in `enabled` will be rejected on
 load with an error message listing the equivalent kit.
 

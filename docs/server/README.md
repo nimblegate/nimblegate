@@ -318,7 +318,7 @@ The relay's upstream key lives on the **upstream account** (e.g. Gitea → Setti
 **Access scope, read this.** `--addr 0.0.0.0` makes the UI reachable by anyone on the network, and with `--allow-edits` that includes the *write* surface (policy tuning + check authoring) with **no authentication**: the CSRF/same-origin guards stop cross-site abuse, not someone who simply opens the IP. That's an accepted trade on a trusted LAN. When the dashboard needs to leave the LAN, switch to one of:
 
 - **Read-only on LAN**: drop `--allow-edits` so the IP serves monitoring only.
-- **Localhost + SSH tunnel**: omit `--addr` (it defaults to `127.0.0.1`, not exposed) and reach it through a tunnel: `ssh -L 7900:localhost:7900 root@<gateway>`, then open `http://localhost:7900`.
+- **Localhost + SSH tunnel**: omit `--addr` (it defaults to `127.0.0.1`, not exposed) and reach it through a tunnel: `ssh -L 7900:127.0.0.1:7900 root@<gateway>`, then open `http://localhost:7900`. Use `127.0.0.1` in the forward, not `localhost` - the listener is IPv4-only, and `localhost` can resolve to IPv6 `::1` first and connect to nothing.
 
 The dashboard ships with **single-admin auth** (claim the login at `/setup`); for safe exposure beyond the trusted LAN, front it with a **reverse proxy + TLS** or reach it over the SSH tunnel above. Multi-operator / RBAC is a commercial-tier follow-up; until then, anything beyond the trusted LAN should go through the tunnel, a reverse proxy, or stay read-only.
 

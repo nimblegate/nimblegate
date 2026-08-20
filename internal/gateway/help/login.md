@@ -1,6 +1,6 @@
 # Sign in
 
-The gateway uses a single-admin model in v0.1.0: one username + password protects the dashboard. There's no self-registration; the admin account is created once during [Setup](/setup) via a setup token.
+The gateway uses a single-admin model: one username + password protects the dashboard. There's no self-registration; the admin account is created once during [Setup](/setup) via a setup token.
 
 ## Key actions
 
