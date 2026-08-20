@@ -139,14 +139,14 @@ machine that *can*, then transfer it:
 
 ```bash
 # on a build machine with the source checked out:
-docker build -t ghcr.io/nimblegate/nimblegate:0.2.0 .
-docker save ghcr.io/nimblegate/nimblegate:0.2.0 | gzip > nimblegate.tar.gz
+docker build -t ghcr.io/nimblegate/nimblegate:0.3.0 .
+docker save ghcr.io/nimblegate/nimblegate:0.3.0 | gzip > nimblegate.tar.gz
 # copy nimblegate.tar.gz to the gateway, then on the gateway:
 docker load -i nimblegate.tar.gz
 docker compose up -d
 ```
 
-The tag you build must match the one `compose.yaml` pins (`0.2.0`) - an
+The tag you build must match the one `compose.yaml` pins (`0.3.0`) - an
 air-gapped box can't fall back to pulling if they differ.
 
 **Port already in use?** Set `NIMBLEGATE_DASHBOARD_PORT` / `NIMBLEGATE_SSH_PORT`
