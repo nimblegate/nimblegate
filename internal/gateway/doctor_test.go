@@ -101,6 +101,29 @@ func TestRunDoctorGatedRefs(t *testing.T) {
 	}
 }
 
+// A pattern that cannot reach nested branch names is a silent hole: those
+// pushes relay unchecked and leave no audit row, so doctor is the only place
+// an operator can find out. "refs/heads/*" must read as OK now that a trailing
+// star spans "/"; a single-segment pattern like "refs/heads/feat-*" must not.
+func TestRunDoctorGatedRefsNestedCoverage(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "starall", AddOptions{UpstreamURL: "https://github.com/x/starall.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "flatonly", AddOptions{UpstreamURL: "https://github.com/x/flatonly.git", ProtectedRefs: []string{"refs/heads/feat-*"}})
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
+
+	if c, ok := findCheck(rep, "starall", "Gated refs"); !ok || c.Status != DoctorOK {
+		t.Fatalf("starall: want OK, got %+v ok=%v", c, ok)
+	}
+	c, ok := findCheck(rep, "flatonly", "Gated refs")
+	if !ok || c.Status != DoctorFail {
+		t.Fatalf("flatonly: want FAIL, got %+v ok=%v", c, ok)
+	}
+	if !strings.Contains(c.Reason, "nested") || c.Fix == "" {
+		t.Errorf("flatonly: reason should name the nested-branch gap and offer a fix, got %+v", c)
+	}
+}
+
 func TestRunDoctorFrames(t *testing.T) {
 	policyRoot, reposRoot := doctorRoots(t)
 	doctorSeed(t, policyRoot, reposRoot, "framed", AddOptions{UpstreamURL: "https://github.com/x/framed.git", GateAllRefs: true})
