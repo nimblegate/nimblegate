@@ -102,7 +102,8 @@ Two things make this safe and low-friction:
 
 The agent's *feature* branches are gated by default - not just `main` - because a
 new repo's **protected refs default to `refs/heads/*`** (changeable in Step 4, or
-via *Edit repo settings* later). If you narrow it to `refs/heads/main`, only
+via *Edit repo settings* later), and a trailing `/*` matches nested names like
+`agent/task-1` too. If you narrow it to `refs/heads/main`, only
 `main` is checked and feature-branch pushes sail through unchecked, so the auto-PR
 loop never fires on them.
 
@@ -263,8 +264,10 @@ give it a label, and click **Authorize key**. It's active immediately.
   (fine-grained: add **Pull requests: Read** to find the PR **and Issues: Read
   and write** to post the comment - PR comments use the Issues API). See Step 6.)*
 - **Protected refs**: which branches the gate actually checks. `refs/heads/*` by
-  default, which checks **every** branch - what you want when your agent works on
-  feature branches, and what the auto-PR loop needs. Narrow it to
+  default, which checks **every** branch at any depth - `main`, `hotfix-1`, and
+  nested names like `agent/task-1` or `feature/login` (a trailing `/*` is
+  recursive). That is what you want when your agent works on feature branches,
+  and what the auto-PR loop needs. Narrow it to
   `refs/heads/main` only if you deliberately want `main`-only checks; feature
   branches then push through unchecked.
 - **Status**: leave **enabled** ticked. Leave **observe-only** *unticked* to

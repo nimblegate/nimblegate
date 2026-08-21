@@ -277,6 +277,13 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		add(DoctorCheck{Repo: name, Name: "Gated refs", Status: DoctorWarn, Reason: "only main is gated; agent feature branches are unchecked and the auto-PR loop will not fire on them"})
 	case pol.GateAllRefs:
 		add(DoctorCheck{Repo: name, Name: "Gated refs", Status: DoctorOK, Reason: "every ref is gated"})
+	case !isGatedRef(pol, "refs/heads/agent/example"):
+		// Probe with a nested name rather than inspecting the patterns: whatever
+		// the operator wrote, this is the question that matters, and an ungated
+		// push leaves no audit row to notice after the fact.
+		add(DoctorCheck{Repo: name, Name: "Gated refs", Status: DoctorFail,
+			Reason: fmt.Sprintf("nested branch names (agent/x, feature/x, dependabot/x/y) are NOT gated by %s; those pushes relay unchecked and the auto-PR loop cannot fire on them", strings.Join(pol.ProtectedRefs, ", ")),
+			Fix:    "use a pattern ending in /* (e.g. refs/heads/*), which gates every branch at any depth"})
 	default:
 		add(DoctorCheck{Repo: name, Name: "Gated refs", Status: DoctorOK, Reason: fmt.Sprintf("%d protected ref pattern(s): %s", len(pol.ProtectedRefs), strings.Join(pol.ProtectedRefs, ", "))})
 	}

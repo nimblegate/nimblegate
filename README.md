@@ -188,8 +188,9 @@ Because rejected commits bounce at the gate, the branch on your upstream only
 ever holds gated-clean code - so by the time you review a PR, it has already
 passed the automated checks; you spend review time on judgment, not hunting for
 leaked keys or `rm -rf`. A new repo's **protected refs default to `refs/heads/*`**,
-so the agent's *feature* branches are gated, not just `main` - leave it there
-unless you deliberately want `main`-only checks.
+so the agent's *feature* branches are gated, not just `main` - including nested
+names like `agent/task-1` or `feature/login`, since a trailing `/*` matches at any
+depth. Leave it there unless you deliberately want `main`-only checks.
 
 ---
 

@@ -5,6 +5,29 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - unreleased
+
+### Fixed
+
+- **Nested branch names were never gated.** Protected-ref patterns matched with
+  `path.Match`, whose `*` does not cross `/`, so the default `refs/heads/*`
+  checked `main` and `hotfix-1` but silently skipped `agent/task-1`,
+  `feature/login`, `fix/bug` and `dependabot/...` - the naming coding agents
+  actually use. Those pushes relayed to the upstream unchecked, wrote no audit
+  row and no finding, and returned success, so there was nothing to notice; the
+  auto-PR loop could never fire on them because it triggers on a rejected push.
+  A trailing `/*` is now recursive and matches at any depth, so existing
+  configs become correct without being edited. Ref-pattern validation uses the
+  same matcher, so a pattern that loads cannot then fail to gate.
+
+  **On upgrade, branches that previously passed will start being checked.** They
+  were not passing because they were clean - they were never inspected. Expect
+  findings on feature branches that pushed cleanly before.
+
+- `gateway doctor` reports FAIL when a repo's protected-ref patterns cannot
+  match nested branch names, naming the gap and the fix. An ungated push leaves
+  no trace, so this is the only place the gap is discoverable.
+
 ## [0.3.1] - 2026-08-22
 
 ### Fixed

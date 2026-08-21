@@ -69,11 +69,12 @@ type Decision struct {
 }
 
 // Validate checks the policy is well-formed. It smoke-tests every ProtectedRefs
-// glob with path.Match so a malformed pattern is caught at load time rather than
-// silently failing to gate at push time (fail-open). Returns the first error.
+// glob with the same matcher gating uses, so a malformed pattern is caught at
+// load time rather than silently failing to gate at push time (fail-open).
+// Returns the first error.
 func (p Policy) Validate() error {
 	for _, pat := range p.ProtectedRefs {
-		if _, err := path.Match(pat, ""); err != nil {
+		if err := refPatternErr(pat); err != nil {
 			return fmt.Errorf("invalid protected-ref pattern %q: %w", pat, err)
 		}
 	}
