@@ -127,6 +127,8 @@ const gwShellStyle = `<style>
    .gw-content #feed table.fr col.col-stat{width:30%}
    .gw-content #feed table.fr col.col-reset{width:10%}
    .gw-content table.fr td.loc{white-space:normal}
+   .gw-content section{overflow-x:auto}
+   .gw-content table.gw-repos-table td.gw-repos-url{overflow-wrap:anywhere}
  }
  .gw-content table.fr td.gw-resetcell{vertical-align:middle;text-align:right;white-space:nowrap;padding:6px 8px}
  .gw-content .gw-finds{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:4px}
