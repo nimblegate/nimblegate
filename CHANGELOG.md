@@ -5,6 +5,17 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-22
+
+### Fixed
+
+- Dashboard on narrow screens: the feed's decision timestamp no longer paints
+  over the repo name, wide tables (repos, health, reports) scroll inside their
+  own section instead of dragging the whole page sideways, and long upstream
+  URLs wrap rather than forcing the repos table wider than the viewport. The
+  narrow-screen feed layout now engages at 760px, the same width at which the
+  nav rail collapses, instead of 600px.
+
 ## [0.3.0] - 2026-08-21
 
 ### Added
