@@ -19,14 +19,14 @@ SEEDS = ["/", "/feed", "/repos", "/frames", "/events", "/stats", "/health",
 ASSETS = ["/static/gwshell.js", "/static/htmx.min.js", "/static/favicon.svg"]
 MAX_PAGES = 200
 
-BANNER = ('<style>body{padding-top:34px!important}'
+BANNER = ('<style>body{padding-top:var(--nbg-bar-h,34px)!important}'
           # hide controls that can't work on a static snapshot - the help
           # sidepanel (JS toggle + /help?page= fetch: opens stuck, no content):
           '.gw-help-toggle,.gw-help{display:none!important}'
-          # body padding-top shifts in-flow content only, so the fixed bar
-          # still covers the rail's top 34px - the mobile drawer's first nav
-          # items become unclickable. Offset the rail by the bar height.
-          '.gw-rail{top:34px!important;height:calc(100vh - 34px)!important}'
+          # body padding-top shifts in-flow content only, so the fixed bar still
+          # covers the top of the rail and the hamburger. --nbg-bar-h is measured
+          # by nbg-demo-init.js because the bar wraps to two lines on a phone.
+          '.gw-rail{top:var(--nbg-bar-h,34px)!important;height:calc(100vh - var(--nbg-bar-h,34px))!important}'
           '.nbg-demo-bar{position:fixed;'
           'top:0;left:0;right:0;z-index:99999;background:#11304d;color:#cfe4ff;'
           'font:13px/34px -apple-system,Segoe UI,Roboto,sans-serif;text-align:center;'
@@ -59,10 +59,22 @@ META = (
 )
 
 DEMO_INIT = """(function () {
+  // The bar is fixed, and its text wraps to two lines on a phone - so its height
+  // is not the 34px the CSS would otherwise assume, and it covers the hamburger.
+  // Publish the measured height and let the CSS offset everything from it.
+  function syncBar() {
+    var bar = document.querySelector('.nbg-demo-bar');
+    if (!bar) return;
+    document.documentElement.style.setProperty(
+      '--nbg-bar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px');
+  }
+  syncBar();
+  window.addEventListener('resize', syncBar);
+  window.addEventListener('orientationchange', syncBar);
+
   // The dashboard overloads data-rail="expanded": a wide rail on desktop, but an
   // open drawer at <=760px. The snapshot is captured expanded, so a phone lands
-  // with the drawer and its backdrop covering the page and the hamburger under
-  // the backdrop. Start collapsed on narrow viewports; the toggle still works.
+  // with the drawer and its backdrop covering the page. Start collapsed.
   var shell = document.querySelector('.gw-shell');
   if (!shell) return;
   if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) {
