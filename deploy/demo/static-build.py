@@ -23,6 +23,10 @@ BANNER = ('<style>body{padding-top:34px!important}'
           # hide controls that can't work on a static snapshot - the help
           # sidepanel (JS toggle + /help?page= fetch: opens stuck, no content):
           '.gw-help-toggle,.gw-help{display:none!important}'
+          # body padding-top shifts in-flow content only, so the fixed bar
+          # still covers the rail's top 34px - the mobile drawer's first nav
+          # items become unclickable. Offset the rail by the bar height.
+          '.gw-rail{top:34px!important;height:calc(100vh - 34px)!important}'
           '.nbg-demo-bar{position:fixed;'
           'top:0;left:0;right:0;z-index:99999;background:#11304d;color:#cfe4ff;'
           'font:13px/34px -apple-system,Segoe UI,Roboto,sans-serif;text-align:center;'
