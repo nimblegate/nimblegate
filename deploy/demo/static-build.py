@@ -33,7 +33,8 @@ BANNER = ('<style>body{padding-top:34px!important}'
           'border-bottom:1px solid #1e4060}</style>'
           '<div class="nbg-demo-bar">Visual demo - a read-only snapshot, no live '
           'backend. <a href="https://github.com/nimblegate/nimblegate" '
-          'style="color:#79c0ff">Install nimblegate</a> to run it on your own repos.</div>')
+          'style="color:#79c0ff">Install nimblegate</a> to run it on your own repos.</div>'
+          '<script src="/static/nbg-demo-init.js" defer></script>')
 
 # Share-preview + social meta injected into every snapshot page's <head>.
 # Deliberately noindex (the demo is a backend-less snapshot; it should not
@@ -57,6 +58,19 @@ META = (
     '<meta name="twitter:image" content="https://demo.nimblegate.com/og.png">'
 )
 
+DEMO_INIT = """(function () {
+  // The dashboard overloads data-rail="expanded": a wide rail on desktop, but an
+  // open drawer at <=760px. The snapshot is captured expanded, so a phone lands
+  // with the drawer and its backdrop covering the page and the hamburger under
+  // the backdrop. Start collapsed on narrow viewports; the toggle still works.
+  var shell = document.querySelector('.gw-shell');
+  if (!shell) return;
+  if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) {
+    shell.setAttribute('data-rail', 'collapsed');
+  }
+})();
+"""
+
 href_re = re.compile(r'(href|hx-get)="(/[^"]*)"')
 
 # Controls that need a live server/JS and can't work on a static snapshot:
@@ -65,9 +79,11 @@ href_re = re.compile(r'(href|hx-get)="(/[^"]*)"')
 # rather than navigating to 404s. (The help sidepanel is hidden via injected
 # CSS in BANNER - more robust than excising its markup.)
 onchange_re = re.compile(r'\sonchange="[^"]*"')
+inline_script_re = re.compile(r'<script(?![^>]*\ssrc=)[^>]*>.*?</script>', re.S)
 
 def neuter(html):
     html = onchange_re.sub("", html)
+    html = inline_script_re.sub("", html)
     html = html.replace("<select ", "<select disabled ")
     return html
 
@@ -99,6 +115,9 @@ def main():
                 fh.write(fetch(BASE + a))
         except Exception as e:
             print(f"  warn: asset {a}: {e}", file=sys.stderr)
+
+    with open(os.path.join(OUT, "static", "nbg-demo-init.js"), "w", encoding="utf-8") as fh:
+        fh.write(DEMO_INIT)
 
     seen, queue = set(), list(SEEDS)
     while queue and len(seen) < MAX_PAGES:
