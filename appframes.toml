@@ -1,0 +1,48 @@
+# Mirrors the gateway-held policy for this repo, so `nimblegate check` locally
+# reaches the same verdict the gate will on push. The gateway's copy is the
+# authoritative one - it overlays whatever a push carries - so this file is
+# fast feedback, never the boundary. Keep it in step: a local copy that has
+# drifted laxer than the gateway is worse than none, because it looks like a
+# pass.
+[frames]
+enabled = [
+    "app-correctness/dynamic-env-declared",
+    "commands/apt-purge-preview",
+    "commands/curl-pipe-shell",
+    "database/migration-script-explicit-env",
+    "database/migration-verification-step",
+    "database/schema-vs-code-drift",
+    "database/sqlite-migration-idempotent-wrapper",
+    "filesystem/rm-rf-protected-paths",
+    "git/folder-branch-lock",
+    "git/no-amend-pushed-commits",
+    "git/no-bypass-pre-commit",
+    "git/no-force-push-main",
+    "network/no-localhost-in-proxy-config",
+    "security/no-hardcoded-credentials",
+    "security/no-private-keys-in-repo",
+]
+
+# The gate scans the committed tree; `nimblegate check` walks the working
+# directory, so local-only paths have to be excluded here or the local run
+# reports on files no push will ever carry. Listing exclude replaces the
+# built-in defaults, so the built-ins are repeated.
+[scan]
+# .private lives in exclude (a directory NAME) rather than exclude-paths: only
+# the name list reaches the regex linters, so a path glob would leave them
+# scanning private business docs.
+exclude = [".git", "node_modules", "dist", "build", ".appframes", "bin", ".private", ".superpowers"]
+
+[linters]
+  [linters.no-em-dash]
+    kind = "regex"
+    enabled = true
+    severity = "WARN"
+    patterns = ["*"]
+    regex = "\\x{2014}"
+  [linters.todo-markers]
+    kind = "regex"
+    enabled = true
+    severity = "WARN"
+    patterns = ["*"]
+    regex = "\\b(?:TODO|FIXME|XXX|HACK)\\b"

@@ -30,6 +30,9 @@ Thumbs.db
 # nimblegate test artifacts (produced when nimblegate is run against the test project)
 .appframes/audit.log
 .appframes/audit.log.*
+.appframes/audit.parts/
+.appframes/_canonical/findings-ledger.json
+.appframes/_canonical/whitelist-stats.json
 
 # Local env / secrets (never commit)
 .env
