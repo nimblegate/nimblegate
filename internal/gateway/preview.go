@@ -13,16 +13,17 @@ import (
 // dir and returns it plus a cleanup func. Errors if the repo has no commits.
 // Reuses the gate's materializeTree. The caller scans the dir with the proposed
 // regex - no policy overlay (preview shows the raw tree).
-func PreviewTree(bareDir string) (dir string, cleanup func(), err error) {
+func PreviewTree(bareDir, policyRoot string) (dir string, cleanup func(), err error) {
 	tip, err := resolveTip(bareDir)
 	if err != nil {
 		return "", func() {}, err
 	}
-	dest, err := os.MkdirTemp("", "nimblegate-preview-")
+	dest, err := os.MkdirTemp(ScanStagingDir(bareDir, policyRoot), "nimblegate-preview-")
 	if err != nil {
 		return "", func() {}, err
 	}
-	if err := materializeTree(bareDir, tip, dest); err != nil {
+	cfg, _ := LoadGatewayConfig(policyRoot)
+	if err := materializeTree(bareDir, tip, dest, cfg.MaxTreeBytes); err != nil {
 		os.RemoveAll(dest)
 		return "", func() {}, err
 	}

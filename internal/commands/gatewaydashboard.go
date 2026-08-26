@@ -487,8 +487,12 @@ func gatewayDashboard(args []string) int {
 		if authStore != nil {
 			sessionSweeper = authStore
 		}
+		gwCfg, err := gateway.LoadGatewayConfig(*policyRoot)
+		if err != nil {
+			fmt.Printf("  [gateway] config: %v (using defaults)\n", err)
+		}
 		runner := maintenance.NewRunnerWithTasks(
-			maintCfg, *reposRoot, *policyRoot, "/tmp",
+			maintCfg, *reposRoot, *policyRoot, gateway.ResolveScanTmpDir(gwCfg.ScanTmpDir, *reposRoot),
 			maintenance.ShellGC{},
 			sessionSweeper,
 			maintenanceEventSink{policyRoot: *policyRoot},
@@ -508,7 +512,7 @@ func gatewayDashboard(args []string) int {
 	fmt.Printf("nimblegate gateway dashboard: http://%s  (Ctrl-C to stop)\n", bind)
 	fmt.Printf("  reading decisions from %s/*/audit.log\n", *policyRoot)
 	printDashboardAccess(*addr, *port)
-	err = http.ListenAndServe(bind, handler)
+	err = newDashboardServer(bind, handler).ListenAndServe()
 	fmt.Fprintf(os.Stderr, "gateway dashboard: %v\n", err)
 	return 2
 }

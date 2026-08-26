@@ -144,6 +144,71 @@ accumulate forever, and prunes old deadletter records. Tunable in
 `<policy-root>/gateway.toml` `[maintenance]`; defaults are sane and most
 operators never touch it.
 
+### Where the gate stages its scan
+
+To check a push, the gate exports the pushed tree into a temporary directory,
+scans it, and deletes it. Scan-on-first-push and the dashboard's regex preview
+stage the same way. That directory defaults to `_scan-tmp/` under your
+`--repos-root`, so it is disk-backed and sized with the repos themselves. It is
+deliberately **not** `/tmp`, which is a RAM-backed tmpfs on most distributions -
+staging a full copy of every in-flight push there is how a large repo turns a
+busy moment into an out-of-memory kill.
+
+Point it elsewhere (a dedicated fast disk, for instance), and tune the two
+resource limits that go with it, in `<policy-root>/gateway.toml`:
+
+```toml
+[gateway]
+scan_tmpdir    = "/var/lib/nimblegate/scan-tmp"
+max_tree_bytes = 2147483648   # 2 GiB, 0 = unlimited
+scan_timeout   = "5m"         # 0 = no deadline
+```
+
+/health shows the **effective** staging directory and the free space on its
+filesystem, so you can confirm a `scan_tmpdir` actually took. If the configured
+path cannot be created the gateway falls back to `$TMPDIR` and keeps gating -
+that fallback is recorded as a `scan-staging-fallback` event and warned about on
+/health, because it silently restores the RAM staging the setting exists to
+prevent.
+
+`max_tree_bytes` caps what one push may expand to on disk. It is separate from
+`max-input-size`, which caps the compressed pack a repo will accept: the two are
+unrelated, because a file of 10 GB of zeros is a tiny object that still extracts
+in full. `scan_timeout` bounds how long one push's frame run may take - every
+enabled frame walks the staged tree itself, so cost grows with repo size and
+frame count. Exceeding either is treated as a scan failure: rejected under
+enforcement, relayed-and-signalled under observe, exactly like a staging failure.
+
+If the gate cannot stage the tree - the filesystem is full, the directory is
+unwritable - the push is **rejected**, because a tree that failed to extract
+scans clean and would otherwise let anything through. The pushing client sees
+an ordinary policy rejection; the real cause goes to the audit log, the
+`scan-failed` event, and a warning line on `/health`. In observe mode the push
+is relayed unscanned (observe never rejects), which is exactly when that
+`/health` line is the only thing telling you scanning has stopped.
+
+### Sizing, memory pressure, and swap
+
+/health shows **Memory pressure** from the kernel's PSI counters: the share of
+wall-clock time tasks spent stalled waiting on memory over the last 10 seconds.
+Watch that number rather than free memory - a box with little free memory and no
+reclaim stalls is healthy, and one with headroom that reclaims constantly is
+not. It warns at `some` >= 10% or `full` >= 5%, which is well before the kernel
+starts killing processes.
+
+If it climbs under an agent swarm, the box is undersized for the push rate. Swap
+helps only as a shock absorber: it turns an OOM kill into thrashing, so pushes
+that took seconds take minutes and the queue behind them grows. Keep a small
+swap or zram with `vm.swappiness=10` so the OOM killer does not reap sshd or the
+daemon at random, but treat a rising PSI number as "add RAM or reduce
+concurrency", not as something swap fixes. On systemd hosts a `MemoryHigh=` on
+the nimblegate units is the better lever: it makes the kernel reclaim and
+throttle that unit before the system-wide OOM killer picks a victim.
+
+Staging is the other half of sizing. Each in-flight push holds one full copy of
+its tree under `scan_tmpdir` until its hook returns, so peak disk is roughly the
+largest repo times the number of simultaneous pushes.
+
 ---
 
 ## Hardening: outbound allowlist (optional)

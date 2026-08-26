@@ -129,7 +129,7 @@ func TestOverlayPolicy_wipesPushedIgnoreMarkers(t *testing.T) {
 func TestMaterializeTreeAndOverlay(t *testing.T) {
 	bare, sha := makeBareWithCommit(t)
 	dest := t.TempDir()
-	if err := materializeTree(bare, sha, dest); err != nil {
+	if err := materializeTree(bare, sha, dest, 0); err != nil {
 		t.Fatalf("materializeTree: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dest, "hello.txt")); err != nil {

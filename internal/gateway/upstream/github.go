@@ -265,9 +265,15 @@ func (a *GitHubAdapter) do(ctx context.Context, method, endpoint string, body []
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	// Bounded: the upstream is operator-configured, not trusted to be sane. One
+	// byte past the cap is read so an oversize body is reported as itself rather
+	// than as a JSON parse error further down.
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("%w: read response: %v", ErrTransient, err)
+	}
+	if int64(len(respBody)) > maxUpstreamResponseBytes {
+		return nil, fmt.Errorf("%w: response exceeds %d bytes", ErrTransient, maxUpstreamResponseBytes)
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return respBody, nil

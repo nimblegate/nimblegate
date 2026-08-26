@@ -203,11 +203,31 @@ func gatewayPreReceive(args []string) int {
 		return 1
 	}
 	host, _ := os.Hostname()
+	gitDir := gitDirFromEnv()
+	if abs, err := filepath.Abs(gitDir); err == nil {
+		gitDir = abs
+	}
+	// A config error here is not printed: git relays hook stderr to the pushing
+	// client, and the defaults still gate correctly.
+	gwCfg, _ := gateway.LoadGatewayConfig(policyRoot)
+	scanTmp, stagingErr := gateway.ResolveScanTmpDirChecked(gwCfg.ScanTmpDir, filepath.Dir(gitDir))
+	if stagingErr != nil && gwCfg.ScanTmpDir != "" {
+		// Falling back to $TMPDIR restores exactly the RAM-staging this setting
+		// exists to avoid. Operator-only (hook stderr reaches the pusher), and
+		// /health reads these back so a typo'd path cannot pass unnoticed.
+		_ = gateway.AppendEvent(policyRoot, gateway.Event{
+			Event: "scan-staging-fallback", Repo: repo, OK: false,
+			Payload: map[string]any{"configured": gwCfg.ScanTmpDir, "error": stagingErr.Error()},
+		})
+	}
 	return gateway.RunPreReceive(gateway.PreReceiveDeps{
-		Policy:    pol,
-		GitDir:    gitDirFromEnv(),
-		Checker:   engineChecker{},
-		AuditPath: filepath.Join(policyRoot, repo, "audit.log"),
+		Policy:       pol,
+		GitDir:       gitDir,
+		Checker:      engineChecker{},
+		AuditPath:    filepath.Join(policyRoot, repo, "audit.log"),
+		ScanTmpDir:   scanTmp,
+		MaxTreeBytes: gwCfg.MaxTreeBytes,
+		ScanTimeout:  gwCfg.ScanTimeout,
 		// Notification rail: pol.Notification is the resolved config loaded from
 		// gateway.toml. Without these two, fireNotification's guard
 		// (NotificationConfig != nil) is false and no queue record is ever

@@ -11,7 +11,7 @@ import (
 
 // TmpOrphansResult reports per-sweep counts for /health.
 type TmpOrphansResult struct {
-	Scanned int       // total afgw-* dirs found
+	Scanned int       // total staging dirs found
 	Removed int       // dirs removed (older than maxAge)
 	Err     error     // first error encountered (others logged via events)
 	Took    time.Time // when this sweep ran
@@ -23,9 +23,20 @@ type TmpOrphansResult struct {
 // orphaned (crashed receive-pack, killed daemon, etc).
 const tmpOrphanMaxAge = 24 * time.Hour
 
-// tmpOrphanPrefix is the name pattern nimblegate's PreviewTree / receive-pack
-// hook uses for temp dirs. Matches /tmp/afgw-<random>/.
-const tmpOrphanPrefix = "afgw-"
+// tmpOrphanPrefixes are the name patterns nimblegate's tree-staging paths use:
+// the pre-receive gate (afgw-), scan-on-first-push, and the dashboard's regex
+// preview. All three stage into the same dir, so all three can orphan there
+// when the process is killed before its cleanup runs.
+var tmpOrphanPrefixes = []string{"afgw-", "nimblegate-scan-", "nimblegate-preview-"}
+
+func hasOrphanPrefix(name string) bool {
+	for _, p := range tmpOrphanPrefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+	return false
+}
 
 // runTmpOrphanCleanup walks the configured tmp dir for afgw-* entries older
 // than tmpOrphanMaxAge and removes them. Returns count + first error if any.
@@ -43,7 +54,7 @@ func runTmpOrphanCleanup(now func() time.Time, tmpDir string) TmpOrphansResult {
 	cutoff := now().Add(-tmpOrphanMaxAge)
 	for _, e := range entries {
 		name := e.Name()
-		if !strings.HasPrefix(name, tmpOrphanPrefix) {
+		if !hasOrphanPrefix(name) {
 			continue
 		}
 		res.Scanned++

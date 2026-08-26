@@ -23,6 +23,9 @@ func Decide(p Policy, refs []RefUpdate, resultsByRef map[string][]engine.CheckRe
 	}
 	var msgs []string
 	var findings []Finding
+	var scanFailures []string
+	scanFailed := false
+	scanRefSeen := map[string]bool{}
 	reject := false
 	for _, r := range refs {
 		// Delete-protection is independent of content-gating: a delete-protected
@@ -45,6 +48,21 @@ func Decide(p Policy, refs []RefUpdate, resultsByRef map[string][]engine.CheckRe
 		}
 		for _, res := range resultsByRef[r.Name] {
 			sev := severityWord(res.Outcome)
+			// The gate could not evaluate this ref. Reject exactly as a BLOCK
+			// would, but the detail names gateway internals, so the pusher gets
+			// only the neutral per-ref line any host prints and the cause goes
+			// operator-side.
+			if res.FrameID == ScanFailedID {
+				reject = true
+				scanFailed = true
+				if !scanRefSeen[r.Name] {
+					scanRefSeen[r.Name] = true
+					msgs = append(msgs, fmt.Sprintf("%s: rejected", r.Name))
+				}
+				scanFailures = append(scanFailures, fmt.Sprintf("%s: %s [%s] %s", r.Name, res.Outcome, res.FrameID, res.Reason))
+				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res)})
+				continue
+			}
 			switch res.Outcome {
 			case engine.OutcomeBlock, engine.OutcomeError:
 				reject = true
@@ -55,7 +73,7 @@ func Decide(p Policy, refs []RefUpdate, resultsByRef map[string][]engine.CheckRe
 			}
 		}
 	}
-	return Decision{Accept: !reject, Messages: msgs, Findings: findings}
+	return Decision{Accept: !reject, Messages: msgs, Findings: findings, ScanFailures: scanFailures, ScanFailed: scanFailed}
 }
 
 // severityWord maps a CheckOutcome to the uppercase severity token used in

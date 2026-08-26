@@ -367,3 +367,48 @@ func TestGitea_SplitRepoURL(t *testing.T) {
 		}
 	}
 }
+
+// A git host is operator-configured, not trusted to be sane. Without a cap the
+// relay buffers whatever the far end sends, so this drives a real oversize
+// response through the adapter rather than asserting on the constant.
+func TestGitea_OversizeResponseIsRefusedNotBuffered(t *testing.T) {
+	var sent int64
+	a, _ := newGiteaTest(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		chunk := make([]byte, 1<<20)
+		for i := range chunk {
+			chunk[i] = 'x'
+		}
+		// Comfortably past the cap; a server that keeps writing must not be
+		// able to make the daemon keep reading.
+		for written := int64(0); written < maxUpstreamResponseBytes*2; written += int64(len(chunk)) {
+			n, err := w.Write(chunk)
+			sent += int64(n)
+			if err != nil {
+				return
+			}
+		}
+	})
+
+	_, err := a.FindPRForRef(context.Background(), "", "refs/heads/main")
+	if err == nil {
+		t.Fatal("an oversize response must be an error, not a buffered payload")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("error should name the cap, got: %v", err)
+	}
+	if !errors.Is(err, ErrTransient) {
+		t.Errorf("an oversize response is a transient upstream fault, got: %v", err)
+	}
+}
+
+func TestGitea_NormalResponseStillReadsWhole(t *testing.T) {
+	// The cap must not clip ordinary replies.
+	a, _ := newGiteaTest(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	})
+	if _, err := a.FindPRForRef(context.Background(), "", "refs/heads/main"); err != nil {
+		t.Errorf("a normal response must still parse: %v", err)
+	}
+}

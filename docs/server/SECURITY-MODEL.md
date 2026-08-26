@@ -266,6 +266,12 @@ What's possible WITHOUT the size cap below: a malicious push containing one mult
 
 The operator-supplied regex path (`/policy/check/preview` + custom linters) is independently bounded by `bufio.Scanner` with a 1 MiB line buffer in `internal/linters/regexscan.go`: per-line streaming caps both regex execution AND file memory.
 
+### Symlinks in a pushed tree
+
+Frames read whatever is in the staged tree, and a pushed tree is attacker-controlled. A symlink committed as `cred -> /etc/nimblegate-gateway/repos/<name>/credential` would otherwise have the gate open that file and report findings about it - an arbitrary-read oracle over anything the gateway user can read, including other repos and the gateway's own upstream credential. Staging therefore replaces every symlink whose target resolves outside the staged tree with an empty regular file, before any frame runs. The path stays present, so a frame keyed on filenames still sees a `.env` smuggled in as a symlink; links that stay inside the tree are ordinary content and are scanned normally.
+
+Writing outside the staged tree was never possible: a git tree cannot contain a `..` entry, and cannot hold both a symlink `x` and an entry under `x/`, so the classic extract-through-symlink write has no expressible form in a pushed tree.
+
 ---
 
 ## Push size cap (`receive.maxInputSize`)
