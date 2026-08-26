@@ -67,39 +67,103 @@ type gatewayTOML struct {
 // a malformed file or value returns the error, so an operator typo surfaces
 // rather than silently reverting to a default they did not ask for.
 func LoadGatewayConfig(policyRoot string) (GatewayConfig, error) {
+	cfg, _, err := inspectGatewayConfig(policyRoot)
+	return cfg, err
+}
+
+// gatewayKnobs are the [gateway] keys. A knob written anywhere else is valid
+// TOML that parses cleanly and does nothing, which is how an operator ends up
+// staring at an unchanged dashboard - so they are matched by name wherever they
+// appear and reported.
+var gatewayKnobs = map[string]bool{"scan_tmpdir": true, "max_tree_bytes": true, "scan_timeout": true}
+
+// InspectGatewayConfig is LoadGatewayConfig plus every reason the file might not
+// be doing what its author intended: a parse failure, a knob outside [gateway],
+// or a knob written into a per-repo policy file (<policy-root>/<repo>/gateway.toml -
+// same filename, one directory down, and the file an operator is far more likely
+// to have open). Issues are for display; the config returned is what actually
+// takes effect.
+func InspectGatewayConfig(policyRoot string) (GatewayConfig, []string) {
+	cfg, issues, err := inspectGatewayConfig(policyRoot)
+	if err != nil {
+		issues = append(issues, err.Error())
+	}
+	return cfg, append(issues, perRepoKnobIssues(policyRoot)...)
+}
+
+// perRepoKnobIssues finds machine-level knobs mistakenly set in a repo's policy
+// file. Those files hold per-repo policy (upstream-url, observe, protected-refs);
+// a scan_tmpdir there is silently inert.
+func perRepoKnobIssues(policyRoot string) []string {
+	var issues []string
+	matches, _ := filepath.Glob(filepath.Join(policyRoot, "*", "gateway.toml"))
+	for _, path := range matches {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var raw map[string]any
+		md, err := toml.Decode(string(data), &raw)
+		if err != nil {
+			continue // a broken per-repo policy is reported by its own loader
+		}
+		repo := filepath.Base(filepath.Dir(path))
+		for _, key := range md.Keys() {
+			if leaf := key[len(key)-1]; gatewayKnobs[leaf] {
+				issues = append(issues, fmt.Sprintf(
+					"%s is set in repo %q's policy (%s), where it does nothing - it belongs in %s under [gateway]",
+					leaf, repo, path, filepath.Join(policyRoot, "gateway.toml")))
+			}
+		}
+	}
+	return issues
+}
+
+func inspectGatewayConfig(policyRoot string) (GatewayConfig, []string, error) {
 	cfg := DefaultGatewayConfig()
 	path := filepath.Join(policyRoot, "gateway.toml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return cfg, nil
+			return cfg, nil, nil
 		}
-		return cfg, fmt.Errorf("gateway: read %s: %w", path, err)
+		return cfg, nil, fmt.Errorf("gateway: read %s: %w", path, err)
 	}
 	var raw gatewayTOML
-	if _, err := toml.Decode(string(data), &raw); err != nil {
-		return cfg, fmt.Errorf("gateway: parse %s: %w", path, err)
+	md, err := toml.Decode(string(data), &raw)
+	if err != nil {
+		return cfg, nil, fmt.Errorf("gateway: parse %s: %w", path, err)
+	}
+	var issues []string
+	for _, key := range md.Undecoded() {
+		leaf := key[len(key)-1]
+		if !gatewayKnobs[leaf] {
+			continue // some other section's key, not ours to judge
+		}
+		issues = append(issues, fmt.Sprintf(
+			"%s is set at %q in %s, where it does nothing - move it under a [gateway] header",
+			leaf, key.String(), path))
 	}
 	if raw.Gateway.ScanTmpDir != nil {
 		cfg.ScanTmpDir = *raw.Gateway.ScanTmpDir
 	}
 	if raw.Gateway.MaxTreeBytes != nil {
 		if *raw.Gateway.MaxTreeBytes < 0 {
-			return cfg, fmt.Errorf("gateway: max_tree_bytes must be >= 0 (0 = unlimited); got %d", *raw.Gateway.MaxTreeBytes)
+			return cfg, issues, fmt.Errorf("gateway: max_tree_bytes must be >= 0 (0 = unlimited); got %d", *raw.Gateway.MaxTreeBytes)
 		}
 		cfg.MaxTreeBytes = *raw.Gateway.MaxTreeBytes
 	}
 	if raw.Gateway.ScanTimeout != nil {
 		d, err := time.ParseDuration(*raw.Gateway.ScanTimeout)
 		if err != nil {
-			return cfg, fmt.Errorf("gateway: scan_timeout: %w", err)
+			return cfg, issues, fmt.Errorf("gateway: scan_timeout: %w", err)
 		}
 		if d < 0 {
-			return cfg, fmt.Errorf("gateway: scan_timeout must be >= 0 (0 = no deadline); got %s", d)
+			return cfg, issues, fmt.Errorf("gateway: scan_timeout must be >= 0 (0 = no deadline); got %s", d)
 		}
 		cfg.ScanTimeout = d
 	}
-	return cfg, nil
+	return cfg, issues, nil
 }
 
 // ScanStagingDir picks the staging dir for a full-tree materialization out of

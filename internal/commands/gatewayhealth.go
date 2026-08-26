@@ -67,6 +67,11 @@ type healthData struct {
 	StagingDir    string
 	StagingStatus string // "ok" | "warn" | "-"
 	StagingDetail string
+
+	// Reasons <policy-root>/gateway.toml may not be doing what its author
+	// intended - a parse error, or a knob written somewhere inert. Empty when
+	// the config is fine, so the line only appears when it is not.
+	ConfigIssues []string
 }
 
 // maintenanceHealth is the /health view of the maintenance loop. nil when
@@ -348,6 +353,7 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 <dt>Dashboard service</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> running (PID {{.PID}}, uptime {{.Uptime}})</dd>
 <dt>Daemon loop</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> running (last successful drain {{.LastPollAgo}})</dd>
 <dt>Disk free</dt><dd>{{icon .DiskFreeStatus}} {{.DiskFreeBytes}}</dd>
+{{if .ConfigIssues}}<dt>Gateway config</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{range .ConfigIssues}}{{.}}<br>{{end}}</dd>{{end}}
 {{if .StagingStatus}}<dt>Scan staging</dt><dd>{{if eq .StagingStatus "-"}}{{.StagingDetail}}{{else}}<span class="gw-health-status-{{.StagingStatus}}">{{icon .StagingStatus}}</span> <code>{{.StagingDir}}</code> - {{.StagingDetail}}{{end}}</dd>{{end}}
 {{if .MemPressureStatus}}<dt>Memory pressure</dt><dd>{{if eq .MemPressureStatus "-"}}{{.MemPressureDetail}}{{else}}<span class="gw-health-status-{{.MemPressureStatus}}">{{icon .MemPressureStatus}}</span> {{.MemPressureDetail}}{{end}}</dd>{{end}}
 {{if gt .ScanFailures24h 0}}<dt>Gate scans</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{.ScanFailures24h}} push(es) could not be scanned in 24h{{if .ScanFailureLast}} - {{.ScanFailureLast}}{{end}}</dd>{{end}}
@@ -568,7 +574,8 @@ func collectStagingHealth(d *healthData, policyRoot, reposRoot string, now time.
 	if reposRoot == "" {
 		return // no repos root configured: the gate is not serving pushes here
 	}
-	cfg, _ := gateway.LoadGatewayConfig(policyRoot)
+	cfg, issues := gateway.InspectGatewayConfig(policyRoot)
+	d.ConfigIssues = issues
 	info := gateway.InspectStagingDir(cfg.ScanTmpDir, reposRoot)
 	if info.Dir == "" {
 		d.StagingStatus = "-"

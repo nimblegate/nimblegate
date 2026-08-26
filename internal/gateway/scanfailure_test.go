@@ -598,3 +598,85 @@ func TestResolveScanTmpDirChecked_reportsWhyItGaveUp(t *testing.T) {
 		t.Error("no repos root and no configured dir is also a fallback")
 	}
 }
+
+func TestInspectGatewayConfig_namesKnobsThatDoNothing(t *testing.T) {
+	// Every one of these is valid TOML that parses without error and has no
+	// effect - the failure an operator experiences as "I set it and nothing
+	// changed", with nothing anywhere to explain it.
+	for name, body := range map[string]string{
+		"no [gateway] header":    "observe = false\nscan_tmpdir = \"/tmp/test/\"\n",
+		"under another section":  "[maintenance]\nenabled = true\nscan_tmpdir = \"/tmp/test/\"\n",
+		"above its own header":   "max_tree_bytes = 1\n[gateway]\n",
+		"timeout in wrong place": "[maintenance]\nscan_timeout = \"5m\"\n",
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "gateway.toml"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, issues := InspectGatewayConfig(dir)
+		if len(issues) == 0 {
+			t.Errorf("%s: silently ignored, no issue reported", name)
+		}
+		if cfg.ScanTmpDir != "" {
+			t.Errorf("%s: the misplaced key must not take effect, got %q", name, cfg.ScanTmpDir)
+		}
+	}
+
+	// The correct shape reports nothing, and unrelated sections are not judged.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "gateway.toml"),
+		[]byte("[maintenance]\nenabled = true\ninterval = \"168h\"\n\n[gateway]\nscan_tmpdir = \"/srv/scan\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, issues := InspectGatewayConfig(dir)
+	if len(issues) != 0 {
+		t.Errorf("a correct config must be quiet, got %v", issues)
+	}
+	if cfg.ScanTmpDir != "/srv/scan" {
+		t.Errorf("ScanTmpDir = %q", cfg.ScanTmpDir)
+	}
+}
+
+func TestInspectGatewayConfig_findsKnobsInARepoPolicyFile(t *testing.T) {
+	// The real report: <policy-root>/<repo>/gateway.toml is the per-repo policy,
+	// one directory below the machine-level file of the same name, and it is the
+	// one an operator is far more likely to have open.
+	policyRoot := t.TempDir()
+	repoDir := filepath.Join(policyRoot, "nimblegate")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "gateway.toml"), []byte(
+		"upstream-url = \"https://example.test/x\"\nobserve = false\nmax-input-size = \"500m\"\nscan_tmpdir = \"/tmp/test/\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, issues := InspectGatewayConfig(policyRoot)
+	if len(issues) != 1 {
+		t.Fatalf("want one issue, got %v", issues)
+	}
+	for _, want := range []string{"scan_tmpdir", "nimblegate", filepath.Join(policyRoot, "gateway.toml")} {
+		if !strings.Contains(issues[0], want) {
+			t.Errorf("issue should mention %q: %s", want, issues[0])
+		}
+	}
+
+	// An ordinary repo policy with no machine-level knobs stays quiet.
+	if err := os.WriteFile(filepath.Join(repoDir, "gateway.toml"),
+		[]byte("upstream-url = \"https://example.test/x\"\nobserve = false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, issues = InspectGatewayConfig(policyRoot); len(issues) != 0 {
+		t.Errorf("a normal repo policy must not be flagged: %v", issues)
+	}
+}
+
+func TestInspectGatewayConfig_surfacesParseErrors(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "gateway.toml"), []byte("[gateway\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, issues := InspectGatewayConfig(dir); len(issues) == 0 {
+		t.Error("a malformed file must be reported, not silently defaulted")
+	}
+}

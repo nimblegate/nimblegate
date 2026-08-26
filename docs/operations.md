@@ -155,7 +155,12 @@ staging a full copy of every in-flight push there is how a large repo turns a
 busy moment into an out-of-memory kill.
 
 Point it elsewhere (a dedicated fast disk, for instance), and tune the two
-resource limits that go with it, in `<policy-root>/gateway.toml`:
+resource limits that go with it, in the **machine-level**
+`<policy-root>/gateway.toml`. Note that each repo has a file of the same name
+one directory down - `<policy-root>/<repo>/gateway.toml` holds that repo's
+policy (`upstream-url`, `observe`, `protected-refs`, `max-input-size`) and the
+settings below do nothing there. /health and `nimblegate gateway doctor` both
+call out a knob written into the wrong file, or outside a `[gateway]` header:
 
 ```toml
 [gateway]

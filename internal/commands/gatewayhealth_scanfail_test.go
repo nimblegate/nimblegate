@@ -209,3 +209,50 @@ func TestCollectStagingHealth_silentWithoutReposRoot(t *testing.T) {
 		t.Errorf("no repos root means the gate is not serving pushes here; got %q", d.StagingStatus)
 	}
 }
+
+func TestCollectStagingHealth_surfacesConfigIssues(t *testing.T) {
+	// Exactly the operator's report: the knob written into the repo's policy
+	// file, one directory below the machine-level file of the same name.
+	policyRoot := t.TempDir()
+	reposRoot := t.TempDir()
+	repoDir := filepath.Join(policyRoot, "nimblegate")
+	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, "gateway.toml"),
+		[]byte("observe = false\nmax-input-size = \"500m\"\nscan_tmpdir = \"/tmp/test/\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var d healthData
+	collectStagingHealth(&d, policyRoot, reposRoot, time.Now())
+	if len(d.ConfigIssues) != 1 {
+		t.Fatalf("want the misplaced knob reported, got %v", d.ConfigIssues)
+	}
+	// The staging line must still show the path actually in use, not the one
+	// the operator thought they set.
+	if d.StagingDir != filepath.Join(reposRoot, "_scan-tmp") {
+		t.Errorf("StagingDir = %q; the misplaced knob must not appear to take effect", d.StagingDir)
+	}
+
+	var body bytes.Buffer
+	if err := renderHealth(&body, d); err != nil {
+		t.Fatalf("renderHealth: %v", err)
+	}
+	out := body.String()
+	for _, want := range []string{"Gateway config", "scan_tmpdir", "nimblegate"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("rendered page missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestRenderHealth_noConfigLineWhenConfigIsFine(t *testing.T) {
+	var body bytes.Buffer
+	if err := renderHealth(&body, healthData{PID: 1, Uptime: "1h"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(body.String(), "Gateway config") {
+		t.Error("the config line must stay hidden when there is nothing wrong")
+	}
+}

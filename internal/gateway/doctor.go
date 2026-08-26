@@ -121,6 +121,20 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 		rep.Checks = append(rep.Checks, c)
 	}
 
+	// A [gateway] knob in the wrong file parses cleanly and does nothing, so the
+	// only symptom is a setting that never takes effect. Name it here too: the
+	// CLI is the lifeline when the dashboard is unreachable.
+	if _, issues := InspectGatewayConfig(cfg.PolicyRoot); len(issues) > 0 {
+		for _, issue := range issues {
+			add(DoctorCheck{
+				Name:   "Gateway config",
+				Status: DoctorWarn,
+				Reason: issue,
+				Fix:    "machine-level knobs live in <policy-root>/gateway.toml under a [gateway] header",
+			})
+		}
+	}
+
 	ver := cfg.Version
 	if ver == "" {
 		ver = version.Resolved()
