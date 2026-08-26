@@ -340,3 +340,65 @@ func TestRunDoctorUpstreamAuthInjection(t *testing.T) {
 		t.Fatalf("auth FAIL should set HasFail")
 	}
 }
+
+// The relay speaks https, http (LAN/on-prem, documented at relay.go's authedURL)
+// and ssh. Doctor accepted only https, so a working LAN gitea upstream reported
+// FAIL and took doctor's exit code with it - the worst thing a diagnostic can do
+// is call a healthy gateway broken.
+func TestRunDoctorUpstreamSchemes(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "tls", AddOptions{UpstreamURL: "https://github.com/x/tls.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "lan", AddOptions{UpstreamURL: "http://192.0.2.10:3000/x/lan.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "sshscp", AddOptions{UpstreamURL: "git@example.test:x/sshscp.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "sshurl", AddOptions{UpstreamURL: "ssh://git@example.test/x/sshurl.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "bogus", AddOptions{UpstreamURL: "file:///srv/mirror.git", ProtectedRefs: []string{"refs/heads/*"}})
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
+
+	for repo, want := range map[string]DoctorStatus{
+		"tls":    DoctorOK,
+		"lan":    DoctorWarn, // relays fine; the credential is in cleartext
+		"sshscp": DoctorOK,
+		"sshurl": DoctorOK,
+		"bogus":  DoctorFail, // the relay genuinely cannot use this
+	} {
+		c, ok := findCheck(rep, repo, "Upstream URL")
+		if !ok {
+			t.Fatalf("%s: no Upstream URL check", repo)
+		}
+		if c.Status != want {
+			t.Errorf("%s: Upstream URL = %v, want %v (%s)", repo, c.Status, want, c.Reason)
+		}
+	}
+
+	// No supported upstream may contribute a FAIL - that is what took doctor's
+	// exit code down on a healthy LAN gateway. (Other checks fail here because
+	// the seed helper writes no frame policy; this is scoped to the upstream.)
+	for _, c := range rep.Checks {
+		if c.Name != "Upstream URL" && c.Name != "Upstream credential" {
+			continue
+		}
+		if c.Status == DoctorFail && c.Repo != "bogus" {
+			t.Errorf("supported upstream reported FAIL: %s/%s - %s", c.Repo, c.Name, c.Reason)
+		}
+	}
+}
+
+// An SSH upstream authenticates with the gateway's key, so the per-repo
+// credential file is not part of that path - warning that "relay will fail"
+// sent operators hunting for a token they never needed.
+func TestRunDoctorCredentialNotApplicableForSSH(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "sshrepo", AddOptions{UpstreamURL: "git@example.test:x/sshrepo.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "httpsrepo", AddOptions{UpstreamURL: "https://github.com/x/httpsrepo.git", ProtectedRefs: []string{"refs/heads/*"}})
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
+
+	if c, _ := findCheck(rep, "sshrepo", "Upstream credential"); c.Status != DoctorInfo {
+		t.Errorf("ssh upstream: want INFO, got %v (%s)", c.Status, c.Reason)
+	}
+	// An HTTPS upstream with no credential still warns - there the token is required.
+	if c, _ := findCheck(rep, "httpsrepo", "Upstream credential"); c.Status != DoctorWarn {
+		t.Errorf("https upstream without credential: want WARN, got %v (%s)", c.Status, c.Reason)
+	}
+}
