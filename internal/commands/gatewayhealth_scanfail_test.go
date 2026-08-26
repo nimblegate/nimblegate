@@ -256,3 +256,59 @@ func TestRenderHealth_noConfigLineWhenConfigIsFine(t *testing.T) {
 		t.Error("the config line must stay hidden when there is nothing wrong")
 	}
 }
+
+func TestCollectStagingHealth_trailingSlashOnAnUncreatedDir(t *testing.T) {
+	// The operator's report: scan_tmpdir = "/tmp/test/" on a directory no push
+	// has created yet. filepath.Dir of a path with a trailing slash returns the
+	// directory itself, not its parent, so the free-space probe landed on a
+	// path that also did not exist - and the page then showed neither space
+	// nor, because of the "-" branch, the path.
+	policyRoot := t.TempDir()
+	reposRoot := t.TempDir()
+	target := filepath.Join(t.TempDir(), "test")
+	if err := os.WriteFile(filepath.Join(policyRoot, "gateway.toml"),
+		[]byte("[gateway]\nscan_tmpdir = \""+target+"/\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var d healthData
+	collectStagingHealth(&d, policyRoot, reposRoot, time.Now())
+	if d.StagingDir != target {
+		t.Errorf("StagingDir = %q, want the cleaned %q", d.StagingDir, target)
+	}
+	if d.StagingStatus == "-" || strings.Contains(d.StagingDetail, "unavailable") {
+		t.Errorf("free space should come from the nearest existing ancestor, got %q / %q", d.StagingStatus, d.StagingDetail)
+	}
+	if !strings.Contains(d.StagingDetail, "created on first push") {
+		t.Errorf("an uncreated dir should say so: %q", d.StagingDetail)
+	}
+
+	// Several levels deep and none of it created yet: still resolvable.
+	deep := filepath.Join(t.TempDir(), "a", "b", "c")
+	if err := os.WriteFile(filepath.Join(policyRoot, "gateway.toml"),
+		[]byte("[gateway]\nscan_tmpdir = \""+deep+"/\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d = healthData{}
+	collectStagingHealth(&d, policyRoot, reposRoot, time.Now())
+	if d.StagingDir != deep || d.StagingStatus == "-" {
+		t.Errorf("deep uncreated path: %q / %q", d.StagingDir, d.StagingStatus)
+	}
+}
+
+func TestRenderHealth_stagingPathShowsEvenWithoutFreeSpace(t *testing.T) {
+	// "free space unavailable" must not cost the operator the one fact they
+	// came to the page for.
+	var body bytes.Buffer
+	if err := renderHealth(&body, healthData{PID: 1, Uptime: "1h",
+		StagingDir: "/mnt/scan", StagingStatus: "-", StagingDetail: "free space unavailable"}); err != nil {
+		t.Fatal(err)
+	}
+	out := body.String()
+	if !strings.Contains(out, "/mnt/scan") {
+		t.Errorf("the staging path must render even when space is unknown:\n%s", out)
+	}
+	if !strings.Contains(out, "free space unavailable") {
+		t.Errorf("the reason must render too:\n%s", out)
+	}
+}

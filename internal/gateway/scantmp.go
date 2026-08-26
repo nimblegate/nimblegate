@@ -195,7 +195,13 @@ func ResolveScanTmpDir(configured, reposRoot string) string {
 // exists to avoid, so the caller that hits it can say so out loud instead of
 // degrading silently.
 func ResolveScanTmpDirChecked(configured, reposRoot string) (string, error) {
-	dir := configured
+	// Clean: a configured "/srv/scan/" must be the same path everywhere it is
+	// compared, displayed, or handed to filepath.Dir - which returns the
+	// directory itself, not its parent, when a trailing slash survives.
+	dir := filepath.Clean(configured)
+	if configured == "" {
+		dir = ""
+	}
 	if dir == "" {
 		if reposRoot == "" {
 			return "", fmt.Errorf("no repos root to derive a staging dir from")
@@ -229,7 +235,7 @@ func InspectStagingDir(configured, reposRoot string) StagingInfo {
 	info := StagingInfo{Configured: configured}
 	switch {
 	case configured != "":
-		info.Dir = configured
+		info.Dir = filepath.Clean(configured)
 	case reposRoot == "":
 		return info // $TMPDIR
 	default:
