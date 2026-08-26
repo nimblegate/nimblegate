@@ -5,6 +5,62 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-08-27
+
+### Security
+
+- **A pushed symlink could make the gate read files outside the repo.** Frames
+  read whatever the staged tree contains, and a tree is attacker-controlled: a
+  committed `cred -> /etc/nimblegate-gateway/repos/<name>/credential` had the
+  gate open that file and report findings about it - an arbitrary-read oracle
+  over anything the gateway user can read, including other repos and the
+  gateway's own upstream credential. Staging now replaces every symlink whose
+  target resolves outside the staged tree with an empty regular file, before
+  any frame runs. Links that stay inside the tree are ordinary content and are
+  still scanned. Writing outside the tree was never possible: a git tree holds
+  no `..` entry and cannot carry both a symlink `x` and an entry under `x/`.
+- **Scan failures no longer leaked gateway internals to the pusher.** A push the
+  gate could not evaluate printed its cause verbatim, so a client able to fill
+  the disk received `ERROR [gateway] materialize: untar: exit status 2` -
+  revealing the gateway and its extraction mechanism. The reject is now the
+  neutral per-ref line any host prints; the cause goes to the audit log.
+- **Connection timeouts on both dashboards.** They listened via the zero-value
+  `http.Server`, so a client dribbling headers held a handler goroutine
+  indefinitely. Header, read, write, and idle deadlines are now set.
+
+### Added
+
+- **`[gateway]` section in `<policy-root>/gateway.toml`**: `scan_tmpdir` moves
+  where pushed trees are staged (default `<repos-root>/_scan-tmp`, deliberately
+  not `/tmp`, which is tmpfs on most distributions - staging a full copy of
+  every in-flight push there is how a large repo becomes an out-of-memory kill);
+  `max_tree_bytes` caps what one push may expand to (default 2 GiB, 0 =
+  unlimited) - `max-input-size` bounds the compressed pack and says nothing
+  about the tree, since a blob of zeros extracts in full; `scan_timeout` bounds
+  one push's frame run (default 5m, 0 = no deadline).
+- **`/health` reports memory pressure** from the kernel's PSI counters (the
+  container's own figure under a memory limit, the host's otherwise), warning
+  before the OOM killer intervenes rather than after. Also reports the effective
+  scan-staging directory with free space on *its* filesystem, and counts pushes
+  that could not be scanned in the last 24h.
+- **Misplaced `[gateway]` keys are reported** on `/health` and by
+  `gateway doctor`. A knob written without a `[gateway]` header, under another
+  section, or into `<policy-root>/<repo>/gateway.toml` - the per-repo policy
+  file that shares its filename - parses cleanly and does nothing.
+
+### Fixed
+
+- **A gate that cannot evaluate a push now says so distinctly.** Scan failures
+  carry `gateway/scan-failed` rather than collapsing into a frame finding: still
+  a reject under enforcement, but the notification rail and a `scan-failed`
+  event fire even under observe, where the push is relayed unscanned and nothing
+  else would tell the operator that scanning had stopped.
+- **Extraction failures name their cause.** `tar`'s stderr was discarded, so a
+  full filesystem reported only `exit status 2`; the audit record now carries
+  `No space left on device`.
+- Upstream API responses and agent-API request bodies are read under a cap
+  rather than buffered whole.
+
 ## [0.3.2] - 2026-08-22
 
 ### Fixed

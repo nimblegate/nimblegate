@@ -11,8 +11,8 @@ the README quickstart (`docker compose up -d` against the tag `compose.yaml`
 pins) returns `manifest unknown` for every reader who isn't signed into a GitHub
 account that owns the package.
 
-> **Where things stand:** v0.1.0 through v0.3.2 are tagged, and
-> `compose.yaml` pins `0.3.2`. The walkthrough below is written around the
+> **Where things stand:** v0.1.0 through v0.3.3 are tagged, and
+> `compose.yaml` pins `0.3.3`. The walkthrough below is written around the
 > v0.1.0 first release and is kept as the worked example; for a routine release
 > go to [Subsequent releases](#subsequent-releases-v020).
 
