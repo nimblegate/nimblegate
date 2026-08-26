@@ -273,14 +273,30 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorFail, Reason: "no upstream URL configured; accepted pushes have nowhere to relay"})
 	case strings.HasPrefix(pol.UpstreamURL, "https://"):
 		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorOK, Reason: pol.UpstreamURL})
+	case IsSSHUpstream(pol.UpstreamURL):
+		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorOK, Reason: pol.UpstreamURL + " (relays over SSH with the gateway's own identity)"})
+	case strings.HasPrefix(pol.UpstreamURL, "http://"):
+		// Supported on purpose for LAN gitea / on-prem upstreams (relay.go
+		// injects the token for http as well as https). Not a failure - the
+		// relay works - but the credential crosses the network in cleartext,
+		// which the operator should know rather than be blocked over.
+		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorWarn,
+			Reason: "upstream is plain HTTP (" + pol.UpstreamURL + "); the relay works, but the credential travels in cleartext",
+			Fix:    "prefer https:// where the upstream offers it; http is intended for LAN/on-prem hosts"})
 	default:
-		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorFail, Reason: "upstream must be HTTPS; the gateway relays over HTTPS only (" + pol.UpstreamURL + ")"})
+		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorFail,
+			Reason: "unsupported upstream scheme (" + pol.UpstreamURL + "); the relay speaks https, http and ssh"})
 	}
 
 	cred, _ := (FileCredentialStore{Root: cfg.PolicyRoot}).Load(name)
-	if strings.TrimSpace(cred) == "" {
+	switch {
+	case IsSSHUpstream(pol.UpstreamURL):
+		// SSH upstreams authenticate with the gateway's key, so a per-repo
+		// credential file is not part of that path at all.
+		add(DoctorCheck{Repo: name, Name: "Upstream credential", Status: DoctorInfo, Reason: "not applicable: SSH upstream authenticates with the gateway's key"})
+	case strings.TrimSpace(cred) == "":
 		add(DoctorCheck{Repo: name, Name: "Upstream credential", Status: DoctorWarn, Reason: "no upstream credential stored; relay to upstream will fail"})
-	} else {
+	default:
 		add(DoctorCheck{Repo: name, Name: "Upstream credential", Status: DoctorOK, Reason: "credential present"})
 	}
 
