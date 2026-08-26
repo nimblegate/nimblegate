@@ -2,7 +2,7 @@
 
 Adapters are the host-specific shims between the gateway's orchestrator and the various git-host APIs (Gitea, GitHub, future GitLab / Bitbucket / on-prem). All adapters implement one interface; the orchestrator is host-agnostic.
 
-This guide is for someone adding a new adapter. For the design rationale, see [`docs/superpowers/specs/2026-06-04-auto-pr-and-webhook-design.md`](superpowers/specs/2026-06-04-auto-pr-and-webhook-design.md) §8.
+This guide is for someone adding a new adapter. It is self-contained: the interface, the conformance suite every adapter must pass, and the invariants are all below.
 
 ---
 
