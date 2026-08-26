@@ -24,13 +24,13 @@ func serveGwShellJS(w http.ResponseWriter, _ *http.Request) {
 
 // chromeData drives the shared rail + top bar. UI-only; no write surface.
 type chromeData struct {
-	Build         string   // version.Resolved()
-	Mode          string   // off | observe | enforce | "-" (read-only badge)
-	Repos         []string // for the global repo switch
-	ActiveRepo    string   // "" = all repos
-	ActiveSection string   // feed | stats | reports | frames | policy | ssh-keys
-	AuthEnabled       bool // true when --auth != off; toggles the Sign-out button in gwtop
-	LicenseCommercial bool // true -> operator attested a commercial license; flips the top-bar badge
+	Build             string   // version.Resolved()
+	Mode              string   // off | observe | enforce | "-" (read-only badge)
+	Repos             []string // for the global repo switch
+	ActiveRepo        string   // "" = all repos
+	ActiveSection     string   // feed | stats | reports | frames | policy | ssh-keys
+	AuthEnabled       bool     // true when --auth != off; toggles the Sign-out button in gwtop
+	LicenseCommercial bool     // true -> operator attested a commercial license; flips the top-bar badge
 }
 
 // gwLayout is one rendered gateway page: a content fragment wrapped in the shell.

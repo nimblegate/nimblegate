@@ -655,8 +655,8 @@ type policyPageData struct {
 	Archived       []string
 	JustRegistered string
 	Whitelisted    []whitelistRow
-	UpstreamURL    string // current upstream, pre-fills the Edit repo settings form
-	ProtectedRefs  string // current protected refs (space-joined), pre-fills the form
+	UpstreamURL    string                  // current upstream, pre-fills the Edit repo settings form
+	ProtectedRefs  string                  // current protected refs (space-joined), pre-fills the form
 	TimeEstimates  []effectiveTimeEstimate // per-tier hours (override or default) for the editor
 }
 
