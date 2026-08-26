@@ -92,7 +92,7 @@ func Dashboard(args []string) int {
 	addr := fmt.Sprintf("127.0.0.1:%d", *port)
 	fmt.Printf("nimblegate dashboard: http://localhost:%d  (Ctrl-C to stop)\n", *port)
 	fmt.Println("  reflects the last `nimblegate check`; re-run it to update the data.")
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := newDashboardServer(addr, mux).ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "nimblegate dashboard: %v\n", err)
 		return 2
 	}
