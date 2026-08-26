@@ -106,11 +106,22 @@ docker compose down --volumes                      # cleanup
 
 ### 6. Update the release notes + announce
 
-GitHub creates a draft release when the tag is pushed. Edit it:
+GitHub creates a draft release when the tag is pushed (`.goreleaser.yaml` sets
+`draft: true`). Edit it:
 
 - Paste the CHANGELOG.md `[0.1.0]` section as the body.
 - Add a "Container image" line: `ghcr.io/nimblegate/nimblegate:0.1.0` (also `:0.1`, `:latest`).
 - Publish.
+
+> **Do not create the release yourself in the GitHub UI.** Wait for the draft.
+> A draft does not claim its tag name until it is published, so making a release
+> by hand for the same tag produces a *second* release object - yours carrying
+> only the two auto-generated source archives, goreleaser's carrying the real
+> binaries - and the collision only surfaces when you try to publish the draft
+> and the name is taken. Fix: delete the hand-made release (the release only,
+> never the tag - both point at the same commit), then publish the draft.
+> If the tag has not reached GitHub yet, push the tag; do not reach for the
+> "Draft a new release" button to make something appear.
 
 Then announce per the launch playbook (`docs/superpowers/plans/2026-06-01-launch-playbook.md`).
 
@@ -119,6 +130,7 @@ Then announce per the launch playbook (`docs/superpowers/plans/2026-06-01-launch
 | Symptom | Cause | Fix |
 |---|---|---|
 | `manifest unknown` on anonymous pull | Package is still private | Step 3 above: flip visibility to Public |
+| Cannot publish the draft: tag name already in use | A release was created by hand for the same tag | Delete the hand-made release (keep the tag), then publish the draft |
 | `unauthorized: authentication required` | Action doesn't have `packages: write` permission | `.github/workflows/release.yml` → `permissions: { packages: write }` |
 | Pull works for `:0.1.0` but not `:latest` | The container job didn't write the moving tags; check `docker/metadata-action` config | Re-tag or push a `:latest` manually with `docker pull ... && docker tag ... && docker push ...` |
 | Anonymous pull works for amd64 only | Multi-arch buildx didn't complete; the arm64 layer is missing | Check the container job logs; re-tag if `setup-qemu-action` step was skipped |

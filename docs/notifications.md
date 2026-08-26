@@ -2,7 +2,7 @@
 
 The gateway can notify the upstream (PR comment) and a webhook URL when a push is rejected. Both channels carry the same JSON payload: agents listening for either rail get the same structured data. This guide covers how the rail works, how to wire up a webhook receiver, and how to read the configuration knobs.
 
-For the design rationale + invariants, see [`docs/superpowers/specs/2026-06-04-auto-pr-and-webhook-design.md`](superpowers/specs/2026-06-04-auto-pr-and-webhook-design.md). For the adapter-author view, see [`docs/adapters.md`](adapters.md).
+The wire format is specified in [`docs/schemas/notification-1.0.json`](schemas/notification-1.0.json); for the adapter-author view, see [`docs/adapters.md`](adapters.md).
 
 ---
 
