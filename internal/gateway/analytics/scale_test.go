@@ -47,13 +47,20 @@ func TestScaleStatsLatency(t *testing.T) {
 		t.Fatalf("decisions = %d, want %d", got, n)
 	}
 
+	// The point of this budget is catching an algorithmic regression, not
+	// measuring the race detector - so it is relaxed rather than skipped under
+	// -race, which `make test` uses. A quadratic Stats would still blow past it.
+	budget := 2 * time.Second
+	if raceInstrumented {
+		budget = 6 * time.Second
+	}
 	start := time.Now()
 	s, err := Stats(db, StatsQuery{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
-		t.Errorf("Stats over %d rows took %v, want < 2s", n, elapsed)
+	if elapsed := time.Since(start); elapsed > budget {
+		t.Errorf("Stats over %d rows took %v, want < %v", n, elapsed, budget)
 	}
 	if s.Decisions != n {
 		t.Errorf("decisions = %d, want %d", s.Decisions, n)

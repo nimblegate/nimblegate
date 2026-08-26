@@ -354,4 +354,3 @@ func TestAuth_middleware_expiredCookieClearedAndRedirects(t *testing.T) {
 		t.Errorf("Location = %q, want /login…", rec.Header().Get("Location"))
 	}
 }
-
