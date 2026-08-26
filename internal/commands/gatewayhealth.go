@@ -354,7 +354,7 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 <dt>Daemon loop</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> running (last successful drain {{.LastPollAgo}})</dd>
 <dt>Disk free</dt><dd>{{icon .DiskFreeStatus}} {{.DiskFreeBytes}}</dd>
 {{if .ConfigIssues}}<dt>Gateway config</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{range .ConfigIssues}}{{.}}<br>{{end}}</dd>{{end}}
-{{if .StagingStatus}}<dt>Scan staging</dt><dd>{{if eq .StagingStatus "-"}}{{.StagingDetail}}{{else}}<span class="gw-health-status-{{.StagingStatus}}">{{icon .StagingStatus}}</span> <code>{{.StagingDir}}</code> - {{.StagingDetail}}{{end}}</dd>{{end}}
+{{if .StagingStatus}}<dt>Scan staging</dt><dd>{{if ne .StagingStatus "-"}}<span class="gw-health-status-{{.StagingStatus}}">{{icon .StagingStatus}}</span> {{end}}{{if .StagingDir}}<code>{{.StagingDir}}</code> - {{end}}{{.StagingDetail}}</dd>{{end}}
 {{if .MemPressureStatus}}<dt>Memory pressure</dt><dd>{{if eq .MemPressureStatus "-"}}{{.MemPressureDetail}}{{else}}<span class="gw-health-status-{{.MemPressureStatus}}">{{icon .MemPressureStatus}}</span> {{.MemPressureDetail}}{{end}}</dd>{{end}}
 {{if gt .ScanFailures24h 0}}<dt>Gate scans</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{.ScanFailures24h}} push(es) could not be scanned in 24h{{if .ScanFailureLast}} - {{.ScanFailureLast}}{{end}}</dd>{{end}}
 {{if .SkeletonChecked}}<dt>Repo connection</dt><dd>{{if eq .SkeletonIssuesTotal 0}}<span class="gw-health-status-ok">{{icon "ok"}}</span> all {{.SkeletonReposTotal}} repo(s) connected{{else}}<span class="gw-health-status-warn">{{icon "warn"}}</span> {{.SkeletonIssuesTotal}} issue(s) across {{.SkeletonReposIssues}} repo(s){{if gt .SkeletonBlocking 0}}, {{.SkeletonBlocking}} blocking{{end}}, see <a href="/repos" style="color:var(--gw-accent)">Repos</a> to fix{{end}}</dd>{{end}}
@@ -556,6 +556,21 @@ func freeSpace(path string) (free, total uint64, ok bool) {
 	return st.Bavail * uint64(st.Bsize), st.Blocks * uint64(st.Bsize), true
 }
 
+// freeSpaceNear reports space on the nearest existing ancestor of path, so a
+// staging dir that no push has created yet still reports its filesystem.
+func freeSpaceNear(path string) (free, total uint64, ok bool) {
+	for p := filepath.Clean(path); ; {
+		if free, total, ok = freeSpace(p); ok {
+			return free, total, true
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return 0, 0, false
+		}
+		p = parent
+	}
+}
+
 // spaceStatus applies the same <10%-free threshold everywhere it is used.
 func spaceStatus(free, total uint64) string {
 	if total > 0 && (free*100)/total < 10 {
@@ -597,13 +612,11 @@ func collectStagingHealth(d *healthData, policyRoot, reposRoot string, now time.
 		return
 	}
 
-	// Measure the dir itself once it exists; before the first push, its parent
-	// is the same filesystem and answers the question just as well.
-	probe := info.Dir
-	if !info.Exists {
-		probe = filepath.Dir(info.Dir)
-	}
-	free, total, ok := freeSpace(probe)
+	// Before the first push the directory does not exist yet, and neither may
+	// its parent - a configured path can be several levels deep. Walk up to the
+	// nearest ancestor that exists: it is the same filesystem, and it answers
+	// the question just as well.
+	free, total, ok := freeSpaceNear(info.Dir)
 	if !ok {
 		d.StagingStatus = "-"
 		d.StagingDetail = "free space unavailable"

@@ -680,3 +680,23 @@ func TestInspectGatewayConfig_surfacesParseErrors(t *testing.T) {
 		t.Error("a malformed file must be reported, not silently defaulted")
 	}
 }
+
+func TestStagingDirPathsAreCleaned(t *testing.T) {
+	// A trailing slash must not survive into display, comparison, or
+	// filepath.Dir - which returns the directory itself rather than the parent
+	// when one does.
+	reposRoot := t.TempDir()
+	want := filepath.Join(t.TempDir(), "scan")
+
+	if got := InspectStagingDir(want+"/", reposRoot); got.Dir != want {
+		t.Errorf("InspectStagingDir = %q, want %q", got.Dir, want)
+	}
+	got, err := ResolveScanTmpDirChecked(want+"/", reposRoot)
+	if err != nil || got != want {
+		t.Errorf("ResolveScanTmpDirChecked = %q (%v), want %q", got, err, want)
+	}
+	// The two must still agree - the resolver creates, the inspector reports.
+	if info := InspectStagingDir(want+"/", reposRoot); !info.Exists || info.Dir != got {
+		t.Errorf("resolver and inspector disagree: %+v vs %q", info, got)
+	}
+}
