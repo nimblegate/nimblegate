@@ -62,6 +62,10 @@ type rpcResponse struct {
 	Error   *rpcError       `json:"error,omitempty"`
 }
 
+// maxRPCRequestBytes caps an inbound JSON-RPC body. The largest legitimate call
+// carries a repo name and a handful of options.
+const maxRPCRequestBytes int64 = 1 << 20
+
 func (s *mcpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -69,7 +73,9 @@ func (s *mcpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
+	// JSON-RPC calls are small; MaxBytesReader makes an oversize body fail the
+	// read rather than buffering it whole.
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRPCRequestBytes))
 	if err != nil {
 		http.Error(w, "failed to read body", http.StatusBadRequest)
 		return
