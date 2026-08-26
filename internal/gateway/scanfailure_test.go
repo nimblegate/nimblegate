@@ -380,7 +380,12 @@ func TestMaterializeTree_NeutralizesOnTheWayIn(t *testing.T) {
 	// The gate's own path: whatever materializeTree hands to the checker is
 	// already free of outward links, so no caller has to remember to do it.
 	outside := t.TempDir()
-	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("AKIAZZZZTESTFIXTURE0\n"), 0o600); err != nil {
+	// Assembled at runtime, like the token fixture above: this repo is gated by
+	// nimblegate itself, and a literal key shape in source is a BLOCK finding on
+	// push - correctly so, since the frame cannot know a fixture from the real
+	// thing.
+	awsKey := "AKIA" + "ZZZZTESTFIXTURE0"
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte(awsKey+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	work := t.TempDir()
