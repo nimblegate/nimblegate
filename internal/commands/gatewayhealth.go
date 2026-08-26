@@ -47,6 +47,26 @@ type healthData struct {
 	SkeletonReposIssues int // count of repos with ≥1 issue
 	SkeletonIssuesTotal int // count of individual issues (a repo may contribute >1)
 	SkeletonBlocking    int // subset of SkeletonIssuesTotal at IssueBlocking severity
+
+	// Scan failures in the last 24h (pushes the gate could not evaluate: full
+	// temp filesystem, unwritable scan dir, checker crash). Zero renders
+	// nothing - this line only appears when something is actually wrong. It is
+	// the only signal an observe-mode operator gets that scanning stopped.
+	ScanFailures24h int
+	ScanFailureLast string // detail of the most recent one
+
+	// Memory pressure (PSI), the signal that arrives before the OOM killer
+	// does. "-" when the kernel does not expose it, which must read as "no
+	// data" rather than as "fine".
+	MemPressureStatus string // "ok" | "warn" | "-"
+	MemPressureDetail string
+
+	// Where pushed trees are staged, and free space on THAT filesystem - which
+	// is not necessarily the policy root's once scan_tmpdir points elsewhere,
+	// and is the mount that decides whether a push can be scanned at all.
+	StagingDir    string
+	StagingStatus string // "ok" | "warn" | "-"
+	StagingDetail string
 }
 
 // maintenanceHealth is the /health view of the maintenance loop. nil when
@@ -104,22 +124,45 @@ func collectHealth(policyRoot, reposRoot string, startTime time.Time, now time.T
 
 	// Disk-free: Statfs against the policy root. Failure (missing dir / non-
 	// supported FS) renders as "-" so the page still loads on a fresh box.
-	var st syscall.Statfs_t
-	if err := syscall.Statfs(policyRoot, &st); err != nil {
+	if free, total, ok := freeSpace(policyRoot); !ok {
 		d.DiskFreeStatus = "-"
 		d.DiskFreeBytes = "unavailable"
 	} else {
-		free := st.Bavail * uint64(st.Bsize)
-		total := st.Blocks * uint64(st.Bsize)
 		d.DiskFreeBytes = formatBytes(free)
 		// Threshold: <10% free = warn, otherwise ok. Same heuristic as most
 		// of the disk-low monitors in the wild; keeps the operator from
 		// finding out about a full disk when the gateway starts refusing
 		// pushes mid-day.
-		if total > 0 && (free*100)/total < 10 {
-			d.DiskFreeStatus = "warn"
-		} else {
-			d.DiskFreeStatus = "ok"
+		d.DiskFreeStatus = spaceStatus(free, total)
+	}
+
+	collectStagingHealth(&d, policyRoot, reposRoot, now)
+
+	// Memory pressure: how much wall-clock time tasks spent stalled waiting on
+	// memory. Free-memory arithmetic cannot answer this - a box with little
+	// free memory and no reclaim stalls is healthy, one with headroom that
+	// reclaims constantly is not - and a mis-sized box under an agent swarm
+	// shows here well before the OOM killer picks a victim.
+	if mp := gateway.ReadMemoryPressure(); !mp.Available {
+		d.MemPressureStatus = "-"
+		d.MemPressureDetail = "unavailable (kernel without PSI)"
+	} else if mp.Pressure.Stalled() {
+		d.MemPressureStatus = "warn"
+		d.MemPressureDetail = mp.Pressure.Summary() + " - tasks are stalling on memory; add RAM or reduce push concurrency"
+	} else {
+		d.MemPressureStatus = "ok"
+		d.MemPressureDetail = mp.Pressure.Summary()
+	}
+
+	// Scan failures are recorded by the pre-receive hook as operator-only
+	// events, because the pusher-facing output deliberately withholds them.
+	scanCutoff := now.Add(-24 * time.Hour)
+	if evs, err := gateway.ReadEvents(policyRoot, func(e gateway.Event) bool {
+		return e.Event == "scan-failed" && e.Timestamp.After(scanCutoff)
+	}); err == nil && len(evs) > 0 {
+		d.ScanFailures24h = len(evs)
+		if detail, ok := evs[len(evs)-1].Payload["detail"].(string); ok {
+			d.ScanFailureLast = detail
 		}
 	}
 
@@ -305,6 +348,9 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 <dt>Dashboard service</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> running (PID {{.PID}}, uptime {{.Uptime}})</dd>
 <dt>Daemon loop</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> running (last successful drain {{.LastPollAgo}})</dd>
 <dt>Disk free</dt><dd>{{icon .DiskFreeStatus}} {{.DiskFreeBytes}}</dd>
+{{if .StagingStatus}}<dt>Scan staging</dt><dd>{{if eq .StagingStatus "-"}}{{.StagingDetail}}{{else}}<span class="gw-health-status-{{.StagingStatus}}">{{icon .StagingStatus}}</span> <code>{{.StagingDir}}</code> - {{.StagingDetail}}{{end}}</dd>{{end}}
+{{if .MemPressureStatus}}<dt>Memory pressure</dt><dd>{{if eq .MemPressureStatus "-"}}{{.MemPressureDetail}}{{else}}<span class="gw-health-status-{{.MemPressureStatus}}">{{icon .MemPressureStatus}}</span> {{.MemPressureDetail}}{{end}}</dd>{{end}}
+{{if gt .ScanFailures24h 0}}<dt>Gate scans</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{.ScanFailures24h}} push(es) could not be scanned in 24h{{if .ScanFailureLast}} - {{.ScanFailureLast}}{{end}}</dd>{{end}}
 {{if .SkeletonChecked}}<dt>Repo connection</dt><dd>{{if eq .SkeletonIssuesTotal 0}}<span class="gw-health-status-ok">{{icon "ok"}}</span> all {{.SkeletonReposTotal}} repo(s) connected{{else}}<span class="gw-health-status-warn">{{icon "warn"}}</span> {{.SkeletonIssuesTotal}} issue(s) across {{.SkeletonReposIssues}} repo(s){{if gt .SkeletonBlocking 0}}, {{.SkeletonBlocking}} blocking{{end}}, see <a href="/repos" style="color:var(--gw-accent)">Repos</a> to fix{{end}}</dd>{{end}}
 {{with .Maintenance}}
 <dt>Maintenance</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> gc every {{.Interval}}, last sweep {{.LastSweepAgo}} ({{.RepoCount}} repo(s){{if gt .ErrorCount 0}}, {{icon "warn"}} {{.ErrorCount}} error(s){{end}}); next in {{.NextSweepIn}}
@@ -493,4 +539,75 @@ func formatAgo(d time.Duration) string {
 		return fmt.Sprintf("%dh ago", int(d.Hours()))
 	}
 	return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+}
+
+// freeSpace reports available and total bytes on the filesystem holding path.
+func freeSpace(path string) (free, total uint64, ok bool) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(path, &st); err != nil {
+		return 0, 0, false
+	}
+	return st.Bavail * uint64(st.Bsize), st.Blocks * uint64(st.Bsize), true
+}
+
+// spaceStatus applies the same <10%-free threshold everywhere it is used.
+func spaceStatus(free, total uint64) string {
+	if total > 0 && (free*100)/total < 10 {
+		return "warn"
+	}
+	return "ok"
+}
+
+// collectStagingHealth reports where pushed trees are staged and how much room
+// that filesystem has left. Two failures hide here otherwise: a configured
+// scan_tmpdir that could not be created falls back to $TMPDIR (tmpfs on most
+// distros, which is the RAM staging the setting exists to prevent), and a
+// staging dir on its own disk is invisible to the policy-root disk-free line
+// above - while being the mount that decides whether a push can be scanned.
+func collectStagingHealth(d *healthData, policyRoot, reposRoot string, now time.Time) {
+	if reposRoot == "" {
+		return // no repos root configured: the gate is not serving pushes here
+	}
+	cfg, _ := gateway.LoadGatewayConfig(policyRoot)
+	info := gateway.InspectStagingDir(cfg.ScanTmpDir, reposRoot)
+	if info.Dir == "" {
+		d.StagingStatus = "-"
+		d.StagingDetail = "staging in $TMPDIR (usually tmpfs, i.e. RAM)"
+		return
+	}
+	d.StagingDir = info.Dir
+
+	// A fallback is reported by the hook, which is the process that actually
+	// tried to create the dir; the dashboard cannot tell by looking, because it
+	// may not run as the same user.
+	cutoff := now.Add(-24 * time.Hour)
+	fellBack, _ := gateway.ReadEvents(policyRoot, func(e gateway.Event) bool {
+		return e.Event == "scan-staging-fallback" && e.Timestamp.After(cutoff)
+	})
+	if len(fellBack) > 0 {
+		d.StagingStatus = "warn"
+		d.StagingDetail = "configured dir unusable, staging fell back to $TMPDIR (RAM) - see events"
+		return
+	}
+
+	// Measure the dir itself once it exists; before the first push, its parent
+	// is the same filesystem and answers the question just as well.
+	probe := info.Dir
+	if !info.Exists {
+		probe = filepath.Dir(info.Dir)
+	}
+	free, total, ok := freeSpace(probe)
+	if !ok {
+		d.StagingStatus = "-"
+		d.StagingDetail = "free space unavailable"
+		return
+	}
+	d.StagingStatus = spaceStatus(free, total)
+	d.StagingDetail = formatBytes(free) + " free"
+	if !info.Exists {
+		d.StagingDetail += " (created on first push)"
+	}
+	if info.Configured != "" {
+		d.StagingDetail += ", from scan_tmpdir"
+	}
 }

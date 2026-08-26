@@ -168,6 +168,8 @@ func TestHealthHandler_rendersExpectedSurfaces(t *testing.T) {
 		`hx-post="/health/investigate?repo=repoA"`,
 		// Daemon + disk status lines.
 		"Dashboard service", "PID ", "Daemon loop", "Disk free",
+		// Memory pressure renders on the real handler, not only in isolation.
+		"Memory pressure",
 		// 24h delivery success surfaces.
 		"Webhook delivery success", "PR comment success",
 	} {
