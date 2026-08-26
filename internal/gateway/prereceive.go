@@ -22,6 +22,16 @@ type PreReceiveDeps struct {
 	GitDir    string // the gateway bare repo (GIT_DIR)
 	Checker   Checker
 	AuditPath string
+	// ScanTmpDir is where the per-push materialize worktree is created. Empty
+	// falls back to $TMPDIR, which is tmpfs on most distros - one full copy of
+	// the pushed tree per in-flight push then lands in RAM.
+	ScanTmpDir string
+	// MaxTreeBytes caps what one push may expand to on disk (0 = unlimited),
+	// and ScanTimeout bounds how long its frame run may take (0 = no deadline).
+	// Both failures land on the scan-failure path: the gate could not evaluate
+	// the push, so it is rejected under enforcement rather than waved through.
+	MaxTreeBytes int64
+	ScanTimeout  time.Duration
 	// Notification rail (all optional - nil/empty disables the rail for this push).
 	NotificationConfig *NotificationConfig
 	Orchestrator       *notification.Orchestrator // for inline attempt; nil = skip inline, daemon drains
@@ -97,23 +107,23 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 			if !isGatedRef(d.Policy, r.Name) || r.IsDelete() {
 				continue // non-gated: no check; delete handled by Decide
 			}
-			tmp, err := os.MkdirTemp("", "afgw-")
+			tmp, err := os.MkdirTemp(d.ScanTmpDir, "afgw-")
 			if err != nil {
-				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: "gateway", Outcome: engine.OutcomeError, Reason: err.Error()}}
+				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: err.Error()}}
 				continue
 			}
 			defer os.RemoveAll(tmp)
-			if err := materializeTree(d.GitDir, r.NewRev, tmp); err != nil {
-				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: "gateway", Outcome: engine.OutcomeError, Reason: "materialize: " + err.Error()}}
+			if err := materializeTree(d.GitDir, r.NewRev, tmp, d.MaxTreeBytes); err != nil {
+				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: "materialize: " + err.Error()}}
 				continue
 			}
 			if err := overlayPolicy(d.Policy.PolicyDir, tmp); err != nil {
-				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: "gateway", Outcome: engine.OutcomeError, Reason: "overlay: " + err.Error()}}
+				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: "overlay: " + err.Error()}}
 				continue
 			}
-			res, supp, err := d.Checker.Check(tmp)
+			res, supp, err := checkWithDeadline(d.Checker, tmp, d.ScanTimeout)
 			if err != nil {
-				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: "gateway", Outcome: engine.OutcomeError, Reason: "check: " + err.Error()}}
+				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: "check: " + err.Error()}}
 				continue
 			}
 			resultsByRef[r.Name] = relativizeResults(res, tmp)
@@ -146,7 +156,10 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 	// (delivered / queued / deadlettered) at read time by cross-referencing the
 	// EventID against the queue + deadletter files (ReadDecisions correlation).
 	notifEnabled := d.NotificationConfig != nil && d.NotificationConfig.Enabled
-	willNotify := !dec.Accept && !d.Policy.Observe && notifEnabled
+	// Scan failure notifies even under observe: observe suppresses policy
+	// rejects by design, but a gate that could not evaluate the push is an
+	// outage, and in observe mode nothing else would tell the operator.
+	willNotify := !dec.Accept && notifEnabled && (!d.Policy.Observe || dec.ScanFailed)
 
 	var notif notification.Notification
 	var notifStatus *NotificationStatus
@@ -168,7 +181,22 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 		}
 	}
 
-	_ = AppendAudit(d.AuditPath, AuditRecord{Repo: d.Policy.Repo, Refs: refNames, RefUpdates: refs, Accept: accept, Observed: observed, Messages: dec.Messages, Findings: dec.Findings, Suppressed: suppressed, Notification: notifStatus})
+	// The audit log is the operator's channel ("newspaper out"), so it carries
+	// the scan-failure detail the pusher-facing output withholds.
+	auditMsgs := dec.Messages
+	if len(dec.ScanFailures) > 0 {
+		auditMsgs = append(append([]string{}, dec.Messages...), dec.ScanFailures...)
+	}
+	_ = AppendAudit(d.AuditPath, AuditRecord{Repo: d.Policy.Repo, Refs: refNames, RefUpdates: refs, Accept: accept, Observed: observed, Messages: auditMsgs, Findings: dec.Findings, Suppressed: suppressed, Notification: notifStatus})
+	if dec.ScanFailed && d.PolicyRoot != "" {
+		// Second operator channel, independent of the rail being configured:
+		// /health reads these back, which is the only signal an observe-mode
+		// operator gets that scanning has stopped happening.
+		_ = AppendEvent(d.PolicyRoot, Event{
+			Event: "scan-failed", Repo: d.Policy.Repo, OK: false,
+			Payload: map[string]any{"detail": strings.Join(dec.ScanFailures, "; "), "relayed": accept},
+		})
+	}
 
 	switch {
 	case willNotify:
@@ -206,6 +234,36 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 	return 0
 }
 
+// checkWithDeadline runs the frame pass with a wall-clock bound. Every enabled
+// frame walks the staged tree itself, so a large enough push can run for
+// minutes with the pusher and a receive-pack slot held open the whole time.
+//
+// The goroutine is abandoned rather than cancelled: Checker has no context, and
+// a hook process exits moments later, so the leak lasts as long as the process
+// does. A timeout is a scan failure like any other - the push is rejected under
+// enforcement, because a scan that did not finish proves nothing about the code.
+func checkWithDeadline(c Checker, dir string, timeout time.Duration) ([]engine.CheckResult, []engine.SuppressionLog, error) {
+	if timeout <= 0 {
+		return c.Check(dir)
+	}
+	type outcome struct {
+		res  []engine.CheckResult
+		supp []engine.SuppressionLog
+		err  error
+	}
+	done := make(chan outcome, 1) // buffered: the abandoned goroutine must not block forever
+	go func() {
+		res, supp, err := c.Check(dir)
+		done <- outcome{res, supp, err}
+	}()
+	select {
+	case o := <-done:
+		return o.res, o.supp, o.err
+	case <-time.After(timeout):
+		return nil, nil, fmt.Errorf("scan exceeded %s", timeout)
+	}
+}
+
 // relativizeResults rewrites scan-worktree-absolute paths (under root) to
 // repo-relative ones in the check results, so findings reference the real repo
 // file ("work.txt:1") instead of the gateway's ephemeral materialize dir
@@ -229,7 +287,7 @@ func buildNotification(d PreReceiveDeps, refs []RefUpdate, dec Decision, suppres
 	in := notification.BuildInput{
 		Repo:        d.Policy.Repo,
 		UpstreamURL: d.Policy.UpstreamURL,
-		Observed:    false, // gated to non-observe rejects upstream of this call
+		Observed:    d.Policy.Observe, // true only on the scan-failure path; policy rejects are gated to non-observe upstream
 		Refs:        toBuildRefs(refs),
 		Findings:    toBuildFindings(dec.Findings),
 		Suppressed:  toBuildSuppressions(suppressed),

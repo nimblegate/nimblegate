@@ -61,11 +61,25 @@ type Finding struct {
 	Message  string `json:"message,omitempty"`
 }
 
+// ScanFailedID marks a result the GATE produced because it could not evaluate
+// the push at all (temp dir, materialize, policy overlay, or checker failure) -
+// as opposed to a frame reporting a finding in the pushed code. Both reject
+// under enforcement; only this one means the push was never actually scanned.
+const ScanFailedID = "gateway/scan-failed"
+
 // Decision is the gate verdict for a whole push (all-or-nothing).
 type Decision struct {
 	Accept   bool
 	Messages []string  // human-readable lines printed back to the dev on reject
 	Findings []Finding // every non-pass result (all severities) for observability
+
+	// ScanFailures holds the detail lines for refs the gate could not evaluate.
+	// Operator-only: they name gateway internals (materialize, tar, temp dirs),
+	// so they go to the audit log and events, never to the pushing client.
+	ScanFailures []string
+	// ScanFailed is true when any gated ref failed to scan. Callers use it to
+	// route the outage operator-side; it never changes the accept/reject answer.
+	ScanFailed bool
 }
 
 // Validate checks the policy is well-formed. It smoke-tests every ProtectedRefs

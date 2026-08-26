@@ -18,7 +18,7 @@ import (
 // the post-receive hook runs with a relative GIT_DIR and cwd inside the bare,
 // so any reposRoot-derivation has to happen at the entry point, not here.
 func ScanFirstPush(bare, repo, policyRoot, selfExe string) error {
-	tmp, err := os.MkdirTemp("", "nimblegate-scan-")
+	tmp, err := os.MkdirTemp(ScanStagingDir(bare, policyRoot), "nimblegate-scan-")
 	if err != nil {
 		return fmt.Errorf("mkdir tmp: %w", err)
 	}
@@ -33,23 +33,12 @@ func ScanFirstPush(bare, repo, policyRoot, selfExe string) error {
 		return fmt.Errorf("no ref to archive in %s", bare)
 	}
 
-	// git archive <ref> | tar -xC <tmp>
-	archive := exec.Command("git", "-C", bare, "archive", ref)
-	untar := exec.Command("tar", "-xC", tmp)
-	pipe, err := archive.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("archive stdout pipe: %w", err)
-	}
-	untar.Stdin = pipe
-	if err := archive.Start(); err != nil {
-		return fmt.Errorf("archive start: %w", err)
-	}
-	if err := untar.Run(); err != nil {
-		_ = archive.Wait()
-		return fmt.Errorf("tar: %w", err)
-	}
-	if err := archive.Wait(); err != nil {
-		return fmt.Errorf("archive wait: %w", err)
+	// Same extraction the gate uses: one pipeline, so the stderr capture, the
+	// size cap and the escaping-symlink neutralisation cannot drift apart
+	// between the two paths that stage a tree.
+	cfg, _ := LoadGatewayConfig(policyRoot)
+	if err := materializeTree(bare, ref, tmp, cfg.MaxTreeBytes); err != nil {
+		return err
 	}
 
 	// Shell out: <selfExe> scan <tmp> --recommend-json

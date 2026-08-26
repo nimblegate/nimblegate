@@ -68,3 +68,39 @@ func TestRunTmpOrphanCleanup_missingTmpDirIsNoop(t *testing.T) {
 		t.Errorf("missing dir produced counts: %+v", res)
 	}
 }
+
+func TestRunTmpOrphanCleanup_coversEveryStagingPrefix(t *testing.T) {
+	// The gate, scan-on-first-push and the dashboard preview all stage full
+	// trees in the same dir under different prefixes. A sweeper that knew only
+	// the gate's prefix would leave the other two to accumulate forever.
+	tmp := t.TempDir()
+	past := time.Now().Add(-48 * time.Hour)
+	for _, name := range []string{"afgw-a", "nimblegate-scan-b", "nimblegate-preview-c"} {
+		dir := filepath.Join(tmp, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(dir, past, past); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A neighbour that is not ours, equally old: never touched.
+	keep := filepath.Join(tmp, "nimblegate-selection-d")
+	if err := os.MkdirAll(keep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(keep, past, past); err != nil {
+		t.Fatal(err)
+	}
+
+	res := runTmpOrphanCleanup(time.Now, tmp)
+	if res.Err != nil {
+		t.Fatalf("unexpected err: %v", res.Err)
+	}
+	if res.Removed != 3 {
+		t.Errorf("Removed = %d; want 3 (one per staging prefix)", res.Removed)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Errorf("a dir with an unrelated prefix must survive: %v", err)
+	}
+}

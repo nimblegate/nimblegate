@@ -41,7 +41,7 @@ func makeBareWithFiles(t *testing.T, files map[string]string) string {
 
 func TestPreviewTree_materializesLatestTip(t *testing.T) {
 	bare := makeBareWithFiles(t, map[string]string{"a.go": "TODO(no-owner)\n", "b.txt": "x\n"})
-	dir, cleanup, err := PreviewTree(bare)
+	dir, cleanup, err := PreviewTree(bare, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestPreviewTree_materializesLatestTip(t *testing.T) {
 func TestPreviewTree_noCommits(t *testing.T) {
 	empty := filepath.Join(t.TempDir(), "empty.git")
 	exec.Command("git", "init", "-q", "--bare", empty).Run()
-	_, _, err := PreviewTree(empty)
+	_, _, err := PreviewTree(empty, "")
 	if err == nil {
 		t.Fatal("want error for a bare repo with no commits")
 	}
