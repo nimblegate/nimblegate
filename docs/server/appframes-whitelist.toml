@@ -68,5 +68,10 @@ reason = "documentation ABOUT the todo-discipline feature necessarily spells the
 
 [[entry]]
 frame  = "app-correctness/todo-markers"
-path   = "internal/checks/datedtodo.go"
+path   = "internal/checks/datedtodo*.go"
 reason = "the dated-todo frame's implementation names the markers it detects"
+
+[[entry]]
+frame  = "app-correctness/no-em-dash"
+path   = "internal/checks/noendashincommands_test.go"
+reason = "the en-dash frame's own test fixtures contain the dashes it detects"
