@@ -16,7 +16,7 @@ import (
 // Operates on the same _auth.db the dashboard uses.
 func gatewayToken(args []string) int {
 	fs := flag.NewFlagSet("gateway token", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "gateway per-repo config root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "gateway per-repo config root")
 	authDBPath := fs.String("auth-db", "", "auth DB path (default: <policy-root>/_auth.db)")
 	// stdlib flag stops at the first non-flag argument, but flags and
 	// positionals arrive in any order (`token new x --policy-root p` or

@@ -24,13 +24,13 @@ func ScanFirstPush(bare, repo, policyRoot, selfExe string) error {
 	}
 	defer os.RemoveAll(tmp)
 
-	// Resolve a ref to archive: prefer symbolic HEAD, fall back to the first
+	// Resolve a ref to scan: prefer symbolic HEAD, fall back to the first
 	// branch under refs/heads/. On a fresh bare repo the symbolic HEAD may
 	// point to a branch that has no commits yet (e.g. default "master" while
 	// the first push went to "main"); the fallback covers that.
 	ref := resolveArchiveRef(bare)
 	if ref == "" {
-		return fmt.Errorf("no ref to archive in %s", bare)
+		return fmt.Errorf("no commits to scan in %s", bare)
 	}
 
 	// Same extraction the gate uses: one pipeline, so the stderr capture, the

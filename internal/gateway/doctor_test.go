@@ -135,8 +135,16 @@ func TestRunDoctorFrames(t *testing.T) {
 	if c, ok := findCheck(rep, "framed", "Frames"); !ok || c.Status != DoctorOK {
 		t.Fatalf("framed: want OK, got %+v ok=%v", c, ok)
 	}
-	if c, ok := findCheck(rep, "unframed", "Frames"); !ok || c.Status != DoctorFail {
-		t.Fatalf("unframed: want FAIL, got %+v ok=%v", c, ok)
+	// An empty [frames] enabled is NOT "nothing active": engine.isFrameEnabled
+	// treats an empty allowlist as every stdlib frame. This check used to report
+	// FAIL "pushes relay unchecked", whose obvious remedy - apply a kit - is the
+	// one action that actually reduces coverage.
+	c, ok := findCheck(rep, "unframed", "Frames")
+	if !ok || c.Status != DoctorOK {
+		t.Fatalf("unframed: want OK, got %+v ok=%v", c, ok)
+	}
+	if !strings.Contains(c.Reason, "every stdlib frame") {
+		t.Errorf("unframed: reason should say an empty selection runs every frame, got %q", c.Reason)
 	}
 }
 

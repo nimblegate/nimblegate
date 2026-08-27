@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
 	"nimblegate/internal/gateway"
+	"nimblegate/internal/kits"
 	"nimblegate/internal/linters"
 	"nimblegate/internal/paths"
 	"nimblegate/internal/stdlib"
@@ -137,16 +139,20 @@ func gatewayAdd(args []string) int {
 	name := fs.String("name", "", "logical repo name")
 	upstream := fs.String("upstream", "", "true upstream URL to relay accepted pushes to")
 	protect := fs.String("protect", "refs/heads/*", "comma-separated protected ref globs")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "bare-repo root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "bare-repo root")
 	disabled := fs.Bool("disabled", false, "register but do not gate (pass-through)")
 	gateAllRefs := fs.Bool("gate-all-refs", false, "gate EVERY ref (fail-closed on all branches), not just --protect; default off (protected refs only)")
 	observe := fs.Bool("observe", false, "advisory mode: check + record findings but never reject (relay anyway)")
 	noImport := fs.Bool("no-import", false, "skip mirroring the upstream's existing history at registration")
+	kit := fs.String("kit", "", "apply a starter kit at registration: core, web-app, cf-pages-project, cf-workers-project, security-strict, encoding-strict. Default (unset) leaves the frame allowlist empty, which runs EVERY stdlib frame; naming a kit narrows the repo to that kit's frames")
 	relaySocket := fs.String("relay-socket", "", "if set, route relay through the privilege-separated relay service at this Unix socket (bakes NBG_RELAY_SOCKET into the post-receive hook); empty = legacy inline relay")
 	_ = fs.Parse(args)
 	if *name == "" || *upstream == "" {
 		fmt.Fprintln(os.Stderr, "gateway add: --name and --upstream are required")
+		return 2
+	}
+	if !checkRepoName("gateway add", *name) {
 		return 2
 	}
 	exe, err := os.Executable()
@@ -159,6 +165,17 @@ func gatewayAdd(args []string) int {
 			"  credential to live ONLY in %s/%s/credential (gateway.toml is git-readable for gating,\n"+
 			"  so a token in the URL is a bypass). Use a tokenless upstream URL + the credential file.\n",
 			*policyRoot, *name)
+	}
+	if *kit != "" && *kit != "none" {
+		ks, err := kits.LoadStdlib()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gateway add: %v\n", err)
+			return 1
+		}
+		if _, ok := ks.Get(*kit); !ok {
+			fmt.Fprintf(os.Stderr, "gateway add: unknown kit %q; known kits: %s (or \"none\")\n", *kit, strings.Join(kitNames(ks), ", "))
+			return 2
+		}
 	}
 	if err := gateway.AddRepo(gateway.AddOptions{
 		Name:          *name,
@@ -174,6 +191,12 @@ func gatewayAdd(args []string) int {
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "gateway add: %v\n", err)
 		return 1
+	}
+	if *kit != "" && *kit != "none" {
+		if err := applyStarterKit(*policyRoot, *name, *kit, false); err != nil {
+			fmt.Fprintf(os.Stderr, "gateway add: registered, but applying the %q kit failed: %v\n", *kit, err)
+			return 1
+		}
 	}
 	fmt.Printf("registered %q → %s (bare repo under %s)\n", *name, *upstream, *reposRoot)
 	fmt.Printf("install the upstream credential at %s/%s/credential (0600) if needed\n", *policyRoot, *name)
@@ -286,8 +309,8 @@ func gatewayPostReceive(args []string) int {
 // locked to owner+group (0660); --socket-group lets the git user's group connect.
 func gatewayRelayService(args []string) int {
 	fs := flag.NewFlagSet("gateway relay-service", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "bare-repo root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "bare-repo root")
 	socket := fs.String("socket", "/run/nimblegate/relay.sock", "Unix socket to accept relay jobs on")
 	socketGroup := fs.String("socket-group", "", "group allowed to connect (the git user's group); empty leaves the default")
 	reconcileEvery := fs.Duration("reconcile-interval", 5*time.Minute, "how often to re-push drift to upstream (recovers pushes accepted while the service was down); 0 disables")
@@ -375,7 +398,7 @@ func gatewayRelayService(args []string) int {
 func gatewayHookFlags(args []string) (repo, policyRoot string) {
 	fs := flag.NewFlagSet("gateway hook", flag.ExitOnError)
 	r := fs.String("repo", "", "repo name")
-	pr := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "policy root")
+	pr := fs.String("policy-root", "/srv/gateway/cfg", "policy root")
 	_ = fs.Parse(args)
 	return *r, *pr
 }
@@ -404,11 +427,14 @@ func splitComma(s string) []string {
 func gatewayArchive(args []string) int {
 	fs := flag.NewFlagSet("gateway archive", flag.ExitOnError)
 	name := fs.String("name", "", "repo name")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "policy root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "repos root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "policy root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "repos root")
 	_ = fs.Parse(args)
 	if *name == "" {
 		fmt.Fprintln(os.Stderr, "gateway archive: --name required")
+		return 2
+	}
+	if !checkRepoName("gateway archive", *name) {
 		return 2
 	}
 	if err := gateway.ArchiveRepo(gateway.ArchiveOptions{
@@ -431,12 +457,15 @@ func gatewayArchive(args []string) int {
 func gatewayDelete(args []string) int {
 	fs := flag.NewFlagSet("gateway delete", flag.ExitOnError)
 	name := fs.String("name", "", "repo name")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "policy root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "repos root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "policy root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "repos root")
 	yes := fs.Bool("yes", false, "confirm permanent, irreversible deletion (required)")
 	_ = fs.Parse(args)
 	if *name == "" {
 		fmt.Fprintln(os.Stderr, "gateway delete: --name required")
+		return 2
+	}
+	if !checkRepoName("gateway delete", *name) {
 		return 2
 	}
 	if !*yes {
@@ -465,11 +494,14 @@ func gatewayDelete(args []string) int {
 func gatewayRestore(args []string) int {
 	fs := flag.NewFlagSet("gateway restore", flag.ExitOnError)
 	name := fs.String("name", "", "repo name")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "policy root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "repos root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "policy root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "repos root")
 	_ = fs.Parse(args)
 	if *name == "" {
 		fmt.Fprintln(os.Stderr, "gateway restore: --name required")
+		return 2
+	}
+	if !checkRepoName("gateway restore", *name) {
 		return 2
 	}
 	if err := gateway.RestoreRepo(gateway.RestoreOptions{
@@ -492,12 +524,15 @@ func gatewayRestore(args []string) int {
 func gatewayRescan(args []string) int {
 	fs := flag.NewFlagSet("gateway rescan", flag.ExitOnError)
 	name := fs.String("name", "", "repo name")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "policy root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "repos root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "policy root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "repos root")
 	selfExeFlag := fs.String("self-exe", "", "path to nimblegate binary (defaults to os.Executable())")
 	_ = fs.Parse(args)
 	if *name == "" {
 		fmt.Fprintln(os.Stderr, "gateway rescan: --name required")
+		return 2
+	}
+	if !checkRepoName("gateway rescan", *name) {
 		return 2
 	}
 	selfExe := *selfExeFlag
@@ -509,9 +544,13 @@ func gatewayRescan(args []string) int {
 			return 2
 		}
 	}
+	bare := filepath.Join(*reposRoot, *name+".git")
+	if _, err := os.Stat(bare); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "gateway rescan: no repo named %q is registered on this gateway\n", *name)
+		return 2
+	}
 	recPath := filepath.Join(*policyRoot, *name, "scan-recommendation.json")
 	_ = os.Remove(recPath)
-	bare := filepath.Join(*reposRoot, *name+".git")
 	if err := gateway.ScanFirstPush(bare, *name, *policyRoot, selfExe); err != nil {
 		fmt.Fprintf(os.Stderr, "gateway rescan: %v\n", err)
 		return 2
@@ -529,8 +568,8 @@ func gatewayRescan(args []string) int {
 // no event is written (an idempotent re-run stays silent).
 func gatewayMigrateLayout(args []string) int {
 	fs := flag.NewFlagSet("gateway migrate-layout", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "policy root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "repos root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "policy root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "repos root")
 	_ = fs.Parse(args)
 	before := listLegacyRepoNames(*policyRoot)
 	if err := gateway.MigrateToSymlinkLayout(gateway.MigrateOptions{
@@ -574,4 +613,27 @@ func listLegacyRepoNames(policyRoot string) []string {
 		out = append(out, name)
 	}
 	return out
+}
+
+// kitNames lists the stdlib kit names for the --kit error message, sorted so
+// the CLI prints them in a stable order.
+func kitNames(ks *kits.Set) []string {
+	var out []string
+	for _, k := range ks.All() {
+		out = append(out, k.Name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// checkRepoName gates every CLI path that turns --name into a filesystem path.
+// The dashboard's add handler has validated with validRepoName since v0.1.0;
+// the CLI did not, so "gateway add --name ../evil" wrote outside the policy
+// root. One guard, same predicate, both surfaces.
+func checkRepoName(cmd, name string) bool {
+	if !validRepoName(name) || name == "_repos" {
+		fmt.Fprintf(os.Stderr, "%s: invalid repo name %q; use lowercase letters, numbers, dots, hyphens and underscores, starting with a letter or number\n", cmd, name)
+		return false
+	}
+	return true
 }

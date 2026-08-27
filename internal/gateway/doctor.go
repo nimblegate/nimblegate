@@ -224,7 +224,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 				Name:   "Authorized keys",
 				Status: DoctorFail,
 				Reason: "no SSH keys authorized; no dev box can push",
-				Fix:    "add a dev box key at /ssh-keys",
+				Fix:    "add a dev box key on the dashboard's /ssh-keys page",
 			})
 		}
 	}
@@ -320,9 +320,11 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 
 	fp, _ := LoadFramePolicy(cfg.PolicyRoot, name)
 	if len(fp.Enabled) == 0 {
-		add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorFail, Reason: "no frames/rules active; pushes relay unchecked"})
+		add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK,
+			Reason: "no explicit selection, so every stdlib frame is active (an empty allowlist is not consulted)"})
 	} else {
-		add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK, Reason: fmt.Sprintf("%d frame(s) active", len(fp.Enabled))})
+		add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK,
+			Reason: fmt.Sprintf("%d frame(s) active - an explicit allowlist, so only these run", len(fp.Enabled))})
 	}
 
 	if pol.Notification == nil || !pol.Notification.Enabled {

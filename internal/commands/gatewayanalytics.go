@@ -36,7 +36,7 @@ func analyticsDBPath(policyRoot string) string {
 
 func analyticsIngest(args []string) int {
 	fs := flag.NewFlagSet("gateway analytics ingest", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "gateway per-repo config root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "gateway per-repo config root")
 	_ = fs.Parse(args)
 
 	db, err := analytics.Open(analyticsDBPath(*policyRoot))
@@ -56,7 +56,7 @@ func analyticsIngest(args []string) int {
 
 func analyticsStats(args []string) int {
 	fs := flag.NewFlagSet("gateway analytics stats", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "gateway per-repo config root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "gateway per-repo config root")
 	repo := fs.String("repo", "", "filter to one repo")
 	since := fs.String("since", "", "lower time bound (RFC3339 or duration like 720h)")
 	until := fs.String("until", "", "upper time bound (RFC3339)")
