@@ -5,6 +5,43 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-08-28
+
+### Fixed
+
+- **`nimblegate uninstall` could delete part of your shell rc file.** The
+  uninstall path scanned the rc file, dropped the wrapper block, and wrote the
+  rest back - but discarded the scanner's error. `bufio.Scanner` stops at any
+  line over 64 KB, so a single long line (a large exported variable, a minified
+  completion script) made it write back only the lines above that point,
+  silently deleting everything below. It now refuses and leaves the file
+  untouched, so the wrapper stays installed rather than the config being lost.
+- **The Settings About tab hid license read errors.** `LoadLicense` returns a
+  zero value and no error when the file is simply absent, so a non-nil error
+  always means a real fault - bad permissions, malformed TOML. It was
+  discarded, rendering the install as unlicensed with no signal. The tab now
+  shows a warning callout with the cause.
+- The demo snapshot's inline-script strip missed `<SCRIPT>`, mixed case, and
+  close tags carrying attributes (`</script foo="bar">`). Build-time transform
+  over first-party output, so not a trust boundary, but the loose form is free.
+
+### Changed
+
+- **The notification rail's two toggles default on.** *Enable notifications for
+  this repo* and *Also send notifications in observe mode* now render checked
+  for a repo with no `[notification]` section, so saving the rail once turns the
+  auto-PR loop on. Observe mode is the recommended way to onboard a repo, and
+  notifications off there means evaluating the gateway with the loop invisible.
+  Form prefill only: an unsaved repo keeps the section absent and the rail
+  inactive. "Reset section to defaults" resets to enabled to match.
+- Releases now publish when the tag is pushed instead of waiting as a draft
+  (`.goreleaser.yaml` `draft: false`).
+
+### Documentation
+
+- The policy help page names all six per-tier hour defaults instead of stopping
+  at three.
+
 ## [0.4.0] - 2026-08-27
 
 ### Security
