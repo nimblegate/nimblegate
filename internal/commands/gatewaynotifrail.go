@@ -227,11 +227,19 @@ type notifRailView struct {
 	BackoffSchedule         []string
 }
 
-// defaultNotifRailView returns the spec §7.1 defaults projected into the form
-// view shape. Used both when a repo has no [notification] section yet and
-// when the operator clicks "Reset section to defaults."
+// defaultNotifRailView returns the defaults projected into the form view shape.
+// Used both when a repo has no [notification] section yet and when the operator
+// clicks "Reset section to defaults."
+//
+// Enabled and ObservePRComments default on: someone opening this rail is here to
+// turn notifications on, and observe mode is the recommended way to onboard a
+// repo - silent there means evaluating the gateway with the auto-PR loop invisible.
+// Nothing is delivered until the form is saved; an unsaved repo still has the
+// section absent from gateway.toml and the rail inactive.
 func defaultNotifRailView() notifRailView {
 	return notifRailView{
+		Enabled:                 true,
+		ObservePRComments:       true,
 		AuthMode:                "hmac",
 		MentionDefault:          "@nimblegate-bot",
 		AutoTagAssignees:        true,

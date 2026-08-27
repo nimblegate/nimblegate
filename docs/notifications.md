@@ -41,7 +41,7 @@ Auth modes:
 
 ## Configuration
 
-Per-repo `<policy-root>/<repo>/gateway.toml` gains a `[notification]` block. Defaults shown:
+Per-repo `<policy-root>/<repo>/gateway.toml` gains a `[notification]` block. Defaults shown - these are the **file** defaults, so a repo with no `[notification]` section notifies nobody. The dashboard's Notification rail pre-checks *Enable notifications for this repo* and *Also send notifications in observe mode*, so saving that form once turns both on; the rail stays inactive until you do.
 
 ```toml
 [notification]

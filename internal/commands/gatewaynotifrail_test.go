@@ -505,3 +505,30 @@ func TestRenderPolicyPage_doesNotEmbedNotifRail(t *testing.T) {
 		t.Errorf("policy page should not embed the notif rail edit form (lives on /auto-pr/config now):\n%s", pageBuf.String())
 	}
 }
+
+// Both toggles render checked for a repo with no [notification] section. An
+// operator who opens this rail is here to turn notifications on, and observe
+// mode is the recommended onboarding mode - unchecked there means evaluating
+// the gateway with the auto-PR loop silently inactive. The prefill is form
+// state only: nothing is delivered until the form is saved.
+func TestDefaultNotifRailView_bothTogglesOn(t *testing.T) {
+	view := defaultNotifRailView()
+	if !view.Enabled {
+		t.Error("Enabled should default on")
+	}
+	if !view.ObservePRComments {
+		t.Error("ObservePRComments should default on")
+	}
+
+	var buf bytes.Buffer
+	renderNotificationRailSection(&buf, "test", view, true, "tok", "", false)
+	body := buf.String()
+	for _, want := range []string{
+		`name="enabled" value="1" checked`,
+		`name="observe_pr_comments" value="1" checked`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("rendered form missing %q", want)
+		}
+	}
+}
