@@ -22,7 +22,7 @@ import (
 // or the dashboard hasn't started yet.
 func gatewaySetupToken(args []string) int {
 	fs := flag.NewFlagSet("gateway setup-token", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "gateway per-repo config root (the dashboard's --policy-root, e.g. /srv/gateway/cfg)")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "gateway per-repo config root (the dashboard's --policy-root)")
 	_ = fs.Parse(args)
 
 	tok, present, err := auth.ReadSetupToken(*policyRoot)

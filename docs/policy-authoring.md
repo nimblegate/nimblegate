@@ -48,7 +48,10 @@ The kits at a glance:
   tabs in YAML, mixed CRLF/LF, en-dash flag corruption, control bytes, zero-width
   Unicode in docs. Stackable.
 
-State persists as a per-repo TOML file on the gateway's policy disk:
+State persists as a per-repo TOML file on the gateway's policy disk. Note that
+an **empty** `enabled` list means every stdlib frame runs: the list is an
+allowlist consulted only when non-empty, so adding entries narrows the set
+rather than extending a baseline.
 
 ```toml
 [frames]

@@ -155,7 +155,7 @@ ssh root@192.0.2.10 'tail /var/log/auth.log'                  # ssh access
 
 ## Upgrade the gateway binary
 
-Rebuild on the dev machine (step 2) and `scp` the new binary over `/usr/local/bin/nimblegate`. Hooks reference that path, so no re-registration needed. Run `ssh root@192.0.2.10 nimblegate version` afterward and confirm it prints the commit you just built; that's how you verify the new code is actually live (the symptom of a "stale" gateway is almost always a build that was never copied over). To use the `/policy` tuning + check-authoring UI, relaunch the dashboard with `--allow-edits --repos-root /srv/gateway/repos` (see the server guide).
+Rebuild on the dev machine (step 2) and `scp` the new binary over `/usr/local/bin/nimblegate`. Hooks reference that path, so no re-registration needed. Run `ssh root@192.0.2.10 nimblegate version` afterward and confirm it prints the commit you just built; that's how you verify the new code is actually live (the symptom of a "stale" gateway is almost always a build that was never copied over). To use the `/policy` tuning + check-authoring UI, relaunch the dashboard with `--allow-edits` (see the server guide).
 
 ## Upstream auth: HTTP token vs SSH key
 

@@ -23,8 +23,8 @@ const defaultAuthorizedKeysPath = "/srv/gateway/ssh/authorized_keys"
 
 func gatewayDoctor(args []string) int {
 	fs := flag.NewFlagSet("gateway doctor", flag.ExitOnError)
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "bare-repo root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "bare-repo root")
 	authKeys := fs.String("ssh-authorized-keys", defaultAuthorizedKeysPath, "path to the SSH authorized_keys file")
 	repo := fs.String("repo", "", "limit per-repo checks to a single repo")
 	offline := fs.Bool("offline", false, "skip network checks (SSH gate dial + upstream auth)")

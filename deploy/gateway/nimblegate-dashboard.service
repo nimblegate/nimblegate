@@ -4,9 +4,7 @@ After=network.target
 
 [Service]
 # git-owned policy/repo files under /srv/gateway; switch to root only if the
-# service can't read them. The long flag list lives here, in a file you copy -
-# never paste it into a terminal: a dropped --policy-root silently falls back to
-# /etc/nimblegate-gateway/repos and the dashboard then shows zero repos.
+# service can't read them. The long flag list lives here, in a file you copy.
 #
 # --ssh-authorized-keys MUST point at the file the host sshd actually reads for
 # the git user. On a bare-metal install that's /home/git/.ssh/authorized_keys

@@ -440,24 +440,23 @@ forwarding) is in [`docs/server/DEV-MACHINE-SETUP.md`](server/DEV-MACHINE-SETUP.
 Most operating is done from the dashboard, but everything has a CLI equivalent for
 scripting or when the web UI isn't handy. These run **on the gateway machine**.
 
-**Pass the gateway's paths on every invocation** - container installs included.
-Left off, the CLI falls back to `/etc/nimblegate-gateway` rather than your install:
-commands that write fail with `mkdir /etc/nimblegate-gateway: permission denied`,
-and commands that read answer from that empty fallback, so `setup-token` reports
-`No pending setup token` while a valid token is sitting in the real config dir. Use
-`--policy-root /srv/gateway/cfg`, adding `--repos-root /srv/gateway/repos` for the
-commands that touch repos (`setup-token` accepts only the former):
+The path flags default to the standard install layout - `--policy-root
+/srv/gateway/cfg` and `--repos-root /srv/gateway/repos` - so on a normal install
+you can leave them off. Pass them only if your gateway keeps its data elsewhere.
 
 - **Container install:** prefix with `docker exec -u git nimblegate` - e.g.
-  `docker exec -u git nimblegate nimblegate gateway setup-token --policy-root /srv/gateway/cfg`.
-- **Bare-metal install:** run `nimblegate gateway …` directly with the same flags,
-  using the dirs from your install.
+  `docker exec -u git nimblegate nimblegate gateway setup-token`.
+- **Bare-metal install:** run `nimblegate gateway …` directly.
+
+Repo names become directory names and URL components, so they are restricted to
+lowercase letters, numbers, dots, hyphens and underscores, starting with a letter
+or number. An invalid name is rejected before anything is written.
 
 | Command | What it does |
 |---|---|
 | `nimblegate version` | Print the running version/commit. Use it after a binary update to confirm the new code is actually live (a stale gateway is almost always a binary that was never copied over). |
 | `nimblegate gateway setup-token` | Print the one-time admin setup token for `/setup` (bare-metal equivalent of `docker logs nimblegate \| grep nbg-setup`). |
-| `nimblegate gateway add --name <n> --upstream <url>` | Register a repo: the CLI form of **Repos → Add** (Step 4). `--protect` defaults to `refs/heads/*` (gate every branch); pass `--protect refs/heads/main` to narrow it to `main` only. |
+| `nimblegate gateway add --name <n> --upstream <url>` | Register a repo: the CLI form of **Repos → Add** (Step 4). `--protect` defaults to `refs/heads/*` (gate every branch); pass `--protect refs/heads/main` to narrow it to `main` only. `--kit` is optional: leave it off and the repo's frame allowlist stays empty, which runs **every** stdlib frame. Naming a kit (`--kit core`) narrows the repo to that kit's frames - the dashboard's Add form applies `core` for you, so a dashboard-registered repo checks fewer frames than a CLI-registered one. |
 | `nimblegate gateway archive --name <n>` | Deactivate a repo but keep its data (removes the activation symlinks; the bare repo and history stay). |
 | `nimblegate gateway restore --name <n>` | Re-activate a previously archived repo. |
 | `nimblegate gateway delete --name <n> --yes` | **Permanently** delete a repo and all its data (bare repo + policy). No undo. |

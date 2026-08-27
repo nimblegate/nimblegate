@@ -91,8 +91,8 @@ func rewriteKeysFile(keysPath string, lines []string) error {
 func gatewayAccessMigrate(args []string) int {
 	fs := flag.NewFlagSet("gateway access-migrate", flag.ExitOnError)
 	keysPath := fs.String("ssh-authorized-keys", "/home/git/.ssh/authorized_keys", "authorized_keys file to rewrite")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "bare-repo root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "bare-repo root")
 	_ = fs.Parse(args)
 	exe, err := os.Executable()
 	if err != nil {

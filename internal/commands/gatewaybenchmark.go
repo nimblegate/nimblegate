@@ -22,7 +22,7 @@ func gatewayBenchmark(args []string) int {
 	}
 	fs := flag.NewFlagSet("gateway benchmark score", flag.ExitOnError)
 	cfgPath := fs.String("config", "benchmark.toml", "benchmark config (TOML)")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "gateway per-repo config root (holds the audit logs)")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "gateway per-repo config root (holds the audit logs)")
 	asJSON := fs.Bool("json", false, "emit the matrix as JSON instead of a table")
 	_ = fs.Parse(args[1:])
 

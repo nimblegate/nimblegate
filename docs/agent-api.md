@@ -200,7 +200,7 @@ verifier, not a missing file, that triggers the 503.)
 ## Token management
 
 Tokens are managed via the `nimblegate gateway token` subcommand. Flags
-`--policy-root` (default `/etc/nimblegate-gateway/repos`) and `--auth-db`
+`--policy-root` (default `/srv/gateway/cfg`) and `--auth-db`
 are accepted in any position.
 
 **Mint a new token** (label is a human-readable name for your records):

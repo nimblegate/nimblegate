@@ -39,7 +39,7 @@ func gatewayAccessGrant(args []string) int {
 	repo := fs.String("repo", "", "repo name")
 	key := fs.String("key", "", "key fingerprint (SHA256:…)")
 	readOnly := fs.Bool("read", false, "grant fetch-only (default: push+fetch)")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
 	_ = fs.Parse(args)
 	if *repo == "" || *key == "" {
 		fmt.Fprintln(os.Stderr, "gateway access grant: --repo and --key are required")
@@ -61,7 +61,7 @@ func gatewayAccessRevoke(args []string) int {
 	fs := flag.NewFlagSet("gateway access revoke", flag.ExitOnError)
 	repo := fs.String("repo", "", "repo name")
 	key := fs.String("key", "", "key fingerprint (SHA256:…)")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
 	_ = fs.Parse(args)
 	if *repo == "" || *key == "" {
 		fmt.Fprintln(os.Stderr, "gateway access revoke: --repo and --key are required")
@@ -78,7 +78,7 @@ func gatewayAccessRevoke(args []string) int {
 func gatewayAccessList(args []string) int {
 	fs := flag.NewFlagSet("gateway access list", flag.ExitOnError)
 	repo := fs.String("repo", "", "repo name")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
 	_ = fs.Parse(args)
 	if *repo == "" {
 		fmt.Fprintln(os.Stderr, "gateway access list: --repo is required")

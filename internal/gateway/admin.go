@@ -306,10 +306,16 @@ func RestoreRepo(o RestoreOptions) error {
 	libPolicy := filepath.Join(o.PolicyRoot, "_repos", o.Name)
 	libBare := filepath.Join(o.ReposRoot, "_repos", o.Name+".git")
 	if _, err := os.Stat(libPolicy); err != nil {
-		return fmt.Errorf("no lib policy: %w", err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no archived repo named %q; check the name, or list what is archived on the Repos page", o.Name)
+		}
+		return fmt.Errorf("reading archived policy for %q: %w", o.Name, err)
 	}
 	if _, err := os.Stat(libBare); err != nil {
-		return fmt.Errorf("no lib bare: %w", err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("archived repo %q has policy but no bare repo at %s; it cannot be restored automatically", o.Name, libBare)
+		}
+		return fmt.Errorf("reading archived bare repo for %q: %w", o.Name, err)
 	}
 	linkPolicy := filepath.Join(o.PolicyRoot, o.Name)
 	linkBare := filepath.Join(o.ReposRoot, o.Name+".git")

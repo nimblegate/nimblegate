@@ -157,11 +157,11 @@ Stdlib ships six starter kits:
 
 | Kit | Use case | Frame count |
 |---|---|---|
-| `core` | Universal floor: every project's baseline. Default on `nimblegate setup`. | 15 |
-| `web-app` | Projects shipping HTML pages (any backend). Includes `core`. | 27 |
-| `cf-pages-project` | SvelteKit / Astro / Next on CF Pages with D1. Includes `web-app`. | 29 |
-| `cf-workers-project` | Cloudflare Workers + Tunnels + Access, no HTML. Includes `core`. | 20 |
-| `security-strict` | Adds every `security/*` frame on top of whatever else is applied (includes Trojan Source / tag-char / zero-width / homoglyph attack-class, plus PII detection). Stackable with any other kit. | 10 |
+| `core` | Universal floor: every project's baseline. Default on `nimblegate setup` and on `gateway add`. | 18 |
+| `web-app` | Projects shipping HTML pages (any backend). Includes `core`. | 30 |
+| `cf-pages-project` | SvelteKit / Astro / Next on CF Pages with D1. Includes `web-app`. | 32 |
+| `cf-workers-project` | Cloudflare Workers + Tunnels + Access, no HTML. Includes `core`. | 23 |
+| `security-strict` | Adds every `security/*` frame on top of whatever else is applied (includes Trojan Source / tag-char / zero-width / homoglyph attack-class, plus PII detection). Stackable with any other kit. | 14 |
 | `encoding-strict` | Adds every `encoding/*` frame: BOM, smart quotes, YAML tabs, line endings, mixed indent, en-dash flags, non-printable controls, ZWSP in docs. Stackable with any other kit. | 8 |
 
 Kit CLI:
@@ -174,6 +174,13 @@ nimblegate kits clear web-app
 
 `nimblegate setup` uses `core` by default. Pass `--kit <name>` to apply a
 different kit on setup, or `--kit none` to start with an empty `enabled` list.
+
+**An empty `enabled` list is not "no frames" - it means every stdlib frame runs.**
+The list is an allowlist, consulted only when it is non-empty, so writing entries
+into it *narrows* what is checked rather than adding to a baseline. Applying
+`core` to a repo with an empty list takes it from all 51 frames down to that
+kit's 18. `nimblegate gateway add` leaves the list empty unless you pass
+`--kit`; the dashboard's Add form applies `core` for you.
 
 ---
 

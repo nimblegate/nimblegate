@@ -124,7 +124,7 @@ func materializeTree(gitDir, rev, destDir string, maxBytes int64) error {
 // resolves outside dir with an empty regular file.
 //
 // A pushed tree is attacker-controlled, and the scan reads what it finds: a
-// pusher who commits "cred -> /etc/nimblegate-gateway/repos/x/credential" and
+// pusher who commits "cred -> /srv/gateway/cfg/x/credential" and
 // pushes it gets the gate to open that file and report findings about it -
 // an arbitrary-read oracle against anything the gateway user can read,
 // including other repos and the gateway's own upstream credential. Extraction

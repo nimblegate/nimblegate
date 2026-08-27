@@ -21,8 +21,8 @@ import (
 func gatewayGitShell(args []string) int {
 	fs := flag.NewFlagSet("gateway shell", flag.ExitOnError)
 	key := fs.String("key", "", "fingerprint of the connecting key (set by the authorized_keys forced command)")
-	policyRoot := fs.String("policy-root", "/etc/nimblegate-gateway/repos", "per-repo config dir root")
-	reposRoot := fs.String("repos-root", "/srv/nimblegate-gateway/repos", "bare-repo root")
+	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
+	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "bare-repo root")
 	scoped := fs.Bool("scoped", false, "enforce the per-key repo ACL (set by the forced command only in scoped mode; absent = single-tenant, any authorized key reaches any repo)")
 	_ = fs.Parse(args)
 

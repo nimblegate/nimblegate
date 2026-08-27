@@ -50,7 +50,11 @@ type Skeleton struct {
 // writePolicyTOML preserves this shape, so the dashboard's kit/frame
 // handlers find a parseable file instead of a missing-file silent no-op.
 func defaultAppframesTOML() []byte {
-	return []byte("[frames]\nenabled = []\n")
+	return []byte("# enabled = [] means EVERY stdlib frame runs. The list is an\n" +
+		"# allowlist, and it is only consulted when it is non-empty - so adding\n" +
+		"# entries here NARROWS what is checked, it does not add to a baseline.\n" +
+		"# Apply a kit (or list frame IDs) only when you want that smaller set.\n" +
+		"[frames]\nenabled = []\n")
 }
 
 // Generate seeds default files for a freshly-registered repo. Called from
