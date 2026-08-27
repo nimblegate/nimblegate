@@ -124,7 +124,13 @@ func serveSettings(policyRoot, reposRoot, authMode string, allowEdits bool, csrf
 		case "display":
 			body.WriteString(displayPrefsHTML)
 		case "about":
-			lic, _ := gateway.LoadLicense(policyRoot)
+			// LoadLicense returns a zero License and nil when the file is absent,
+			// so a non-nil error here is a real fault (bad permissions, malformed
+			// TOML) and must not render as a silent "unlicensed".
+			lic, err := gateway.LoadLicense(policyRoot)
+			if err != nil {
+				fmt.Fprintf(&body, `<div class="gw-callout gw-callout-warn">Could not read the license file; showing unlicensed state. %s</div>`, html.EscapeString(err.Error()))
+			}
 			body.WriteString(renderAboutTab(lic, allowEdits, csrfToken))
 		default: // "system"
 			info := collectSysInfo(policyRoot, reposRoot, authMode, allowEdits, dashStartTime, time.Now())

@@ -64,7 +64,7 @@ The per-repo silenced findings: `file:line` + frame ID + reason. Survives frame 
 
 ## Time-prevented estimates
 
-Per-tier hours-per-hit values that weight the [Stats](/stats) "time saved" estimate. One number box per frame tier (1-6); a tier left at its built-in value is marked **default**, an edited one **override**. These are a reporting model only - they do **not** affect gating or relay. Set them per repo if your team's real debugging costs differ from the conservative defaults (Tier 1 = 4h, Tier 2 = 2h, Tier 3 = 0.5h...). Saving writes the `[time-estimates]` section into the repo's `appframes.toml`.
+Per-tier hours-per-hit values that weight the [Stats](/stats) "time saved" estimate. One number box per frame tier (1-6); a tier left at its built-in value is marked **default**, an edited one **override**. These are a reporting model only - they do **not** affect gating or relay. Set them per repo if your team's real debugging costs differ from the conservative defaults: Tier 1 = 4h, Tier 2 = 2h, Tier 3 = 0.5h, Tier 4 = 0.25h, Tiers 5 and 6 = 0.1h. Saving writes the `[time-estimates]` section into the repo's `appframes.toml`.
 
 ## Common gotchas
 

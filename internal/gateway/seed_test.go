@@ -76,7 +76,10 @@ func TestSeedFromUpstream_mirrorsBranchesAndSetsHEAD(t *testing.T) {
 		t.Error("expected both main and feature heads in the bare")
 	}
 	// HEAD must resolve to main so a clone checks out files.
-	out, _ := exec.Command("git", "--git-dir", bare, "symbolic-ref", "HEAD").Output()
+	out, err := exec.Command("git", "--git-dir", bare, "symbolic-ref", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("symbolic-ref HEAD: %v", err)
+	}
 	if got := string(out); got != "refs/heads/main\n" {
 		t.Errorf("HEAD = %q; want refs/heads/main", got)
 	}
