@@ -474,6 +474,19 @@ func gatewayDashboard(args []string) int {
 		fmt.Fprintf(os.Stderr, "\n!! gateway dashboard config warning !!\n!! %s\n!! serving an empty view until this is resolved.\n\n", notice)
 	}
 
+	// Repair frame allowlists poisoned by the old "Apply recommended" path,
+	// which wrote kit names into the frame-ID list. Those match nothing, and a
+	// list of only kit names left the repo with no frames running at all, so a
+	// warning would leave affected repos ungated until someone read it. Runs
+	// before anything serves; a failure is reported, not fatal.
+	if repaired, rerr := RepairFrameAllowlists(*policyRoot); rerr != nil {
+		fmt.Fprintf(os.Stderr, "gateway dashboard: frame allowlist repair: %v\n", rerr)
+	} else {
+		for _, r := range repaired {
+			fmt.Printf("  [repair] expanded kit names in frame allowlist: %s\n", r)
+		}
+	}
+
 	// Maintenance loop - periodic git gc per bare repo. Disabled if no
 	// reposRoot configured (preview/admin-only deployments). Config in
 	// <policy-root>/gateway.toml [maintenance]; defaults to enabled + 168h.

@@ -32,7 +32,10 @@ func doctorSeed(t *testing.T, policyRoot, reposRoot, name string, o AddOptions) 
 
 func doctorEnableFrames(t *testing.T, policyRoot, repo string) {
 	t.Helper()
-	fp := FramePolicy{Enabled: []string{"secrets/aws-access-key"}, Severity: map[string]string{}}
+	// Must be a REAL stdlib ID: doctor now reports entries that resolve to no
+	// frame, and the old fixture used "secrets/aws-access-key", a category that
+	// does not exist.
+	fp := FramePolicy{Enabled: []string{"security/no-hardcoded-credentials"}, Severity: map[string]string{}}
 	if err := fp.Save(policyRoot, repo); err != nil {
 		t.Fatalf("enable frames for %s: %v", repo, err)
 	}
@@ -408,5 +411,40 @@ func TestRunDoctorCredentialNotApplicableForSSH(t *testing.T) {
 	// An HTTPS upstream with no credential still warns - there the token is required.
 	if c, _ := findCheck(rep, "httpsrepo", "Upstream credential"); c.Status != DoctorWarn {
 		t.Errorf("https upstream without credential: want WARN, got %v (%s)", c.Status, c.Reason)
+	}
+}
+
+// A frame allowlist holding only kit names runs NO frames, because a non-empty
+// list replaces the empty-means-everything default. Doctor used to count those
+// entries as active frames and report OK.
+func TestRunDoctorFramesReportsDeadEntries(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "onlykits", AddOptions{UpstreamURL: "https://github.com/x/onlykits.git", GateAllRefs: true})
+	fp := FramePolicy{Enabled: []string{"core", "web-app"}, Severity: map[string]string{}}
+	if err := fp.Save(policyRoot, "onlykits"); err != nil {
+		t.Fatal(err)
+	}
+	doctorSeed(t, policyRoot, reposRoot, "mixed", AddOptions{UpstreamURL: "https://github.com/x/mixed.git", GateAllRefs: true})
+	fp2 := FramePolicy{Enabled: []string{"security/no-hardcoded-credentials", "core"}, Severity: map[string]string{}}
+	if err := fp2.Save(policyRoot, "mixed"); err != nil {
+		t.Fatal(err)
+	}
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
+
+	c, ok := findCheck(rep, "onlykits", "Frames")
+	if !ok || c.Status != DoctorFail {
+		t.Fatalf("onlykits: want FAIL (nothing is checked), got %+v ok=%v", c, ok)
+	}
+	if !strings.Contains(c.Reason, "NONE name a frame") {
+		t.Errorf("onlykits: reason should say nothing is checked, got %q", c.Reason)
+	}
+
+	c2, ok := findCheck(rep, "mixed", "Frames")
+	if !ok || c2.Status != DoctorWarn {
+		t.Fatalf("mixed: want WARN, got %+v ok=%v", c2, ok)
+	}
+	if !strings.Contains(c2.Reason, "1 frame(s) active of 2 entries") {
+		t.Errorf("mixed: reason should separate live from dead, got %q", c2.Reason)
 	}
 }

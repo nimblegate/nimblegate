@@ -25,6 +25,7 @@ import (
 
 	"nimblegate/internal/config"
 	"nimblegate/internal/gateway"
+	"nimblegate/internal/gateway/roi"
 	"nimblegate/internal/gwicons"
 	"nimblegate/internal/kits"
 	"nimblegate/internal/linters"
@@ -1291,6 +1292,14 @@ func (h policyHandlers) toggleFrame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing id", http.StatusBadRequest)
 		return
 	}
+	// The enabled list is an allowlist of frame IDs; an entry that names no
+	// frame matches nothing and silently narrows coverage. Reject it here so a
+	// stale ID or a kit name cannot rot in the list. A category/* pattern is
+	// legitimate and passes through.
+	if !strings.HasSuffix(id, "/*") && !knownFrameID(id) {
+		http.Error(w, "unknown frame id: "+id, http.StatusBadRequest)
+		return
+	}
 	cfgPath := filepath.Join(h.policyRoot, repo, "appframes.toml")
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1748,4 +1757,12 @@ func whitelistKnownIDs(policyRoot, repo string) map[string]bool {
 		}
 	}
 	return known
+}
+
+// knownFrameID reports whether id names a frame in the embedded stdlib. Used to
+// keep unresolvable strings - stale IDs, kit names - out of [frames] enabled,
+// where they match nothing and silently reduce what runs.
+func knownFrameID(id string) bool {
+	_, ok := roi.StdlibFrameByID()[id]
+	return ok
 }

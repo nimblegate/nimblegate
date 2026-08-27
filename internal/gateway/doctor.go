@@ -319,12 +319,31 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	}
 
 	fp, _ := LoadFramePolicy(cfg.PolicyRoot, name)
-	if len(fp.Enabled) == 0 {
+	switch {
+	case len(fp.Enabled) == 0:
 		add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK,
 			Reason: "no explicit selection, so every stdlib frame is active (an empty allowlist is not consulted)"})
-	} else {
-		add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK,
-			Reason: fmt.Sprintf("%d frame(s) active - an explicit allowlist, so only these run", len(fp.Enabled))})
+	default:
+		// An entry that resolves to no frame matches nothing. Counting it as
+		// active overstates coverage, and a list of ONLY such entries means no
+		// frames run at all - worse than the empty list it replaced.
+		dead := UnresolvableFrameEntries(fp.Enabled)
+		live := len(fp.Enabled) - len(dead)
+		switch {
+		case live == 0:
+			add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorFail,
+				Reason: fmt.Sprintf("%d entr(ies) in the allowlist and NONE name a frame (%s); nothing is checked and pushes relay unchecked",
+					len(fp.Enabled), strings.Join(dead, ", ")),
+				Fix: "remove those entries (an empty list runs every frame), or apply a kit so real frame IDs are written"})
+		case len(dead) > 0:
+			add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorWarn,
+				Reason: fmt.Sprintf("%d frame(s) active of %d entries - %s name no frame and do nothing",
+					live, len(fp.Enabled), strings.Join(dead, ", ")),
+				Fix: "remove the dead entries; if they are kit names, apply the kit so its frame IDs are written"})
+		default:
+			add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK,
+				Reason: fmt.Sprintf("%d frame(s) active - an explicit allowlist, so only these run", len(fp.Enabled))})
+		}
 	}
 
 	if pol.Notification == nil || !pol.Notification.Enabled {
