@@ -158,5 +158,12 @@ func Uninstall(shell string) error {
 			out = append(out, line)
 		}
 	}
+	// A scan error means `out` holds only the lines read so far. Writing that
+	// back would delete everything after the failure point - the user's whole
+	// shell config below a single over-long line (bufio.Scanner caps at 64KB).
+	// Leaving the wrapper installed is the recoverable outcome.
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read %s: %w (nothing changed)", rc, err)
+	}
 	return os.WriteFile(rc, []byte(strings.Join(out, "\n")+"\n"), 0o644)
 }
