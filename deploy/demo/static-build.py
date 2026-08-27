@@ -92,7 +92,12 @@ href_re = re.compile(r'(href|hx-get)="(/[^"]*)"')
 # rather than navigating to 404s. (The help sidepanel is hidden via injected
 # CSS in BANNER - more robust than excising its markup.)
 onchange_re = re.compile(r'\sonchange="[^"]*"')
-inline_script_re = re.compile(r'<script(?![^>]*\ssrc=)[^>]*>.*?</script>', re.S)
+# Case-insensitive, and the close tag tolerates junk (</script foo="bar">, </script >)
+# because browsers do. The input here is our own dashboard output, so this is not a
+# trust boundary - but a tag filter that misses those forms is CodeQL py/bad-tag-filter,
+# and the loose form costs nothing. The src= lookahead must stay: external <script src>
+# tags carry htmx and the demo init and have to survive into the snapshot.
+inline_script_re = re.compile(r'<script(?![^>]*\ssrc=)[^>]*>.*?</script\s*[^>]*>', re.S | re.I)
 
 def neuter(html):
     html = onchange_re.sub("", html)
