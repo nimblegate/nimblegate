@@ -5,6 +5,68 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-27
+
+### Security
+
+- **`gateway add --name ../evil` wrote outside the configured roots.** The
+  dashboard has validated repo names since v0.1.0; no CLI path did. A name
+  containing `..` or a separator became part of the policy and bare-repo paths,
+  so registration landed outside `--policy-root`. `add`, `archive`, `delete`,
+  `restore` and `rescan` now run the same predicate the dashboard uses, before
+  any path is built. `delete --name ../x --yes` was the sharpest case.
+
+### Changed
+
+- **The gateway path flags default to the layout that ships.** Every `gateway`
+  subcommand defaulted `--policy-root` to `/etc/nimblegate-gateway/repos` and
+  `--repos-root` to `/srv/nimblegate-gateway/repos`, paths nothing installs to.
+  Both the container and the systemd units use `/srv/gateway/cfg` and
+  `/srv/gateway/repos`, which are now the defaults. Run any gateway command
+  without path flags and it reads the gateway's real data. If you hand-installed
+  elsewhere, keep passing the flags you already pass.
+- **`gateway doctor` no longer reports an empty frame allowlist as a failure.**
+  An empty `[frames] enabled` runs *every* stdlib frame - the list is an
+  allowlist consulted only when non-empty. Doctor called that "no frames/rules
+  active; pushes relay unchecked", and its implied remedy (apply a kit) is the
+  one action that reduces coverage. Both states now say which mode a repo is in.
+- **`gateway dashboard --repos-root` defaults**, so live check preview and the
+  staging-health section on `/health` work without the flag.
+
+### Added
+
+- **`gateway add --kit`** applies a starter kit at registration, matching what
+  the dashboard's Add form does. Opt-in: leave it off and the allowlist stays
+  empty, which runs every stdlib frame. Unknown kit names are rejected before
+  the repo is created.
+- The seeded `appframes.toml` carries a comment explaining that an empty
+  `enabled` list means every frame, and that adding entries narrows the set.
+
+### Fixed
+
+- `gateway restore` on an unknown repo reported a raw `stat ...: no such file
+  or directory`; it now says no such repo is archived, and a genuine I/O error
+  still surfaces as itself.
+- `gateway rescan` on an unregistered repo said "no commits to scan"; it now
+  says the repo is not registered. The first-push scan's "no ref to archive"
+  wording collided with the `gateway archive` command and is now "no commits
+  to scan".
+- `gateway doctor`'s authorized-keys hint pointed at `/ssh-keys`, which reads
+  as a filesystem path in CLI output; it now names the dashboard page.
+
+### Documentation
+
+- The command-line reference no longer instructs operators to pass
+  `--policy-root` and `--repos-root` on every invocation.
+- `frames.md`, `policy-authoring.md` and the server guide state that an empty
+  frame allowlist runs every stdlib frame. The server guide's "minimal policy"
+  example silently took a repo from 51 frames to 3.
+- Every kit frame count in `frames.md` was stale (core 15 to 18, web-app 27 to
+  30, cf-pages 29 to 32, cf-workers 20 to 23, security-strict 10 to 14); the
+  table is now pinned to `stdlib.toml` by a test.
+- Four internal working documents (`v0.5-candidates`, `test-suite-findings`,
+  `auto-pr-implementation-notes`, `positioning`) are no longer published.
+
 ## [0.3.3] - 2026-08-27
 
 ### Security
