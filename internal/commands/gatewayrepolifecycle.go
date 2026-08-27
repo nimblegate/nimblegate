@@ -672,28 +672,59 @@ func extractRecommendedGroupNames(rec map[string]any) []string {
 // mergeFramePolicyGroups reads the repo's [frames] enabled list, set-unions
 // `add` into it, and writes the result back via the existing atomic TOML
 // writer (gateway.FramePolicy.Save). Returns the merged list.
+// mergeFramePolicyGroups adds the recommendation's kits to the repo's policy.
+// `add` holds KIT names (recommended_groups[].name); [frames] enabled holds
+// frame IDs. Writing a kit name into that list matches nothing - isFrameEnabled
+// compares exact IDs and category/* prefixes - and a non-empty list that matches
+// nothing means NO frames run, where an empty list would have run all of them.
+// So "Apply recommended" used to silently disable gating. Expand here, and record
+// the kit names where they belong, under [ui] applied_kits.
 func mergeFramePolicyGroups(policyRoot, name string, add []string) ([]string, error) {
 	fp, err := gateway.LoadFramePolicy(policyRoot, name)
 	if err != nil {
 		return nil, err
 	}
+	ks, err := kits.LoadStdlib()
+	if err != nil {
+		return nil, err
+	}
 	have := make(map[string]bool, len(fp.Enabled))
-	out := make([]string, 0, len(fp.Enabled)+len(add))
+	out := make([]string, 0, len(fp.Enabled))
 	for _, g := range fp.Enabled {
 		if !have[g] {
 			have[g] = true
 			out = append(out, g)
 		}
 	}
+	var appliedKits []string
 	for _, g := range add {
-		if !have[g] {
-			have[g] = true
-			out = append(out, g)
+		k, ok := ks.Get(g)
+		if !ok {
+			// Not a kit: accept a literal frame ID or category/* pattern as-is,
+			// so a hand-written recommendation still works.
+			if !have[g] {
+				have[g] = true
+				out = append(out, g)
+			}
+			continue
+		}
+		appliedKits = append(appliedKits, k.Name)
+		for _, id := range k.Frames {
+			if !have[id] {
+				have[id] = true
+				out = append(out, id)
+			}
 		}
 	}
 	fp.Enabled = out
 	if err := fp.Save(policyRoot, name); err != nil {
 		return nil, err
+	}
+	cfgPath := filepath.Join(policyRoot, name, "appframes.toml")
+	for _, k := range appliedKits {
+		if err := addAppliedKit(cfgPath, k); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
