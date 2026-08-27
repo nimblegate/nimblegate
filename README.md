@@ -65,7 +65,7 @@ Open **http://localhost:7900/setup**, paste the token, choose your admin passwor
 
 **3. Register the repo to guard.** In the dashboard: **Repos → Add a repo**, then fill in:
 
-- **Name** - letters, numbers, hyphens (e.g. `my-app`). This is the name you'll push to.
+- **Name** - lowercase letters, numbers, dots, hyphens, underscores (e.g. `my-app`). This is the name you'll push to.
 - **Upstream URL** - your real repo as **HTTPS**: `https://github.com/you/my-app.git` (not the `git@…` SSH form). The container relays over **HTTPS only** - it ships without an SSH client by design - and a PAT authenticates **both public and private** repos.
 - **Upstream credential** - a **Personal Access Token** from your git host, scoped to **write that repo**:
   - GitHub **fine-grained**: repository = that repo, **Contents → Read and write**
@@ -74,7 +74,7 @@ Open **http://localhost:7900/setup**, paste the token, choose your admin passwor
 
   *(Auto-PR's fix-loop needs a little more - see [Getting Started](docs/getting-started.md#step-4-register-the-repo-to-guard).)*
 
-Click **Register**. If the upstream **already has commits**, the gateway mirrors its history down automatically at registration, so your existing clones push cleanly. If that seed couldn't run (a missing or wrong credential, say), the repo row shows a one-click **Sync from upstream** - fix the credential, click it, done. The **core** rule kit applies automatically. → [other git hosts, scoped access](docs/getting-started.md)
+Click **Register**. If the upstream **already has commits**, the gateway mirrors its history down automatically at registration, so your existing clones push cleanly. If that seed couldn't run (a missing or wrong credential, say), the repo row shows a one-click **Sync from upstream** - fix the credential, click it, done. The **core** rule kit (18 of the 51 frames, the catastrophic-prevention set) applies automatically; widen or narrow it any time on the repo's Policy page. → [other git hosts, scoped access](docs/getting-started.md)
 
 **4. Authorize your push key.** On your dev machine, print your SSH **public** key:
 

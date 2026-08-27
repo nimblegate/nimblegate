@@ -93,8 +93,7 @@ there.
 
 ```bash
 nimblegate gateway benchmark score \
-  --config benchmark.toml \
-  --policy-root /etc/nimblegate-gateway/repos
+  --config benchmark.toml
 ```
 
 Flags:
@@ -102,7 +101,7 @@ Flags:
 | Flag | Default | Description |
 |---|---|---|
 | `--config` | `benchmark.toml` | Path to the benchmark config (TOML). |
-| `--policy-root` | `/etc/nimblegate-gateway/repos` | Gateway per-repo config root: the directory that holds each repo's `audit.log`. |
+| `--policy-root` | `/srv/gateway/cfg` | Gateway per-repo config root: the directory that holds each repo's `audit.log`. |
 | `--json` | off | Emit the matrix as JSON instead of a table. |
 
 The table output groups agents by stack:

@@ -39,7 +39,7 @@ A `debian:trixie-slim` image with `git` + `openssh-server` + the `nimblegate` bi
 docker compose -f deploy/gateway/docker-compose.yml up -d --build
 ```
 
-Three persistent volumes hold the state: `/srv/gateway/repos` (bare gated repos), `/srv/gateway/cfg` (per-repo policy + credentials + audit log), `/srv/gateway/ssh` (host keys + the git user's `authorized_keys`). Add dev keys by appending to the `ssh` volume's `authorized_keys` and restarting; register repos with `docker exec -u git nimblegate nimblegate gateway add --name <repo> --upstream <url> --policy-root /srv/gateway/cfg --repos-root /srv/gateway/repos` (the path flags are required - without them the CLI falls back to `/etc/nimblegate-gateway` and fails with `permission denied`).
+Three persistent volumes hold the state: `/srv/gateway/repos` (bare gated repos), `/srv/gateway/cfg` (per-repo policy + credentials + audit log), `/srv/gateway/ssh` (host keys + the git user's `authorized_keys`). Add dev keys by appending to the `ssh` volume's `authorized_keys` and restarting; register repos with `docker exec -u git nimblegate nimblegate gateway add --name <repo> --upstream <url>`. The path flags default to these values, so you only need them for a non-standard layout.
 
 ### Sizing (Debian host)
 
@@ -131,7 +131,9 @@ Observe mode is the recommended way to onboard a repo for real use: route everyt
 
 ### 2. Write the gateway-held policy
 
-This is the **source of truth** for what gets enforced; the pushed `.appframes/` is ignored. The `enabled` list holds **frame IDs** (run `nimblegate list` to see them all, or `nimblegate list --kit core` for the catastrophic-prevention starter set). Write a minimal policy directly:
+This is the **source of truth** for what gets enforced; the pushed `.appframes/` is ignored. The `enabled` list holds **frame IDs** (run `nimblegate list` to see them all, or `nimblegate list --kit core` for the catastrophic-prevention starter set).
+
+**Before you write one:** an empty `enabled` list means *every* stdlib frame runs - the list is an allowlist that is only consulted when non-empty. A freshly added repo starts empty, so writing the three-frame policy below **narrows** it from 51 frames to 3. That is a deliberate choice, not a starting point; leave the list empty if you want the full set. `gateway doctor` states which of the two modes each repo is in.
 
 ```sh
 sudo -u git sh -c 'printf "[frames]\nenabled = [\"security/no-hardcoded-credentials\", \"git/no-force-push-main\", \"commands/curl-pipe-shell\"]\n" > /srv/gateway/cfg/myrepo/appframes.toml'
@@ -297,7 +299,7 @@ systemctl restart nimblegate-dashboard
 
 | Symptom | Cause | Check / fix |
 |---|---|---|
-| Dashboard shows `0 repos` / empty Policy dropdown | service reading the **default** `/etc/nimblegate-gateway/repos` (the `--policy-root` flag was dropped) | `journalctl -u nimblegate-dashboard \| grep 'reading decisions'`: must say `/srv/gateway/cfg`; if not, the `ExecStart` lost its flags (copy the unit file) |
+| Dashboard shows `0 repos` / empty Policy dropdown | service reading a policy root that isn't the one in use | `journalctl -u nimblegate-dashboard \| grep 'reading decisions'`: must say `/srv/gateway/cfg`; if not, correct `--policy-root` in the `ExecStart` (copy the unit file) |
 | Repo registered but absent from the dropdown | no `gateway.toml` under `<policy-root>/<repo>/` | the dropdown globs `*/gateway.toml`; run `nimblegate gateway add …` (it writes that file) |
 | Service fails `203/EXEC` / `Exec format error` | a hand-created launcher script whose `#!/bin/sh` isn't at column 0 | `cat -A script \| head -1` must show `#!/bin/sh$`; copy a file rather than pasting a heredoc |
 | Accepted pushes never reach the upstream | empty/missing/wrong `credential` (or token-in-URL) | the relay fails closed; check the per-repo `credential` file is non-empty and has push scope |
