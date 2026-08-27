@@ -59,6 +59,15 @@ Thumbs.db
 .appframes/_design.md
 .appframes/_future.md
 
+# Internal working documents. Reachable only by browsing the repo (nothing links
+# them), and each is a dev-history artifact rather than an operator reference:
+# a roadmap for an unreleased version, a stale test-suite report, a session trace
+# describing a shipped feature as once-unwired, and a commercial strategy memo.
+/docs/v0.5-candidates.md
+/docs/test-suite-findings.md
+/docs/auto-pr-implementation-notes.md
+/docs/positioning.md
+
 # transient binary built by the relay boundary test
 /deploy/gateway/relay-boundary-test/nimblegate
 /deploy/gateway/scoped-access-test/nimblegate
