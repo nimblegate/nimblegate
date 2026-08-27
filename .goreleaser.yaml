@@ -39,5 +39,5 @@ release:
   github:
     owner: nimblegate
     name: nimblegate
-  draft: true   # we'll publish manually for 0.1.0
+  draft: false
   prerelease: auto
