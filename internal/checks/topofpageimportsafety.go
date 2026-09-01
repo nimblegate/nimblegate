@@ -101,7 +101,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, topOfPageDisableMarker) {
+		if fileDisabledByMarker(content, topOfPageDisableMarker) {
 			continue
 		}
 
@@ -114,7 +114,7 @@ filesLoop:
 			if m == nil {
 				continue
 			}
-			if i > 0 && strings.Contains(lines[i-1], topOfPageDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], topOfPageDisableLineMarker) {
 				continue
 			}
 			path := m[1]

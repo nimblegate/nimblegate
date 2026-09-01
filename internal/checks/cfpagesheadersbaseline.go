@@ -99,7 +99,7 @@ func CFPagesHeadersBaseline(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, cfPagesHeadersDisableMarker) {
+		if fileDisabledByMarker(content, cfPagesHeadersDisableMarker) {
 			continue
 		}
 		for _, h := range cfPagesHeadersBaselineSet {

@@ -92,3 +92,42 @@ func isGeneratedForMarkers(path string) bool {
 	}
 	return false
 }
+
+// commentOpeners are the comment starts a disable marker may sit behind.
+var commentOpeners = []string{"//", "#", "--", "/*", "<!--"}
+
+// markerOwnsLine reports whether line invokes a disable marker rather than
+// merely mentioning one. The marker must hold the line behind nothing but
+// whitespace and an optional comment opener: a bare substring test cannot
+// tell an invocation from a quoted example, and the credential frame's own
+// test file switched the frame off for itself that way, hiding eight
+// fixtures from the gate for a full release cycle.
+func markerOwnsLine(line, marker string) bool {
+	// A leading BOM is not whitespace to TrimSpace, and the no-bom frame's
+	// own opt-out necessarily sits on a line that starts with one.
+	trimmed := strings.TrimSpace(strings.TrimPrefix(line, "\ufeff"))
+	for _, opener := range commentOpeners {
+		if strings.HasPrefix(trimmed, opener) {
+			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, opener))
+			break
+		}
+	}
+	return strings.HasPrefix(trimmed, marker)
+}
+
+// fileDisabledByMarker reports whether content carries a file-level disable
+// marker on a line of its own.
+func fileDisabledByMarker(content, marker string) bool {
+	for _, line := range strings.Split(content, "\n") {
+		if markerOwnsLine(line, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// lineCarriesMarker reports whether one line is a standalone disable marker,
+// for the disable-next-line form that reads the line above a finding.
+func lineCarriesMarker(line, marker string) bool {
+	return markerOwnsLine(line, marker)
+}

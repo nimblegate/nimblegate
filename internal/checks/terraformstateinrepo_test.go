@@ -9,6 +9,12 @@ import (
 	"nimblegate/internal/engine"
 )
 
+// This file is the frame's own fixture corpus, so the frame must not
+// report on it. Until the matcher required a standalone line, a marker
+// quoted inside a fixture suppressed this file by accident rather than
+// by decision; the decision is now on the record.
+// appframes:disable security/no-terraform-state-in-repo
+
 const tfstateSample = `{
   "version": 4,
   "terraform_version": "1.9.0",

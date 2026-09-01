@@ -154,7 +154,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, noEnDashDisableMarker) {
+		if fileDisabledByMarker(content, noEnDashDisableMarker) {
 			continue
 		}
 		markdown := enDashMarkdownFile(file)
@@ -165,7 +165,7 @@ filesLoop:
 				inFence = !inFence
 				continue
 			}
-			if i > 0 && strings.Contains(lines[i-1], noEnDashDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], noEnDashDisableLineMarker) {
 				continue
 			}
 			scan := line

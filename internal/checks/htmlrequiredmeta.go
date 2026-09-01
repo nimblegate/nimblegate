@@ -84,7 +84,7 @@ func HTMLRequiredMeta(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, htmlRequiredMetaDisableMarker) {
+		if fileDisabledByMarker(content, htmlRequiredMetaDisableMarker) {
 			continue
 		}
 		body := extractHTMLBody(file, content)

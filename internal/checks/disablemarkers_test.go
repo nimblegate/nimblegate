@@ -71,3 +71,32 @@ func TestUnknownDisableMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkerOwnsLine(t *testing.T) {
+	const m = "appframes:disable security/no-hardcoded-credentials"
+	invokes := []string{
+		"// " + m,
+		"   # " + m,
+		"-- " + m,
+		"/* " + m + " */",
+		"<!-- " + m + " -->",
+		m,
+	}
+	for _, line := range invokes {
+		if !markerOwnsLine(line, m) {
+			t.Errorf("markerOwnsLine(%q) = false, want true", line)
+		}
+	}
+	mentions := []string{
+		"`# " + m,
+		"s := \"// " + m + "\"",
+		"const doc = \"# " + m + "\"",
+		"code() // " + m,
+		"see the " + m + " marker",
+	}
+	for _, line := range mentions {
+		if markerOwnsLine(line, m) {
+			t.Errorf("markerOwnsLine(%q) = true, want false", line)
+		}
+	}
+}

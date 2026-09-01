@@ -13,6 +13,12 @@ import (
 	"nimblegate/internal/frames"
 )
 
+// This file declares the patterns the frame detects, so the frame must
+// not report on it. Until the matcher required a standalone line, the
+// marker const below suppressed this file by accident rather than by
+// decision; the decision is now on the record.
+// appframes:disable security/no-private-keys-in-repo
+
 // pemHeader describes one PEM block header we look for. Severity is per
 // header because public certificates ride INFO while private keys ride
 // BLOCK.
@@ -121,10 +127,10 @@ filesLoop:
 		if statErr == nil && info.Size() <= privateKeysMaxFileBytes {
 			if data, readErr := os.ReadFile(file); readErr == nil {
 				content := string(data)
-				if !strings.Contains(content, privateKeysDisableMarker) {
+				if !fileDisabledByMarker(content, privateKeysDisableMarker) {
 					lines := strings.Split(content, "\n")
 					for i, line := range lines {
-						if i > 0 && strings.Contains(lines[i-1], privateKeysDisableLineMarker) {
+						if i > 0 && lineCarriesMarker(lines[i-1], privateKeysDisableLineMarker) {
 							continue
 						}
 						for _, h := range pemHeaders {

@@ -179,7 +179,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, schemaDriftDisableMarker) {
+		if fileDisabledByMarker(content, schemaDriftDisableMarker) {
 			continue
 		}
 
@@ -192,7 +192,7 @@ filesLoop:
 			// Honor line-disable.
 			if declLine > 1 {
 				lines := strings.Split(content, "\n")
-				if strings.Contains(lines[declLine-2], schemaDriftDisableLineMarker) {
+				if lineCarriesMarker(lines[declLine-2], schemaDriftDisableLineMarker) {
 					continue
 				}
 			}

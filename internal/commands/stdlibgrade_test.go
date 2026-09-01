@@ -20,6 +20,13 @@ import (
 // This is also the answer to grepping `check` output by hand, which is how a
 // documentation string quoting a frame's name got miscounted as a finding: the
 // assertions come from the runner's per-case results, not from reading text.
+// Corpus fixtures are read from disk, so a positive case has to contain a
+// literal. For credential providers that means care: tokens with no checksum
+// (Anthropic, OpenAI, Hugging Face, Groq, xAI) match GitHub's push protection
+// on shape alone, and a literal one in a tracked file gets the whole push
+// rejected, stalling this repo's GitHub mirror. Providers whose format
+// carries a checksum (GitHub's own ghp_) or needs a paired secret (AWS AKIA)
+// are safe as literals, which is why the existing corpus is.
 func TestStdlibFramesGradeAgainstTheirCorpus(t *testing.T) {
 	all, err := stdlib.Load()
 	if err != nil {

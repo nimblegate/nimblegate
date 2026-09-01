@@ -102,7 +102,7 @@ func DatedTodo(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, datedTodoDisableMarker) {
+		if fileDisabledByMarker(content, datedTodoDisableMarker) {
 			continue // file-level opt-out
 		}
 		lines := strings.Split(content, "\n")
@@ -115,7 +115,7 @@ func DatedTodo(ctx engine.CheckContext) engine.CheckResult {
 				continue // tagged with date/owner/issue
 			}
 			// Per-line opt-out: the line above contains the disable marker.
-			if i > 0 && strings.Contains(lines[i-1], datedTodoDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], datedTodoDisableLineMarker) {
 				continue
 			}
 			hits = append(hits, fmt.Sprintf("%s:%d", file, i+1))

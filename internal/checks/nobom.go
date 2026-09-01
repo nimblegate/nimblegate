@@ -81,7 +81,7 @@ func NoBOM(ctx engine.CheckContext) engine.CheckResult {
 		}
 		// Look for file-level disable marker by reading more of the head.
 		if data, err := os.ReadFile(file); err == nil {
-			if strings.Contains(string(data), noBOMDisableMarker) {
+			if fileDisabledByMarker(string(data), noBOMDisableMarker) {
 				continue
 			}
 		}

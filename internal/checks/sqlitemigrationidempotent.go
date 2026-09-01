@@ -142,7 +142,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, sqliteMigrationDisableMarker) {
+		if fileDisabledByMarker(content, sqliteMigrationDisableMarker) {
 			continue
 		}
 		// File-level opt-out (the explicit historical-migration escape hatch).
@@ -160,7 +160,7 @@ filesLoop:
 
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], sqliteMigrationDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], sqliteMigrationDisableLineMarker) {
 				continue
 			}
 			// Skip SQL comments (-- prefix) so README-shaped migrations

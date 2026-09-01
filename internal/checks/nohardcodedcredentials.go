@@ -190,13 +190,13 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, credentialsDisableMarker) {
+		if fileDisabledByMarker(content, credentialsDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
 			// Per-line opt-out: the line above this one has the marker.
-			if i > 0 && strings.Contains(lines[i-1], credentialsDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], credentialsDisableLineMarker) {
 				continue
 			}
 			for _, p := range credentialPatterns {

@@ -11,6 +11,13 @@ import (
 	"nimblegate/internal/engine"
 )
 
+// This file is the credential frame's own fixture corpus: the AWS, GitHub and
+// Slack tokens in it are fabricated and must not be reported. Until the
+// marker matcher required a standalone line, that suppression happened by
+// accident - a marker quoted inside a fixture string switched the frame off
+// for the whole file - so it is now stated deliberately, on its own line.
+// appframes:disable security/no-hardcoded-credentials
+
 // runCredCheck is a small helper to keep table-driven cases concise.
 func runCredCheck(t *testing.T, fileBody string) engine.CheckResult {
 	t.Helper()
@@ -379,15 +386,21 @@ func TestNoHardcodedCredentials_AWSSecretKeyNeedsContext(t *testing.T) {
 // linter. Each needs a distinctive prefix: a provider whose key is a bare
 // fixed-length alphanumeric is unmatchable without false-positiving on hashes.
 func TestNoHardcodedCredentials_AIProviderKeys(t *testing.T) {
+	// Assembled at runtime, not written out. A literal provider-shaped token
+	// in a tracked file trips GitHub's push protection, which rejects the
+	// whole push and silently stalls this repo's mirror; these eight did.
+	// Providers with no checksum (Anthropic, OpenAI, HF, Groq, xAI) match on
+	// shape alone, so the fragments below must never be joined in source.
+	lo, up, dg := "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"
 	fires := map[string]string{
-		"anthropic":      "ANTHROPIC_API_KEY=sk-ant-api03-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqr-abcdefghijklmnAA\n",
-		"openai legacy":  "OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV\n",
-		"openai project": "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijkl\n",
-		"openai service": "OPENAI_API_KEY=sk-svcacct-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567\n",
-		"openai admin":   "OPENAI_ADMIN_KEY=sk-admin-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567\n",
-		"hugging face":   "HF_TOKEN=hf_abcdefghijklmnopqrstuvwxyzABCDEFGH\n",
-		"groq":           "GROQ_API_KEY=gsk_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n",
-		"xai":            "XAI_API_KEY=xai-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqr\n",
+		"anthropic":      "ANTHROPIC_API_KEY=sk-" + "ant-api03-" + lo + up + dg + lo[:18] + "-" + lo[:14] + "AA\n",
+		"openai legacy":  "OPENAI_API_KEY=sk-" + lo + up[:22] + "\n",
+		"openai project": "OPENAI_API_KEY=sk-" + "proj-" + lo + up + dg + lo[:12] + "\n",
+		"openai service": "OPENAI_API_KEY=sk-" + "svcacct-" + lo + up + dg[:8] + "\n",
+		"openai admin":   "OPENAI_ADMIN_KEY=sk-" + "admin-" + lo + up + dg[:8] + "\n",
+		"hugging face":   "HF_TOKEN=hf" + "_" + lo + up[:8] + "\n",
+		"groq":           "GROQ_API_KEY=gsk" + "_" + lo + up + "\n",
+		"xai":            "XAI_API_KEY=xai" + "-" + lo + up + dg + lo[:18] + "\n",
 	}
 	for name, line := range fires {
 		root := t.TempDir()
@@ -435,5 +448,23 @@ func TestNoHardcodedCredentials_MatchesEmbeddedTokens(t *testing.T) {
 		if res := NoHardcodedCredentials(piiCtx(root)); res.Outcome != engine.OutcomeBlock {
 			t.Errorf("%s: want BLOCK, got %v (%s)", name, res.Outcome, res.Reason)
 		}
+	}
+}
+
+// A marker inside a string literal is a fixture talking about the opt-out,
+// not a file invoking it. This is the case that hid eight AI-provider keys
+// from the gate for a release cycle.
+func TestNoHardcodedCredentials_QuotedMarkerDoesNotSuppress(t *testing.T) {
+	root := t.TempDir()
+	writeSource(t, root, "src/fixture.go",
+		"src := `# appframes:disable security/no-hardcoded-credentials\n"+
+			"const Fixture = \"AKIA\"`\nconst Leak = \"AKIAZZZZTESTFIXTURE0\"\n")
+	got := NoHardcodedCredentials(engine.CheckContext{
+		Trigger:      engine.TriggerCLI,
+		ProjectRoot:  root,
+		ExcludedDirs: DefaultExcludes(),
+	})
+	if got.Outcome != engine.OutcomeBlock {
+		t.Fatalf("outcome = %s, want BLOCK - a quoted marker must not suppress the file", got.Outcome)
 	}
 }

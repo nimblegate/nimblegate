@@ -156,7 +156,7 @@ files:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, markdownLinkDisableMarker) {
+		if fileDisabledByMarker(content, markdownLinkDisableMarker) {
 			continue
 		}
 

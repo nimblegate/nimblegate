@@ -145,7 +145,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, cfSchemaMatchDisableMarker) {
+		if fileDisabledByMarker(content, cfSchemaMatchDisableMarker) {
 			continue
 		}
 
@@ -163,7 +163,7 @@ filesLoop:
 
 			// Check for line-level disable on the line above the dataset.
 			lines := strings.Split(content[:m[2]], "\n")
-			if len(lines) >= 2 && strings.Contains(lines[len(lines)-2], cfSchemaMatchDisableLineMarker) {
+			if len(lines) >= 2 && lineCarriesMarker(lines[len(lines)-2], cfSchemaMatchDisableLineMarker) {
 				continue
 			}
 

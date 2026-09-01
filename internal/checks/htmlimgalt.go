@@ -70,7 +70,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, htmlImgAltDisableMarker) {
+		if fileDisabledByMarker(content, htmlImgAltDisableMarker) {
 			continue
 		}
 		body := extractHTMLBody(file, content)
@@ -108,7 +108,7 @@ filesLoop:
 			// token; we find it in body and translate to a line number.
 			raw := string(tok.Raw())
 			line := approximateLineOf(body, raw, content)
-			if line > 1 && strings.Contains(lines[line-2], htmlImgAltDisableLineMarker) {
+			if line > 1 && lineCarriesMarker(lines[line-2], htmlImgAltDisableLineMarker) {
 				continue
 			}
 			label := "<img> missing alt attribute (a11y + SEO)"

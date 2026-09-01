@@ -78,12 +78,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, preferStaticDisableMarker) {
+		if fileDisabledByMarker(content, preferStaticDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], preferStaticDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], preferStaticDisableLineMarker) {
 				continue
 			}
 			if !dynamicEnvImportRegex.MatchString(line) {
