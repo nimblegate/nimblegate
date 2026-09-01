@@ -367,6 +367,11 @@ func TestRunDoctorRelayBackstopIsShapeSpecific(t *testing.T) {
 	if c.Fix != "" {
 		t.Errorf("backstop check should carry no command, got %q", c.Fix)
 	}
+	// And no claim about the service: doctor sees missing records, not a stopped
+	// process. A running backstop that cannot read its policy files also has none.
+	if strings.Contains(c.Reason, "not running") {
+		t.Errorf("backstop check must not assert the service state: %q", c.Reason)
+	}
 
 	if _, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer}), "", "Relay backstop"); ok {
 		t.Error("container runs no backstop; it must not be told to start one")
