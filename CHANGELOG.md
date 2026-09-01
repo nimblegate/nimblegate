@@ -40,7 +40,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   observation means anything, then the install shape's own convention - 22 on
   bare metal, 2222 for the compose publish. A container's probe is deliberately
   ignored: it reaches sshd inside the container, never the published port.
-  `gateway doctor --push-port` overrides.
+  `gateway doctor --push-port` overrides. The reachability probe now tries the
+  declared port before the `2222, 22` conventions, so a gateway whose sshd was
+  moved is no longer reported unreachable - or, on a host with something else
+  bound to 2222, reported reachable at the wrong service.
 - **The container dashboard could not see the container's environment.** Its s6
   run script used a plain `#!/bin/sh`, which gets s6's environment rather than
   the container's; it is now `#!/command/with-contenv sh`.
@@ -59,7 +62,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   per shape, declared by the image (`NIMBLEGATE_INSTALL=container`) and by the
   bare-metal unit, with `/run/s6` and `/run/systemd/system` as fallback
   detection. The report names the shape it resolved. Drift recovery is reported
-  once, as a `Relay backstop` check, and only by shapes that have one.
+  once, as a `Relay backstop` check, only by shapes that have one, and with no
+  command attached - starting that service needs the relay user provisioned
+  first, so a one-liner would be advice that silently does nothing.
 - **The connect steps assumed you were reading them in the dashboard.** Step 3
   said "the value shown is the address you reached this dashboard on" in CLI
   output, where no dashboard was involved.

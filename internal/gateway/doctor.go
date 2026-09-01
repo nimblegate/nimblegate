@@ -103,8 +103,8 @@ type DoctorConfig struct {
 	PushPort int
 
 	// GatePorts are the loopback ports the SSH-gate reachability check dials.
-	// Empty means probe the defaults (2222 for the container publish, 22 for a
-	// bare-metal sshd).
+	// Empty means probe PushPort when declared, then the conventions (2222 for
+	// the container publish, 22 for a bare-metal sshd).
 	GatePorts []int
 
 	// UpstreamAuthCheck is a test seam. If nil, RunDoctor uses the real
@@ -117,6 +117,25 @@ type DoctorConfig struct {
 // must be bridged (symlink) or sshd never sees dashboard-added keys. A var (not
 // const) so tests can point it at a temp file.
 var bareMetalGitKeys = "/home/git/.ssh/authorized_keys"
+
+// defaultGatePorts is the probe order when no port is named explicitly: the
+// port this install declared it is pushed on, then the two conventions. An
+// operator who moved sshd has already said where it is, and probing only
+// 2222/22 would call a working gate unreachable - or reach an unrelated
+// service on 2222 and report that as the gate.
+func defaultGatePorts(declared int) []int {
+	conventional := []int{2222, 22}
+	if declared == 0 {
+		return conventional
+	}
+	ports := []int{declared}
+	for _, p := range conventional {
+		if p != declared {
+			ports = append(ports, p)
+		}
+	}
+	return ports
+}
 
 // RunDoctor assembles the diagnostics report. Every check is read-only: it never
 // reconciles, writes, or mutates upstream.
@@ -200,7 +219,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 	if !cfg.Offline {
 		ports := cfg.GatePorts
 		if len(ports) == 0 {
-			ports = []int{2222, 22}
+			ports = defaultGatePorts(cfg.PushPort)
 		}
 		reached := 0
 		for _, p := range ports {
@@ -284,7 +303,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 	// Drift recovery is one service for the whole install, so report it once
 	// rather than per repo. A shape that runs no backstop has nothing to start
 	// and gets no check instead of advice it cannot follow.
-	if prof.RelayBackstop != "" && len(allRepos) > 0 {
+	if prof.HasRelayBackstop && len(allRepos) > 0 {
 		ran := false
 		for _, name := range allRepos {
 			if _, ok := ReadRelayStatus(cfg.PolicyRoot, name); ok {
@@ -298,8 +317,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 			add(DoctorCheck{
 				Name:   "Relay backstop",
 				Status: DoctorInfo,
-				Reason: "never run: no repo has a reconcile record, so a ref the upstream missed is not re-pushed automatically",
-				Fix:    prof.RelayBackstop,
+				Reason: "not running: no repo has a reconcile record, so a ref the upstream missed is not re-pushed automatically. Pushes still relay; this is drift recovery only",
 			})
 		}
 	}

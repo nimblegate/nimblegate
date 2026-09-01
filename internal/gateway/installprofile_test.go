@@ -27,13 +27,14 @@ func TestInstallProfilesAreComplete(t *testing.T) {
 			t.Errorf("%s: no default push port", p.Name)
 		}
 	}
-	// RelayBackstop is deliberately empty where no backstop exists: the check
-	// is skipped rather than advising a command the shape does not have.
-	if ProfileContainer.RelayBackstop != "" {
-		t.Error("container runs no relay-service; it must not advise starting one")
+	// The backstop is reported only where one exists, and never with a command:
+	// starting it needs the relay user provisioned first, so a one-liner would
+	// be advice that silently does nothing.
+	if ProfileContainer.HasRelayBackstop {
+		t.Error("the image ships no relay-service; it must not report a backstop")
 	}
-	if ProfileBareMetal.RelayBackstop == "" {
-		t.Error("bare metal ships nimblegate-relay.service; it must say how to start it")
+	if !ProfileBareMetal.HasRelayBackstop {
+		t.Error("bare metal ships nimblegate-relay.service; the backstop is reportable there")
 	}
 }
 
