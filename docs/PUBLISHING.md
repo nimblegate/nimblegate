@@ -23,6 +23,12 @@ account that owns the package.
 - A real LICENSE file is in tree at the tag commit. GitHub Container Registry
   reads the licence label from the OCI image and surfaces it on the package
   page; the existing `Dockerfile` sets `org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"`.
+  The workflow states it a second time (`release.yml`, the `meta` step's
+  `labels:`) because `docker/metadata-action` derives labels from GitHub's own
+  repo metadata and applies them *after* the Dockerfile's. GitHub does not
+  classify PolyForm, so what it derives is `NOASSERTION` - which is what
+  v0.1.0 through v0.4.2 published. Check the label on a new package with
+  `docker inspect --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}' <image>`.
 
 ## Release flow
 
