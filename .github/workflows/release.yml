@@ -43,6 +43,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/nimblegate/nimblegate
+          # GitHub does not classify PolyForm, so the licence it reports is
+          # NOASSERTION - and these generated labels are applied after the
+          # Dockerfile's, overriding the correct one it sets. State it here.
+          labels: |
+            org.opencontainers.image.licenses=PolyForm-Noncommercial-1.0.0
           tags: |
             type=ref,event=tag
             type=semver,pattern={{version}}
