@@ -358,7 +358,7 @@ func TestRunDoctorRelayBackstopIsShapeSpecific(t *testing.T) {
 	doctorSeed(t, policyRoot, reposRoot, "alpha", AddOptions{UpstreamURL: "https://github.com/x/alpha.git", GateAllRefs: true})
 
 	bare := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal})
-	c, ok := findCheck(bare, "", "Relay backstop")
+	c, ok := findCheck(bare, "", "Relay retry")
 	if !ok || c.Status != DoctorInfo {
 		t.Fatalf("bare metal with no reconcile record: want INFO, got %+v ok=%v", c, ok)
 	}
@@ -370,17 +370,24 @@ func TestRunDoctorRelayBackstopIsShapeSpecific(t *testing.T) {
 	// And no claim about the service: doctor sees missing records, not a stopped
 	// process. A running backstop that cannot read its policy files also has none.
 	if strings.Contains(c.Reason, "not running") {
-		t.Errorf("backstop check must not assert the service state: %q", c.Reason)
+		t.Errorf("the check must not assert the service state: %q", c.Reason)
+	}
+	// Written for someone meeting the tool for the first time: it has to say
+	// pushes still work before it says what is missing.
+	for _, jargon := range []string{"reconcile", "backstop", "drift", "ref "} {
+		if strings.Contains(strings.ToLower(c.Reason), jargon) {
+			t.Errorf("reason uses internal vocabulary %q: %s", jargon, c.Reason)
+		}
 	}
 
-	if _, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer}), "", "Relay backstop"); ok {
+	if _, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer}), "", "Relay retry"); ok {
 		t.Error("container runs no backstop; it must not be told to start one")
 	}
 
 	if err := WriteRelayStatus(policyRoot, "alpha", RelayStatus{OK: true}); err != nil {
 		t.Fatal(err)
 	}
-	if c, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal}), "", "Relay backstop"); !ok || c.Status != DoctorOK {
+	if c, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal}), "", "Relay retry"); !ok || c.Status != DoctorOK {
 		t.Errorf("reconcile record present: want OK, got %+v ok=%v", c, ok)
 	}
 }
