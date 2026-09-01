@@ -355,6 +355,7 @@ func gatewayRelayService(args []string) int {
 	// swallowed nor re-logged every tick.
 	if *reconcileEvery > 0 {
 		relayOK := map[string]bool{}
+		statusWarned := map[string]bool{}
 		runReconcile := func(startup bool) {
 			results, err := gateway.ReconcileAll(*reposRoot, *policyRoot)
 			if err != nil {
@@ -367,12 +368,18 @@ func gatewayRelayService(args []string) int {
 				ok := r.Err == nil
 				prev, seen := relayOK[r.Repo]
 				switch {
+				case r.Skipped && (startup || !seen || prev):
+					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: cannot reconcile %s, skipped: %v\n", r.Repo, r.Err)
 				case !ok && (startup || !seen || prev):
 					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: relay FAILING for %s: %v\n", r.Repo, r.Err)
 				case ok && seen && !prev:
 					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: relay recovered for %s\n", r.Repo)
 				}
 				relayOK[r.Repo] = ok
+				if r.StatusErr != nil && (startup || !statusWarned[r.Repo]) {
+					fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: relay status for %s not recorded: %v (the dashboard and gateway doctor will report the backstop as never run)\n", r.Repo, r.StatusErr)
+				}
+				statusWarned[r.Repo] = r.StatusErr != nil
 			}
 			if total > 0 {
 				fmt.Fprintf(os.Stderr, "nimblegate gateway relay-service: reconciled %d drifted ref(s)\n", total)

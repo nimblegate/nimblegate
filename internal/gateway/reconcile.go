@@ -81,6 +81,17 @@ type ReconcileResult struct {
 	Repo    string
 	Drifted int
 	Err     error
+
+	// Skipped marks a repo that was never reconciled because it could not be
+	// resolved - an unreadable policy file, a missing bare repo. Distinct from
+	// a reconcile that ran and failed, and reported differently: the repo is
+	// not failing to relay, it is invisible to the backstop.
+	Skipped bool
+
+	// StatusErr is a failure to record the outcome. The dashboard and doctor
+	// read that record, so a backstop that cannot write it looks like one that
+	// never ran - which is exactly how a misprovisioned relay user presents.
+	StatusErr error
 }
 
 // ReconcileAll reconciles every ACTIVE repo under reposRoot against its
@@ -97,8 +108,16 @@ func ReconcileAll(reposRoot, policyRoot string) ([]ReconcileResult, error) {
 	var results []ReconcileResult
 	for _, name := range names {
 		bare, url, cred, err := resolve(name)
-		if err != nil || url == "" {
-			continue // unresolvable or no upstream to relay to
+		if err != nil {
+			// Not silent: reading the policy can fail for a reason the operator
+			// must act on (the relay user cannot read a git-owned 0600 file),
+			// and swallowing it makes a backstop that reconciles nothing
+			// indistinguishable from one with nothing to do.
+			results = append(results, ReconcileResult{Repo: name, Err: err, Skipped: true})
+			continue
+		}
+		if url == "" {
+			continue // no upstream configured; nothing to relay
 		}
 		n, rerr := reconcileRepo(bare, url, cred)
 		now := time.Now()
@@ -114,8 +133,12 @@ func ReconcileAll(reposRoot, policyRoot string) ([]ReconcileResult, error) {
 		} else {
 			s.Error = redactURLUserinfo(redactCred(rerr.Error(), cred))
 		}
-		_ = WriteRelayStatus(policyRoot, name, s)
-		results = append(results, ReconcileResult{Repo: name, Drifted: n, Err: rerr})
+		results = append(results, ReconcileResult{
+			Repo:      name,
+			Drifted:   n,
+			Err:       rerr,
+			StatusErr: WriteRelayStatus(policyRoot, name, s),
+		})
 	}
 	return results, nil
 }

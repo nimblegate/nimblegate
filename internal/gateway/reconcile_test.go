@@ -92,6 +92,72 @@ func TestReconcileAll_recordsPerRepoStatus(t *testing.T) {
 	}
 }
 
+// A repo the backstop cannot resolve is reported, not skipped in silence. The
+// live case: the relay user cannot read a git-owned 0600 policy file, so every
+// repo is passed over and the service looks like it has nothing to do.
+func TestReconcileAll_reportsUnresolvableRepo(t *testing.T) {
+	reposRoot := t.TempDir()
+	policyRoot := t.TempDir()
+
+	activateBareWithCommit(t, reposRoot, "broken")
+	if err := (FilePolicyStore{Root: policyRoot}).Save(Policy{Repo: "broken", UpstreamURL: "file:///nonexistent/upstream.git", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	// Corrupt the policy so Load fails the way an unreadable one does.
+	if err := os.WriteFile(filepath.Join(policyRoot, "broken", "gateway.toml"), []byte("this is not toml = = =\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := ReconcileAll(reposRoot, policyRoot)
+	if err != nil {
+		t.Fatalf("ReconcileAll: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("want the unresolvable repo reported, got %+v", results)
+	}
+	r := results[0]
+	if r.Repo != "broken" || !r.Skipped || r.Err == nil {
+		t.Fatalf("got %+v, want broken reported as skipped with an error", r)
+	}
+}
+
+// A status record that cannot be written is reported: without it the backstop
+// runs, delivers, and still looks to the dashboard and doctor like it never ran.
+func TestReconcileAll_reportsStatusWriteFailure(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the directory mode this test relies on")
+	}
+	reposRoot := t.TempDir()
+	policyRoot := t.TempDir()
+
+	activateBareWithCommit(t, reposRoot, "okrepo")
+	upstream := t.TempDir()
+	mustGit(t, ".", "init", "--bare", "-q", upstream)
+	if err := (FilePolicyStore{Root: policyRoot}).Save(Policy{Repo: "okrepo", UpstreamURL: "file://" + upstream, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	repoDir := filepath.Join(policyRoot, "okrepo")
+	if err := os.Chmod(repoDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(repoDir, 0o700) })
+
+	results, err := ReconcileAll(reposRoot, policyRoot)
+	if err != nil {
+		t.Fatalf("ReconcileAll: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("want one result, got %+v", results)
+	}
+	if results[0].StatusErr == nil {
+		t.Fatalf("got %+v, want the failed status write reported", results[0])
+	}
+	if results[0].Err != nil {
+		t.Fatalf("the relay itself succeeded; only the record failed: %+v", results[0])
+	}
+}
+
 // reconcileRepo re-pushes refs whose gated-repo value the upstream is missing or
 // behind - the recovery path for a push the gate accepted but the relay never
 // delivered (e.g. the relay service was down). It must be forward-only and
