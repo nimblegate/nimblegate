@@ -59,6 +59,10 @@ type Finding struct {
 	ID       string `json:"id"`       // frame/linter id, e.g. app-correctness/no-owner-todos
 	Severity string `json:"severity"` // BLOCK | ERROR | WARN | INFO
 	Message  string `json:"message,omitempty"`
+	// Origin is "linter" when the verdict came from a configured linter
+	// rather than a stdlib frame; empty otherwise. Stamped at scan time, so
+	// an old row keeps reading correctly after the linter is removed.
+	Origin string `json:"origin,omitempty"`
 }
 
 // ScanFailedID marks a result the GATE produced because it could not evaluate
@@ -113,7 +117,9 @@ type Checker interface {
 // never a silent exemption. Frame+File+Label identify it; the operator's reason
 // lives in the gateway-held whitelist.toml.
 type Suppression struct {
-	Frame string `json:"frame"`
-	File  string `json:"file"`
-	Label string `json:"label,omitempty"`
+	Frame    string `json:"frame"`
+	File     string `json:"file"`
+	Label    string `json:"label,omitempty"`
+	Severity string `json:"severity,omitempty"`
+	Origin   string `json:"origin,omitempty"`
 }

@@ -337,3 +337,36 @@ func TestBuildView_HasMoreWhenTruncated(t *testing.T) {
 		t.Fatalf("want 3 rows + HasMore, got rows=%d hasMore=%v", len(vm.Rows), vm.Summary.HasMore)
 	}
 }
+
+// An accepted push whose only hits were whitelisted used to reach the feed
+// indistinguishable from a push that found nothing. The row now carries the
+// exemptions so the operator can see what the gate chose not to act on.
+func TestBuildView_carriesSuppressions(t *testing.T) {
+	base := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+	supp := []Suppression{{
+		Frame:    "security/no-private-keys-in-repo",
+		File:     "internal/stdlib/testdata/key.pem",
+		Label:    "PEM RSA private key",
+		Severity: "BLOCK",
+	}}
+	recs := []AuditRecord{
+		{Time: base, Repo: "api", Refs: []string{"refs/heads/main"}, Accept: true, Suppressed: supp},
+	}
+	vm := BuildView(recs, Filter{})
+	if len(vm.Rows) != 1 {
+		t.Fatalf("want 1 row, got %d", len(vm.Rows))
+	}
+	row := vm.Rows[0]
+	if len(row.Findings) != 0 {
+		t.Errorf("a suppressed hit must not become a finding: %+v", row.Findings)
+	}
+	if len(row.Suppressed) != 1 {
+		t.Fatalf("row should carry suppressions, got %+v", row.Suppressed)
+	}
+	if got := row.Suppressed[0]; got.Frame != supp[0].Frame || got.Severity != "BLOCK" || got.File != supp[0].File {
+		t.Errorf("suppression not carried verbatim: %+v", got)
+	}
+	if !row.Accept {
+		t.Error("a whitelisted hit must not change the decision")
+	}
+}

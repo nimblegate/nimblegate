@@ -148,3 +148,31 @@ func TestFindingMessage_shortReasonUnchanged(t *testing.T) {
 		t.Errorf("short reason must pass through unchanged; got %q", msg)
 	}
 }
+
+// A configured linter and a stdlib frame both carry a <category>/<name> ID in
+// the same namespace, so the origin has to be stamped when the push is judged.
+// Deciding it later from current config would mislabel every historical row
+// the moment the linter is removed - which is exactly what happened to
+// app-correctness/todo-markers.
+func TestDecide_findingCarriesLinterOrigin(t *testing.T) {
+	p := Policy{Enabled: true, ProtectedRefs: []string{"refs/heads/main"}}
+	refs := []RefUpdate{{Name: "refs/heads/main", OldRev: "a", NewRev: "b"}}
+	results := map[string][]engine.CheckResult{
+		"refs/heads/main": {
+			{FrameID: "app-correctness/todo-markers", Outcome: engine.OutcomeWarn, Reason: "todo-markers: x.go:1 - TODO", Origin: engine.OriginLinter},
+			{FrameID: "app-correctness/dynamic-env-declared", Outcome: engine.OutcomeWarn, Reason: "undeclared env"},
+		},
+	}
+	d := Decide(p, refs, results)
+
+	origins := map[string]string{}
+	for _, f := range d.Findings {
+		origins[f.ID] = f.Origin
+	}
+	if origins["app-correctness/todo-markers"] != engine.OriginLinter {
+		t.Errorf("linter finding origin = %q, want %q", origins["app-correctness/todo-markers"], engine.OriginLinter)
+	}
+	if origins["app-correctness/dynamic-env-declared"] != "" {
+		t.Errorf("stdlib frame origin = %q, want empty", origins["app-correctness/dynamic-env-declared"])
+	}
+}

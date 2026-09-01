@@ -166,3 +166,59 @@ func TestApplyWhitelist_InputNotMutated(t *testing.T) {
 		t.Error("ApplyWhitelist mutated input Hits")
 	}
 }
+
+// The severity a suppressed hit would have carried is the operator-facing
+// half of the record: "exempted" alone does not say whether the push would
+// have been blocked.
+func TestApplyWhitelist_LogCarriesWouldBeSeverity(t *testing.T) {
+	root := "/repo"
+	s := newStubSuppressor()
+	s.allow("security/no-private-keys-in-repo", "testdata/key.pem", "PEM RSA private key")
+	s.allow("convention/x", "testdata/note.md", "style nit")
+
+	results := []CheckResult{
+		{
+			FrameID: "security/no-private-keys-in-repo",
+			Outcome: OutcomeBlock,
+			Reason:  "private key material: /repo/testdata/key.pem:1 - PEM RSA private key",
+			Hits:    []Hit{{File: filepath.Join(root, "testdata/key.pem"), Line: 1, Label: "PEM RSA private key"}},
+		},
+		{
+			FrameID: "convention/x",
+			Outcome: OutcomeWarn,
+			Origin:  OriginLinter,
+			Reason:  "nits: /repo/testdata/note.md:3 - style nit",
+			Hits:    []Hit{{File: filepath.Join(root, "testdata/note.md"), Line: 3, Label: "style nit"}},
+		},
+	}
+	_, log := ApplyWhitelist(results, s, root)
+
+	if len(log) != 2 {
+		t.Fatalf("SuppressionLog count = %d, want 2", len(log))
+	}
+	got := map[string]string{}
+	for _, l := range log {
+		got[l.FrameID] = l.Severity
+	}
+	if got["security/no-private-keys-in-repo"] != "BLOCK" {
+		t.Errorf("severity = %q, want BLOCK - the record must say it would have blocked", got["security/no-private-keys-in-repo"])
+	}
+	if got["convention/x"] != "WARN" {
+		t.Errorf("severity = %q, want WARN", got["convention/x"])
+	}
+
+	// A whitelisted linter hit is the only shape some repos ever produce -
+	// every corpus file exempted, so the finding never survives to carry a
+	// tag. The suppression record has to keep the origin or the tag is
+	// unreachable exactly where it is needed.
+	origins := map[string]string{}
+	for _, l := range log {
+		origins[l.FrameID] = l.Origin
+	}
+	if origins["convention/x"] != OriginLinter {
+		t.Errorf("linter origin = %q, want %q", origins["convention/x"], OriginLinter)
+	}
+	if origins["security/no-private-keys-in-repo"] != "" {
+		t.Errorf("stdlib frame origin = %q, want empty", origins["security/no-private-keys-in-repo"])
+	}
+}

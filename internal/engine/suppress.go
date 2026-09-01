@@ -30,6 +30,14 @@ type SuppressionLog struct {
 	FrameID   string
 	File      string
 	Label     string
+	// Severity is the outcome the frame would have reported had the hit
+	// not been whitelisted. Without it a reader can see that something was
+	// exempted but not whether it would have blocked the push.
+	Severity string
+	// Origin mirrors CheckResult.Origin. A whitelisted linter hit is the
+	// common case on a repo whose corpora are broadly exempted, so without
+	// this the linter tag can never appear on the rows that have one.
+	Origin string
 }
 
 // ApplyWhitelist filters Hits from raw results that are covered by a
@@ -73,6 +81,8 @@ func ApplyWhitelist(results []CheckResult, w Suppressor, projectRoot string) ([]
 					FrameID:   r.FrameID,
 					File:      rel,
 					Label:     h.Label,
+					Severity:  string(r.Outcome),
+					Origin:    r.Origin,
 				})
 				continue
 			}

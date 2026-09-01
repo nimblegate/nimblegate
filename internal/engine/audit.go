@@ -64,6 +64,8 @@ type auditSuppression struct {
 	Frame     string `json:"frame"`
 	File      string `json:"file"`
 	Label     string `json:"label"`
+	Severity  string `json:"severity,omitempty"`
+	Origin    string `json:"origin,omitempty"`
 }
 
 // AuditPartsDirName is the subdirectory under .appframes/ where each
@@ -173,6 +175,8 @@ func (a *Audit) WriteSuppression(ctx CheckContext, s SuppressionLog) error {
 		Frame:     s.FrameID,
 		File:      s.File,
 		Label:     s.Label,
+		Severity:  s.Severity,
+		Origin:    s.Origin,
 	}
 	data, err := json.Marshal(entry)
 	if err != nil {

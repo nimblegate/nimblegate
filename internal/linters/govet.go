@@ -104,7 +104,7 @@ func discoverGoModDirs(root string, excludedDirs []string) []string {
 // No hits but a module couldn't build → WARN naming the module(s). All
 // clean → PASS. No modules discovered → SKIP (nothing to vet, not a pass).
 func aggregateGoVet(runs []goVetModuleRun, findingOutcome engine.CheckOutcome, disable []string) engine.CheckResult {
-	res := engine.CheckResult{FrameID: goVetFrameID, Category: frames.CategoryAppCorrectness}
+	res := engine.CheckResult{FrameID: goVetFrameID, Category: frames.CategoryAppCorrectness, Origin: engine.OriginLinter}
 	if len(runs) == 0 {
 		res.Outcome = engine.OutcomeSkip
 		res.Reason = "go vet: skipped (no Go modules found under project)"
@@ -156,6 +156,7 @@ func parseGoVetOutput(out, projectRoot string, findingOutcome engine.CheckOutcom
 	res := engine.CheckResult{
 		FrameID:  goVetFrameID,
 		Category: frames.CategoryAppCorrectness,
+		Origin:   engine.OriginLinter,
 	}
 
 	var buf strings.Builder

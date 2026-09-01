@@ -145,6 +145,7 @@ const gwShellStyle = `<style>
  .gw-content .gw-msgcell button.gw-ref[aria-expanded="true"] ~ .gw-rmsg{display:block}
  .gw-content .gw-find .dmsg{display:none}
  .gw-content .gw-find .fnd[aria-expanded="true"] ~ .dmsg{display:block}
+ .gw-content .gw-find .dmsg .gw-suppitem{display:block;white-space:normal;overflow-wrap:anywhere;padding:1px 0}
  .gw-content button.fnd{border:0;font:inherit;cursor:pointer}
  .gw-content button.fnd:hover{filter:brightness(1.15)}
  body[data-tc="off"] .gw-content time.gw-ts{color:var(--gw-accent)}
