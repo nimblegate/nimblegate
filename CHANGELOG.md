@@ -9,6 +9,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Every stdlib frame is now graded against a test corpus.** The selection
+  runner existed and nothing ran it across the catalog - `gateway doctor`
+  graded a single frame as a sanity check - so a frame could stop catching what
+  its own corpus describes with no test noticing. All 51 frames now ship
+  positives and negatives and are graded on every run; a frame added without a
+  corpus fails the build.
+- **A suppression marker naming a frame that does not exist is now reported.**
+  `appframes:disable` markers were never validated, so a marker for a renamed
+  or misspelled frame silenced nothing and said nothing. `nimblegate check`
+  warns through the same channel as frames that fail to load, validated against
+  every frame that exists rather than the enabled set, so suppressing a frame
+  this repo has switched off stays quiet.
+
 - **`security/no-hardcoded-credentials` now catches AWS secret access keys.**
   Only the access key ID (`AKIA…`) was matched, so a config committing just
   `AWS_SECRET_ACCESS_KEY=…` passed the gate - found by pushing one at a test
@@ -38,6 +51,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   documented as such.
 
 ### Fixed
+
+- **Three frames blocked legitimate Unicode.** A subdivision flag emoji is
+  `U+1F3F4` plus tag letters terminated by `U+E007F`, so
+  `security/no-invisible-tag-chars` rejected a README naming Scotland or Wales
+  at BLOCK severity. An emoji ZWJ sequence joins two emoji with `U+200D`, so
+  `security/no-zero-width-in-source` rejected any UI string carrying one, and
+  `encoding/no-zero-width-in-content` warned on the same in prose. Only
+  well-formed sequences are skipped: an unterminated tag run, a cancel tag with
+  nothing before it, and a joiner touching a letter on either side all still
+  fire - that last one being the identifier forgery the frame exists for.
+- **42 suppression examples across 26 frame documents named a stale category**,
+  so a reader copying the example from the docs got a marker that silenced
+  nothing (`convention/dated-todo` for a frame declaring
+  `category: documentation`, `convention/html-img-alt`, and 40 more).
 
 - **The Auto-PR page's delivery counter could never report a success.** It read
   `audit.log` raw, and nothing writes a delivery outcome back into a record -
