@@ -46,7 +46,7 @@ type autoPRRepo struct {
 	DeadletterCount   int
 	LastError         string // most recent delivery error (queue/deadletter), surfaced in-UI
 	LastErrorHint     string // actionable one-liner derived from LastError
-	Last24hDelivered  int
+	Last24hSettled    int
 	Last24hAttempted  int // for the success-rate denominator
 	ActiveLoopCount   int
 	EditURL           string
@@ -67,7 +67,7 @@ type autoPREvent struct {
 	Repo      string
 	Ref       string
 	Decision  string // "rejected" | "observed"
-	Outcome   string // "delivered" | "deadlettered" | "queued"
+	Outcome   string // "settled" | "resolved" | "deadlettered" | "queued"
 	Symbol    string // icon name (warn|notif|pending)
 	FrameID   string // first finding's frame_id, for context
 	EventLink string
@@ -128,7 +128,7 @@ func collectAutoPR(policyRoot string, now time.Time) autoPRData {
 
 		// 24h delivery stats from audit log.
 		auditPath := filepath.Join(policyRoot, repoName, "audit.log")
-		row.Last24hDelivered, row.Last24hAttempted = countRecentDeliveries(auditPath, cutoff)
+		row.Last24hSettled, row.Last24hAttempted = countRecentSettled(auditPath, cutoff)
 
 		// Active loops (count + list).
 		stateDir := filepath.Join(policyRoot, repoName, "pr-comment-state")
@@ -199,34 +199,45 @@ func displayHost(rawURL string) string {
 	return s
 }
 
-// countRecentDeliveries scans audit.log and returns (delivered, attempted)
-// counts for notification-rail records within the cutoff window. Delivered =
-// InlineSucceeded || DeliveredAt non-zero. Attempted = any notification
-// record present.
-func countRecentDeliveries(auditPath string, cutoff time.Time) (delivered, attempted int) {
+// countRecentSettled scans audit.log and returns (settled, attempted) counts
+// for notification-rail records within the cutoff window.
+//
+// Settled, not delivered: the audit log is append-only and nothing writes an
+// outcome back into a record, so these fields are only ever populated by
+// CorrelateNotificationStatus at read time - reading the file raw counts zero
+// forever, however well the rail is working. Correlation can prove a record is
+// still queued or was deadlettered; anything else has left the queue, which
+// covers both a comment posted and a rejection on a ref with no open PR, where
+// the comment step is skipped by design. The column says what that supports.
+func countRecentSettled(auditPath string, cutoff time.Time) (settled, attempted int) {
 	f, err := os.Open(auditPath)
 	if err != nil {
 		return 0, 0
 	}
 	defer f.Close()
+	var records []gateway.AuditRecord
 	dec := json.NewDecoder(f)
 	for {
 		var rec gateway.AuditRecord
 		if err := dec.Decode(&rec); err != nil {
 			break
 		}
-		if rec.Notification == nil {
-			continue
-		}
-		if rec.Time.Before(cutoff) {
+		records = append(records, rec)
+	}
+	gateway.CorrelateNotificationStatus(filepath.Dir(auditPath), records)
+	for _, rec := range records {
+		if rec.Notification == nil || rec.Time.Before(cutoff) {
 			continue
 		}
 		attempted++
+		if rec.Notification.Deadlettered {
+			continue
+		}
 		if rec.Notification.InlineSucceeded || !rec.Notification.DeliveredAt.IsZero() {
-			delivered++
+			settled++
 		}
 	}
-	return delivered, attempted
+	return settled, attempted
 }
 
 // readActiveLoops walks <repo>/pr-comment-state/*.json and returns one
@@ -322,7 +333,8 @@ func readRecentNotificationEvents(auditPath, repoName string, cutoff time.Time, 
 				ev.Outcome = "resolved"
 				ev.Symbol = "ok"
 			} else {
-				ev.Outcome = "delivered"
+				// "settled", not "delivered" - see countRecentSettled.
+				ev.Outcome = "settled"
 				ev.Symbol = "notif"
 			}
 		default:
@@ -392,7 +404,7 @@ var autoPRTmpl = template.Must(template.New("autopr").Funcs(template.FuncMap{"ic
 
 <h3 class="gw-section-head">Repos</h3>
 <table class="autopr-table">
-<thead><tr><th>Repo</th><th>Status</th><th>Webhook</th><th class="num">Queue</th><th class="num">Deadletter</th><th class="num">Active loops</th><th class="num">24h delivered</th><th></th></tr></thead>
+<thead><tr><th>Repo</th><th>Status</th><th>Webhook</th><th class="num">Queue</th><th class="num">Deadletter</th><th class="num">Active loops</th><th class="num">24h settled</th><th></th></tr></thead>
 <tbody>
 {{range .Repos}}
 <tr>
@@ -402,7 +414,7 @@ var autoPRTmpl = template.Must(template.New("autopr").Funcs(template.FuncMap{"ic
 <td class="num">{{if gt .QueueDepth 0}}<span class="autopr-pill autopr-pill-queue">{{.QueueDepth}}</span>{{else}}<span style="color:var(--gw-text-fainter)">0</span>{{end}}</td>
 <td class="num">{{if gt .DeadletterCount 0}}<span class="autopr-pill autopr-pill-deadletter">{{.DeadletterCount}}</span>{{else}}<span style="color:var(--gw-text-fainter)">0</span>{{end}}</td>
 <td class="num">{{if gt .ActiveLoopCount 0}}<span class="autopr-pill autopr-pill-loop">{{.ActiveLoopCount}}</span>{{else}}<span style="color:var(--gw-text-fainter)">0</span>{{end}}</td>
-<td class="num">{{.Last24hDelivered}}{{if gt .Last24hAttempted 0}} / {{.Last24hAttempted}}{{end}}</td>
+<td class="num" title="Left the delivery queue without being deadlettered. The gateway cannot confirm a comment was posted: a rejection on a ref with no open PR skips the comment step and settles the same way.">{{.Last24hSettled}}{{if gt .Last24hAttempted 0}} / {{.Last24hAttempted}}{{end}}</td>
 <td><a class="autopr-btn" href="{{.EditURL}}">Edit config</a>{{if and $.AllowEdits (or (gt .QueueDepth 0) (gt .DeadletterCount 0))}} <form hx-post="/auto-pr/retry" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-confirm="Retry pending comment deliveries for {{.Name}}? Resets the retry backoff and re-queues any deadlettered comments so they deliver on the next poll." style="display:inline"><input type="hidden" name="repo" value="{{.Name}}"><button type="submit" class="autopr-btn" title="Reset backoff + requeue deadletter - use after fixing the upstream token">Retry now</button></form>{{end}}</td>
 </tr>
 {{if .LastError}}<tr><td colspan="8" style="padding:6px 10px;background:var(--gw-error-bg,#3a1d1d);color:var(--gw-error-text,#f8d4d4);font-size:12px;border-bottom:1px solid var(--gw-error-border,#c33)">{{icon "warn"}} delivery failing: <code>{{.LastError}}</code><br>{{.LastErrorHint}}</td></tr>{{end}}

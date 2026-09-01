@@ -23,7 +23,7 @@ One row per registered repo with notification-rail status:
 - **Status**: `enabled` or `off` (mirrors `[notification] enabled = …` in `gateway.toml`).
 - **Webhook**: host-only display of the configured URL (the secret is never rendered).
 - **Queue / Deadletter / Active loops**: current depths. Non-zero values get colored pills.
-- **24h delivered**: successfully-delivered notifications over attempts in the last 24 hours.
+- **24h settled**: notifications that left the delivery queue without being deadlettered, over attempts, in the last 24 hours. Settled is not the same as commented: a rejection on a ref with **no open PR** skips the comment step by design and fires only the webhook, and it settles exactly like one that posted a comment. The Activity tab labels those rows `settled` for the same reason. To confirm a comment reached a PR, open the PR.
 - **Delivery error row**: if deliveries are failing, a warning row appears under the repo showing the upstream error + an actionable hint (e.g. an HTTP 403 names the missing token scope). No need to read `docker logs`.
 - **Edit config**: jumps to the Setup tab for that repo.
 - **Retry now** (shown when Queue or Deadletter is non-zero): resets the retry backoff and re-queues any deadlettered records so pending comments deliver on the next ~5s poll. Use it after fixing a wrong/expired upstream token - it saves waiting out the multi-hour backoff, and means no editing queue files on the server.

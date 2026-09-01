@@ -5,6 +5,22 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The Auto-PR page's delivery counter could never report a success.** It read
+  `audit.log` raw, and nothing writes a delivery outcome back into a record -
+  the log is append-only, so those fields are populated only by
+  `CorrelateNotificationStatus` at read time. A gateway with a sticky comment
+  demonstrably posted on a live PR showed `0 / 5`. It now correlates before
+  counting, and the column is named **24h settled**: a record that has left the
+  queue without being deadlettered. That is the honest ceiling, because a
+  rejection on a ref with no open PR skips the comment step by design and
+  settles exactly like one that commented. The Activity tab's rows say
+  `settled` for the same reason - it previously said `delivered` for
+  notifications that were never sent.
+
 ## [0.4.2] - 2026-09-01
 
 ### Fixed

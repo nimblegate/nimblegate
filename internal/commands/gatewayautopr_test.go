@@ -3,6 +3,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -151,5 +152,46 @@ func TestCollectAutoPR_surfacesLastError(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("repo foo not found")
+	}
+}
+
+// The audit log is append-only and nothing writes a delivery outcome back into
+// a record, so a counter that parses it raw reports zero however well the rail
+// works - which is what a live gateway showed beside a PR comment that had
+// demonstrably been posted. The count has to correlate first.
+func TestCountRecentSettled_correlatesQueueState(t *testing.T) {
+	dir := t.TempDir()
+	auditPath := filepath.Join(dir, "audit.log")
+	rec := func(id string, at time.Time) string {
+		b, err := json.Marshal(gateway.AuditRecord{
+			Time:         at,
+			Repo:         "r",
+			Notification: &gateway.NotificationStatus{EventID: id, QueuedAt: at},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b) + "\n"
+	}
+	now := time.Now().UTC()
+	body := rec("ev-settled", now) + rec("ev-queued", now) + rec("ev-dead", now) + rec("ev-old", now.Add(-48*time.Hour))
+	if err := os.WriteFile(auditPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	queue := `{"id":"ev-queued","queued_at":"` + now.Format(time.RFC3339) + `"}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "pr-comment-queue.jsonl"), []byte(queue), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dead := `{"id":"ev-dead","queued_at":"` + now.Format(time.RFC3339) + `"}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "pr-comment-deadletter.jsonl"), []byte(dead), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	settled, attempted := countRecentSettled(auditPath, now.Add(-24*time.Hour))
+	if attempted != 3 {
+		t.Errorf("attempted = %d, want 3 (the 48h-old record is outside the window)", attempted)
+	}
+	if settled != 1 {
+		t.Errorf("settled = %d, want 1 (queued and deadlettered do not count)", settled)
 	}
 }
