@@ -77,6 +77,12 @@ filesLoop:
 				continue
 			}
 			for j := 0; j < len(line); {
+				// A subdivision flag emoji is built from tag runes; consume the
+				// whole well-formed sequence so its members are never examined.
+				if n := tagSequenceLen(line[j:]); n > 0 {
+					j += n
+					continue
+				}
 				r, size := utf8.DecodeRuneInString(line[j:])
 				if isUnicodeTagRune(r) {
 					label := fmt.Sprintf("U+%05X (Unicode tag char)", r)

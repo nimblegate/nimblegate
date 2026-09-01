@@ -77,3 +77,9 @@ Indic / Arabic identifier support), suppress at the file level:
 ```
 # appframes:disable security/no-zero-width-in-source
 ```
+
+## Deliberately not flagged
+
+- **ZWJ between two emoji** (👩‍💻) - the standard way to compose one
+  glyph from two. A joiner touching a letter on either side is still
+  reported: that is the identifier forgery this frame exists for.

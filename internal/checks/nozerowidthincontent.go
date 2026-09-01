@@ -98,6 +98,12 @@ filesLoop:
 			for j := 0; j < len(line); {
 				r, size := utf8.DecodeRuneInString(line[j:])
 				abs := offset + j
+				// Emoji compose with a joiner (👩‍💻); prose that hides a
+				// joiner between letters is what this frame reads for.
+				if r == 0x200D && zwjJoinsEmoji(line, j, size) {
+					j += size
+					continue
+				}
 				if name, ok := zeroWidthRunes[r]; ok && !(r == 0xFEFF && abs == 0) {
 					if !suppressLine {
 						label := fmt.Sprintf("U+%04X %s", r, name)
