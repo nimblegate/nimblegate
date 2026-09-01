@@ -77,7 +77,7 @@ When a script legitimately defaults to local (e.g. a dev convenience script that
 
 ```bash
 #!/usr/bin/env bash
-# appframes:disable command-safety/migration-script-explicit-env
+# appframes:disable database/migration-script-explicit-env
 # (this script is dev-only; never run against production)
 wrangler d1 execute "$DB" --file=fixture.sql
 ```

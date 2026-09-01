@@ -82,7 +82,7 @@ For dev-only wrappers that legitimately don't verify (e.g. local-emulator seed s
 
 ```bash
 #!/usr/bin/env bash
-# appframes:disable command-safety/migration-verification-step
+# appframes:disable database/migration-verification-step
 # (local emulator only; verification handled by the test harness instead)
 ```
 

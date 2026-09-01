@@ -9,11 +9,15 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"nimblegate/internal/engine"
 )
 
-// disableMarkerRe captures the frame ID from either marker form. The ID shape
-// mirrors what frames declare: <category>/<name>, lowercase with hyphens.
-var disableMarkerRe = regexp.MustCompile(`appframes:disable(?:-next-line)?\s+([a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*)`)
+// disableMarkerRe captures the frame ID from either marker form: <category>/<name>.
+// Categories are lowercase; names are NOT necessarily - security/no-innerHTML-user-input
+// carries capitals, and a lowercase-only name class truncated it to
+// "security/no-inner" and reported the frame's own documentation as broken.
+var disableMarkerRe = regexp.MustCompile(`appframes:disable(?:-next-line)?\s+([a-z0-9][a-z0-9-]*/[A-Za-z0-9][A-Za-z0-9-]*)`)
 
 // markerScanMaxBytes caps per-file reads. Markers live in source and config;
 // anything larger is generated or binary and not worth the read.
@@ -27,7 +31,8 @@ const markerScanMaxBytes = 1 << 20
 // than fires. known must hold every frame ID that exists, not just the ones
 // enabled here: suppressing a frame this repo has switched off is legitimate
 // and must stay quiet.
-func UnknownDisableMarkers(projectRoot string, known map[string]bool) []string {
+func UnknownDisableMarkers(ctx engine.CheckContext, known map[string]bool) []string {
+	projectRoot := ctx.ProjectRoot
 	seen := map[string]bool{}
 	var out []string
 	_ = filepath.WalkDir(projectRoot, func(path string, d fs.DirEntry, err error) error {
@@ -35,9 +40,12 @@ func UnknownDisableMarkers(projectRoot string, known map[string]bool) []string {
 			return nil
 		}
 		if d.IsDir() {
-			if skipMarkerDir(d.Name()) && path != projectRoot {
+			if ShouldSkipPath(ctx, path) && path != projectRoot {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if ShouldSkipPath(ctx, path) || isGeneratedForMarkers(path) {
 			return nil
 		}
 		body, ok := ReadFileBounded(path, markerScanMaxBytes)
@@ -72,11 +80,14 @@ func UnknownDisableMarkers(projectRoot string, known map[string]bool) []string {
 	return out
 }
 
-// skipMarkerDir keeps the walk off directories that never hold hand-written
-// suppressions, matching what the frames themselves skip.
-func skipMarkerDir(name string) bool {
-	switch name {
-	case ".git", "node_modules", "vendor", "dist", "build", "bin", ".next", ".svelte-kit", "target", "__pycache__":
+// isGeneratedForMarkers skips file types that carry frame IDs as DATA rather
+// than as suppressions: audit logs and event streams quote a frame ID inside a
+// reason string, and a snapshot of the dashboard embeds whole frame documents.
+// Running the marker regex over those produces an ID mangled by whatever text
+// abuts it - 1249 of them on this repo before this filter existed.
+func isGeneratedForMarkers(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".log", ".jsonl", ".html", ".htm", ".map", ".svg", ".lock", ".sum":
 		return true
 	}
 	return false

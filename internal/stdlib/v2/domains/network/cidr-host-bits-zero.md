@@ -73,10 +73,10 @@ ufw allow from 142.132.208.101/32      # single host
 If a file legitimately needs a non-network CIDR (test fixture, documentation example), suppress per-line or per-file:
 
 ```yaml
-# appframes:disable-next-line network-safety/cidr-host-bits-zero
+# appframes:disable-next-line network/cidr-host-bits-zero
 example_cidr: 1.2.3.4/24
 
-# appframes:disable network-safety/cidr-host-bits-zero
+# appframes:disable network/cidr-host-bits-zero
 # (entire file suppressed below this point)
 ```
 

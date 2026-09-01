@@ -57,14 +57,14 @@ examples/           # documentation, not shipping - suppress with appframes-igno
 For documentation that legitimately uses these patterns:
 
 ```markdown
-<!-- appframes:disable-next-line convention/html-placeholder-content -->
+<!-- appframes:disable-next-line web/html-placeholder-content -->
 Run with: `curl http://localhost:8080/`
 ```
 
 Or for whole-file suppression (typical for `examples/` directories):
 
 ```markdown
-<!-- appframes:disable convention/html-placeholder-content -->
+<!-- appframes:disable web/html-placeholder-content -->
 ```
 
 ## Suggestion: pair with build steps

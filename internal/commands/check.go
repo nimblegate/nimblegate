@@ -145,7 +145,7 @@ func Check(args []string) int {
 	// nothing, so the user sees a finding they believed was silenced. Validate
 	// against every frame that EXISTS, not the enabled set: suppressing a frame
 	// this repo has switched off is legitimate.
-	engine.FormatMarkerWarnings(os.Stdout, checks.UnknownDisableMarkers(root, allKnownIDsWithLinters(stdlibFrames, projectFrames, e)))
+	engine.FormatMarkerWarnings(os.Stdout, checks.UnknownDisableMarkers(ctx, allKnownIDsWithLinters(stdlibFrames, projectFrames, e)))
 	exit := engine.FormatResults(os.Stdout, filtered)
 
 	// Phase 1 Slice 4: surface lifecycle-filtered frames as a one-line

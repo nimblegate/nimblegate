@@ -86,7 +86,7 @@ If you genuinely need dual-stack (rare for loopback), bind the destination servi
 For documentation comments / example configs that intentionally show `localhost`:
 
 ```yaml
-# appframes:disable-next-line network-safety/no-localhost-in-proxy-config
+# appframes:disable-next-line network/no-localhost-in-proxy-config
 # Example: service: http://localhost:8080
 ```
 

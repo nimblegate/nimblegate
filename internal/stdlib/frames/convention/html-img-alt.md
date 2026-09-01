@@ -58,16 +58,16 @@ Every `<img>` tag must have an `alt` attribute. The empty form `alt=""` is inten
 Per-line:
 
 ```html
-<!-- appframes:disable-next-line convention/html-img-alt -->
+<!-- appframes:disable-next-line web/html-img-alt -->
 <img src={dynamicAttrs} />
 ```
 
 File-level when the file is a template fragment that always gets wrapped with alt by the caller:
 
 ```html
-<!-- appframes:disable convention/html-img-alt -->
+<!-- appframes:disable web/html-img-alt -->
 ```
 
 ## Implementation note
 
-Uses the `golang.org/x/net/html` tokenizer to extract every `<img>` start tag (or self-closing form). Detection is robust to attribute order, quoting style, and multi-line tags. Dynamic attribute spreads (`{...$$props}`, `{...attrs}`) are NOT followed - if your component spreads alt from props, mark the file `appframes:disable convention/html-img-alt`.
+Uses the `golang.org/x/net/html` tokenizer to extract every `<img>` start tag (or self-closing form). Detection is robust to attribute order, quoting style, and multi-line tags. Dynamic attribute spreads (`{...$$props}`, `{...attrs}`) are NOT followed - if your component spreads alt from props, mark the file `appframes:disable web/html-img-alt`.

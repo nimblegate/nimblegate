@@ -98,7 +98,7 @@ prefix - `marketing/foo/bar.md` matches `marketing/`.
 
 ## Override
 
-Per-file: `<!-- appframes:disable convention/markdown-link-check-internal -->`
+Per-file: `<!-- appframes:disable documentation/markdown-link-check-internal -->`
 anywhere in the markdown file. Suppresses every link in that file.
 
 For systematic suppression across many files, use the ignore-prefix

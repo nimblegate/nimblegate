@@ -92,7 +92,7 @@ If (3), the frame just caught your bug - that's the design.
    - scripts/bootstrap.sh:12 - bash <(curl ...)
    fix: replace with a checksum-pinned download + verify + exec,
         or a package manager install; add
-        `# appframes:disable-next-line command-safety/curl-pipe-shell`
+        `# appframes:disable-next-line commands/curl-pipe-shell`
         above the line ONLY for vetted test fixtures.
 ```
 
@@ -100,12 +100,12 @@ If (3), the frame just caught your bug - that's the design.
 
 Per-file:
 ```
-# appframes:disable command-safety/curl-pipe-shell
+# appframes:disable commands/curl-pipe-shell
 ```
 
 Per-line:
 ```sh
-# appframes:disable-next-line command-safety/curl-pipe-shell
+# appframes:disable-next-line commands/curl-pipe-shell
 curl -sSL https://known-safe.example.com/installer | sh
 ```
 

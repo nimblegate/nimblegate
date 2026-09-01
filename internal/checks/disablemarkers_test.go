@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"nimblegate/internal/engine"
 )
 
 // A marker naming a frame that does not exist silences nothing. The shipped
@@ -14,6 +16,10 @@ import (
 // while the frame declares `category: documentation`, and it went unnoticed
 // from the first public release because nothing looked at marker IDs.
 func TestUnknownDisableMarkers(t *testing.T) {
+	// Assembled at runtime: a literal marker in this file would be a finding
+	// when nimblegate scans its own repo, which is the frame working, not a bug.
+	mark := func(id string) string { return "// appframes" + ":disable " + id + "\n" }
+	markNext := func(id string) string { return "// appframes" + ":disable-next-line " + id + "\n" }
 	root := t.TempDir()
 	write := func(rel, body string) {
 		t.Helper()
@@ -25,19 +31,28 @@ func TestUnknownDisableMarkers(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("src/good.go", "// appframes:disable security/no-hardcoded-credentials\npackage a\n")
-	write("src/disabled-frame.go", "// appframes:disable encoding/no-bom\npackage a\n")
-	write("src/typo.go", "// appframes:disable convention/doc-touches-with-code\npackage a\n")
-	write("src/nextline.go", "// appframes:disable-next-line security/no-such-frame\npackage a\n")
-	write("node_modules/pkg/index.js", "// appframes:disable made/up\n")
-	write("docs/notes.md", "Write `appframes:disable` with the frame id shown in the report.\n")
+	write("src/good.go", mark("security/no-hardcoded-credentials")+"package a\n")
+	// Frame names are not all lowercase; a lowercase-only ID class truncated
+	// this one and reported a valid marker as naming no frame.
+	write("src/mixed-case.js", mark("security/no-innerHTML-user-input")+"const a = 1;\n")
+	write("src/disabled-frame.go", mark("encoding/no-bom")+"package a\n")
+	write("src/typo.go", mark("convention/doc-touches-with-code")+"package a\n")
+	write("src/nextline.go", markNext("security/no-such-frame")+"package a\n")
+	write("node_modules/pkg/index.js", mark("made/up"))
+	write("docs/notes.md", "Write the marker with the frame id shown in the report.\n")
+	// Frame IDs appear as DATA in audit logs and dashboard snapshots, abutted
+	// by whatever text surrounds them, so the regex would report a mangled ID.
+	write(".appframes/audit.parts/audit.1.log", "reason: "+mark("security/no-hardcoded-credentialsappframes"))
+	write("deploy/demo-static/frames/index.html", "<p>"+mark("made/up-in-a-snapshot")+"</p>\n")
 
+	ctx := engine.CheckContext{ProjectRoot: root}
 	known := map[string]bool{
 		"security/no-hardcoded-credentials":   true,
 		"encoding/no-bom":                     true, // exists but switched off here
 		"documentation/doc-touches-with-code": true,
+		"security/no-innerHTML-user-input":    true,
 	}
-	got := UnknownDisableMarkers(root, known)
+	got := UnknownDisableMarkers(ctx, known)
 
 	if len(got) != 2 {
 		t.Fatalf("want 2 unknown markers, got %d: %v", len(got), got)
@@ -50,7 +65,7 @@ func TestUnknownDisableMarkers(t *testing.T) {
 	}
 	// A frame that exists but is disabled in this repo is a legitimate
 	// suppression; a prose mention is not a marker; vendored code is not ours.
-	for _, unwanted := range []string{"encoding/no-bom", "node_modules", "docs/notes.md"} {
+	for _, unwanted := range []string{"encoding/no-bom", "node_modules", "docs/notes.md", "audit.parts", "demo-static", "no-innerHTML"} {
 		if strings.Contains(joined, unwanted) {
 			t.Errorf("should not report %q:\n%s", unwanted, joined)
 		}
