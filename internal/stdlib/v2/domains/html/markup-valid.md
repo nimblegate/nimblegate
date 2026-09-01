@@ -73,7 +73,7 @@ Each surfaces as a separate Hit with the line and a description.
 Per-file for templates that deliberately leave tags open (rare but legitimate - e.g. partial fragments composed at runtime):
 
 ```html
-<!-- appframes:disable convention/html-markup-valid -->
+<!-- appframes:disable web/html-markup-valid -->
 ```
 
-Per-line is supported via `appframes:disable-next-line convention/html-markup-valid` but rarely useful - markup issues usually span multiple lines.
+Per-line is supported via `appframes:disable-next-line web/html-markup-valid` but rarely useful - markup issues usually span multiple lines.

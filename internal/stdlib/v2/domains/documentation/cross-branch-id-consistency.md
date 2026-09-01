@@ -40,5 +40,5 @@ table's entry for the file's location (folder → domain → expected ID).
 ## Override
 
 If a file deliberately uses a different ID (e.g., dev vs prod environments):
-add `<!-- appframes:disable convention/cross-branch-id-consistency -->` at
+add `<!-- appframes:disable documentation/cross-branch-id-consistency -->` at
 the top.

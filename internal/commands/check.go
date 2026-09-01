@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"nimblegate/internal/checks"
 	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
 	"nimblegate/internal/linters"
@@ -140,6 +141,11 @@ func Check(args []string) int {
 	}
 
 	engine.FormatLoadWarnings(os.Stdout, loadErrs)
+	// A marker naming a frame that does not exist suppresses nothing and says
+	// nothing, so the user sees a finding they believed was silenced. Validate
+	// against every frame that EXISTS, not the enabled set: suppressing a frame
+	// this repo has switched off is legitimate.
+	engine.FormatMarkerWarnings(os.Stdout, checks.UnknownDisableMarkers(ctx, allKnownIDsWithLinters(stdlibFrames, projectFrames, e)))
 	exit := engine.FormatResults(os.Stdout, filtered)
 
 	// Phase 1 Slice 4: surface lifecycle-filtered frames as a one-line

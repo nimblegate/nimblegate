@@ -56,3 +56,8 @@ LC_ALL=C sed -i 's/[\xE2\x80\x8B-\xE2\x80\x8D]//g' <file>
 ```
 
 or in editors with "show invisible characters" turned on, delete by hand.
+
+## Deliberately not flagged
+
+- **ZWJ between two emoji** (👩‍💻) - the standard way to compose one
+  glyph from two. A joiner between letters is still reported.

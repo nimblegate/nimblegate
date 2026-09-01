@@ -63,6 +63,6 @@ For plain HTML: just add the tags in `<head>`.
 For email templates, partial HTML fragments, or non-page artifacts:
 
 ```html
-<!-- appframes:disable convention/html-required-meta -->
+<!-- appframes:disable web/html-required-meta -->
 <!-- This file is included as a partial; meta lives in the parent template. -->
 ```

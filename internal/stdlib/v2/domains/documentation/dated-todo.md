@@ -74,9 +74,9 @@ same line within 60 characters of the marker:
 
 ## Override
 
-Per-line: `// appframes:disable-next-line convention/dated-todo`
+Per-line: `// appframes:disable-next-line documentation/dated-todo`
 above the offending line.
-Per-file: `// appframes:disable convention/dated-todo` near the top.
+Per-file: `// appframes:disable documentation/dated-todo` near the top.
 
 ## Examples
 

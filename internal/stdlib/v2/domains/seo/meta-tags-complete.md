@@ -62,7 +62,7 @@ Per-route layouts can override with their own `<svelte:head>` block - SvelteKit 
 ## Suppressing intentional cases
 
 ```html
-<!-- appframes:disable convention/html-seo-meta -->
+<!-- appframes:disable web/html-seo-meta -->
 <!-- SEO meta lives in +layout.svelte; this route inherits. -->
 ```
 

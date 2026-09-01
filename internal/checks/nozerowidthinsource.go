@@ -120,6 +120,12 @@ filesLoop:
 			for j := 0; j < len(line); {
 				r, size := utf8.DecodeRuneInString(line[j:])
 				abs := offset + j
+				// A ZWJ between two emoji composes one glyph (👩‍💻); the
+				// forgery this frame exists for is a joiner between letters.
+				if r == 0x200D && zwjJoinsEmoji(line, j, size) {
+					j += size
+					continue
+				}
 				if name, ok := zeroWidthRunes[r]; ok && !(r == 0xFEFF && abs == 0) {
 					if !suppressLine {
 						label := fmt.Sprintf("U+%04X %s", r, name)

@@ -27,6 +27,22 @@ func FormatLoadWarnings(w io.Writer, errs []error) int {
 	return len(errs)
 }
 
+// FormatMarkerWarnings writes a banner for suppression markers that name a
+// frame which does not exist. Separate from FormatLoadWarnings because the
+// cause and the fix differ: a broken frame is the operator's policy, a bad
+// marker is a line in someone's source that is quietly doing nothing.
+func FormatMarkerWarnings(w io.Writer, warnings []string) int {
+	if len(warnings) == 0 {
+		return 0
+	}
+	fmt.Fprintf(w, "⚠️  %d disable marker(s) name a frame that does not exist - they suppress NOTHING:\n", len(warnings))
+	for _, m := range warnings {
+		fmt.Fprintf(w, "   - %s\n", m)
+	}
+	fmt.Fprintln(w)
+	return len(warnings)
+}
+
 // FormatResults writes a human-readable report to w. Returns 1 if any result
 // is BLOCK or ERROR (causing the trigger to fail the action), 0 otherwise.
 //
