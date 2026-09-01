@@ -58,3 +58,18 @@ sed -i 's/–/--/g; s/-/--/g' <file>
 If your script genuinely needs an en/em-dash in a string literal
 adjacent to text (multilingual prose), suppress at the line level
 with `# appframes:disable-next-line encoding/no-en-dash-in-commands`.
+
+## Scope
+
+- **Markdown** (`.md`, `.markdown`) is scanned for **commands only**: fenced
+  blocks (``` and ~~~, tagged or not) and inline code spans. A command a
+  reader copies out of a README is the highest-impact instance of this paste
+  bug.
+
+## Deliberately not flagged
+
+- **Prose in markdown.** A letter-adjacent en dash is correct there - "the
+  Berlin-Paris route", "a Bose-Einstein condensate" - so only code regions
+  are read. Indented (4-space) code blocks are not recognised: without a real
+  markdown parser they are indistinguishable from wrapped list content, and
+  guessing is how false positives start.

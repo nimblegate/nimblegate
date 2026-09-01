@@ -37,7 +37,54 @@ var enDashShellBasenames = map[string]bool{
 	"docker-compose.yml":  true,
 }
 
+// enDashMarkdownExtensions are scanned for COMMANDS ONLY: fenced blocks and
+// inline code spans. Prose is left alone because a letter-adjacent en dash is
+// legitimate there - "the Berlin-Paris route", "a Bose-Einstein condensate" -
+// while inside a code span it is the paste bug this frame exists for.
+var enDashMarkdownExtensions = map[string]bool{
+	".md":       true,
+	".markdown": true,
+}
+
+func enDashMarkdownFile(path string) bool {
+	return enDashMarkdownExtensions[strings.ToLower(filepath.Ext(path))]
+}
+
+// enDashCodeRegions returns the runs of line that are code: the whole line when
+// inFence, otherwise the spans between backticks. Empty when the line carries
+// no command text. Indented (4-space) code blocks are deliberately not
+// recognised: they are indistinguishable from wrapped list content without a
+// real markdown parser, and guessing there is how false positives start.
+func enDashCodeRegions(line string, inFence bool) []string {
+	if inFence {
+		return []string{line}
+	}
+	var out []string
+	for {
+		start := strings.Index(line, "`")
+		if start < 0 {
+			return out
+		}
+		rest := line[start+1:]
+		end := strings.Index(rest, "`")
+		if end < 0 {
+			return out
+		}
+		out = append(out, rest[:end])
+		line = rest[end+1:]
+	}
+}
+
+// enDashFenceToggle reports whether line opens or closes a fenced block.
+func enDashFenceToggle(line string) bool {
+	t := strings.TrimSpace(line)
+	return strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")
+}
+
 func enDashApplicableFile(path string) bool {
+	if enDashMarkdownFile(path) {
+		return true
+	}
 	base := filepath.Base(path)
 	if enDashShellBasenames[base] {
 		return true
@@ -110,12 +157,28 @@ filesLoop:
 		if strings.Contains(content, noEnDashDisableMarker) {
 			continue
 		}
+		markdown := enDashMarkdownFile(file)
+		inFence := false
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
+			if markdown && enDashFenceToggle(line) {
+				inFence = !inFence
+				continue
+			}
 			if i > 0 && strings.Contains(lines[i-1], noEnDashDisableLineMarker) {
 				continue
 			}
-			runes := []rune(line)
+			scan := line
+			if markdown {
+				regions := enDashCodeRegions(line, inFence)
+				if len(regions) == 0 {
+					continue
+				}
+				// Join with a space so a dash at a region edge keeps its
+				// neighbours: adjacency is what separates a flag from prose.
+				scan = strings.Join(regions, " ")
+			}
+			runes := []rune(scan)
 			for j, r := range runes {
 				if r != 0x2013 && r != 0x2014 {
 					continue

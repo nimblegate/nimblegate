@@ -9,6 +9,17 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`encoding/no-en-dash-in-commands` now reads commands in markdown.** It was
+  scoped to shell files and workflow YAML, so `curl -X` written with an en dash
+  inside a README fence sailed through - the highest-impact instance of the
+  paste bug it exists for, since readers copy from READMEs. Markdown is scanned
+  for code regions only: fenced blocks (``` and ~~~, tagged or not) and inline
+  code spans. Prose is untouched, because a letter-adjacent en dash is correct
+  there ("the Berlin-Paris route"). Indented 4-space blocks are deliberately
+  not recognised. **This blocks pushes it previously allowed**, so a README
+  carrying a stylistic en dash inside a code span will need fixing or
+  suppressing on upgrade.
+
 - **Every stdlib frame is now graded against a test corpus.** The selection
   runner existed and nothing ran it across the catalog - `gateway doctor`
   graded a single frame as a sanity check - so a frame could stop catching what
