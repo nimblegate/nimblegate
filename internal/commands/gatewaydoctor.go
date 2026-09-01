@@ -11,26 +11,46 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 
 	"nimblegate/internal/gateway"
 	"nimblegate/internal/gwicons"
 	"nimblegate/internal/version"
 )
 
-// defaultAuthorizedKeysPath is the gateway's SSH authorized_keys file, shared by
-// the CLI doctor flag default and the /health diagnostics tab.
-const defaultAuthorizedKeysPath = "/srv/gateway/ssh/authorized_keys"
+// defaultAuthorizedKeysPath is the keys file doctor reads when no flag names
+// one: the container and bare metal put it in different places, so the install
+// profile answers rather than a constant that is right for one shape. Read-only
+// - the dashboard's own write path is set by its flag, not by this.
+func defaultAuthorizedKeysPath() string {
+	return gateway.ResolveInstallProfile().AuthorizedKeys
+}
+
+// publicSSHPort reads the published gate port the deploy path declares: compose
+// sets it from the same variable it publishes, the bare-metal dashboard unit
+// states 22. The gateway cannot infer this - a container probe sees sshd's
+// internal port, not the publish mapping. 0 when unset or out of range, which
+// leaves doctor to fall back to the probed port.
+func publicSSHPort() int {
+	n, err := strconv.Atoi(os.Getenv("NIMBLEGATE_PUBLIC_SSH_PORT"))
+	if err != nil || n < 1 || n > 65535 {
+		return 0
+	}
+	return n
+}
 
 func gatewayDoctor(args []string) int {
 	fs := flag.NewFlagSet("gateway doctor", flag.ExitOnError)
 	policyRoot := fs.String("policy-root", "/srv/gateway/cfg", "per-repo config dir root")
 	reposRoot := fs.String("repos-root", "/srv/gateway/repos", "bare-repo root")
-	authKeys := fs.String("ssh-authorized-keys", defaultAuthorizedKeysPath, "path to the SSH authorized_keys file")
+	authKeys := fs.String("ssh-authorized-keys", defaultAuthorizedKeysPath(), "path to the SSH authorized_keys file")
 	repo := fs.String("repo", "", "limit per-repo checks to a single repo")
 	offline := fs.Bool("offline", false, "skip network checks (SSH gate dial + upstream auth)")
 	jsonOut := fs.Bool("json", false, "emit the report as JSON")
 	host := fs.String("host", "", "gateway reachable host for connect URLs (default: placeholder)")
 	gatePort := fs.Int("gate-port", 0, "SSH gate port to probe (0 = probe 2222 then 22)")
+	pushPort := fs.Int("push-port", publicSSHPort(), "port a dev box pushes to, for the connect URLs (0 = the port the probe reached, else 2222)")
 	_ = fs.Parse(args)
 
 	var gatePorts []int
@@ -46,6 +66,7 @@ func gatewayDoctor(args []string) int {
 		RepoFilter:         *repo,
 		Offline:            *offline,
 		GatePorts:          gatePorts,
+		PushPort:           *pushPort,
 	})
 
 	if *jsonOut {
@@ -93,7 +114,7 @@ func renderDoctorText(w io.Writer, rep gateway.DoctorReport) {
 	}
 	for _, rc := range rep.Repos {
 		fmt.Fprintf(w, "\nConnect a dev machine / agent - %s\n", rc.Name)
-		for i, step := range doctorConnectSteps(rep.Host, rc.Name) {
+		for i, step := range doctorConnectSteps(rc.PushURL) {
 			fmt.Fprintf(w, "  %d. %s\n", i+1, step.Note)
 			for _, cmd := range step.Cmds {
 				fmt.Fprintf(w, "       %s\n", cmd)
@@ -129,8 +150,20 @@ type doctorConnectStep struct {
 	Cmds []string
 }
 
-func doctorConnectSteps(host, repo string) []doctorConnectStep {
-	pushURL := "ssh://git@" + host + ":2222/~/" + repo + ".git"
+// pointOriginNote keys off the URL rather than the surface rendering it: the
+// same steps are printed by the CLI, where there is no dashboard whose address
+// could be the one shown.
+func pointOriginNote(pushURL string) string {
+	if strings.Contains(pushURL, "<host>") {
+		return "Point origin at the gateway, substituting <host> with the address your dev box reaches it on:"
+	}
+	return "Point origin at the gateway:"
+}
+
+// doctorConnectSteps builds the onboarding steps around pushURL, which the
+// doctor engine resolved from the declared or probed gate port. Taking the URL
+// rather than rebuilding it keeps one source for the port.
+func doctorConnectSteps(pushURL string) []doctorConnectStep {
 	return []doctorConnectStep{
 		{
 			Note: "On your dev machine, print your key + fingerprint (your key may not be the default; `ls ~/.ssh/*.pub` to find it, or `ssh-keygen -t ed25519` to create one):",
@@ -140,7 +173,7 @@ func doctorConnectSteps(host, repo string) []doctorConnectStep {
 			Note: "Compare that fingerprint to the authorized keys above. Not listed? Add it at /ssh-keys.",
 		},
 		{
-			Note: "Point origin at the gateway (substitute <host> with the gateway's reachable IP/hostname; the value shown is the address you reached this dashboard on):",
+			Note: pointOriginNote(pushURL),
 			Cmds: []string{"git remote set-url origin " + pushURL},
 		},
 		{
@@ -212,7 +245,7 @@ func doctorStatusClassIcon(s gateway.DoctorStatus) (string, string) {
 // set, so a normal page view stays fast and never hangs on a slow upstream.
 func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string, online bool) template.HTML {
 	if sshKeysPath == "" {
-		sshKeysPath = defaultAuthorizedKeysPath
+		sshKeysPath = defaultAuthorizedKeysPath()
 	}
 	rep := gateway.RunDoctor(gateway.DoctorConfig{
 		PolicyRoot:         policyRoot,
@@ -221,6 +254,7 @@ func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string,
 		Host:               hostNoPort(rawHost),
 		Version:            version.Resolved(),
 		Offline:            !online,
+		PushPort:           publicSSHPort(),
 	})
 
 	vm := doctorPageVM{Keys: rep.Keys, Online: online}
@@ -231,9 +265,9 @@ func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string,
 		cl, ic := doctorStatusClassIcon(c.Status)
 		vm.Global = append(vm.Global, doctorCheckVM{Class: cl, Icon: ic, Name: c.Name, Reason: c.Reason, Fix: c.Fix})
 	}
-	conn := map[string]bool{}
+	conn := map[string]string{}
 	for _, rc := range rep.Repos {
-		conn[rc.Name] = true
+		conn[rc.Name] = rc.PushURL
 	}
 	for _, name := range doctorRepoOrder(rep) {
 		rv := doctorRepoVM{Name: name}
@@ -244,9 +278,9 @@ func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string,
 			cl, ic := doctorStatusClassIcon(c.Status)
 			rv.Checks = append(rv.Checks, doctorCheckVM{Class: cl, Icon: ic, Name: c.Name, Reason: c.Reason, Fix: c.Fix})
 		}
-		if conn[name] {
+		if pushURL := conn[name]; pushURL != "" {
 			rv.Conn = true
-			rv.Steps = doctorConnectSteps(rep.Host, name)
+			rv.Steps = doctorConnectSteps(pushURL)
 		}
 		vm.Repos = append(vm.Repos, rv)
 	}

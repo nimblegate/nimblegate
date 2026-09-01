@@ -1,5 +1,8 @@
-#!/bin/sh
+#!/command/with-contenv sh
 # Dashboard HTTP server. Long-running, auto-restarted by s6-overlay on exit.
+# with-contenv so NIMBLEGATE_PUBLIC_SSH_PORT (set by compose, the published gate
+# port) reaches the Diagnostics tab's connect URLs; a plain sh run script gets
+# s6's own environment, not the container's.
 # Drops to the git user (UID 1000) - same user that owns the gateway data
 # directories - so writes via --allow-edits land with correct ownership.
 exec s6-setuidgid git \

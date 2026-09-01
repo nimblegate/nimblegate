@@ -5,6 +5,65 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-09-01
+
+### Fixed
+
+- **"Apply recommended" could turn gating off.** The scan recommendation passed
+  kit names into `[frames] enabled`, which holds frame IDs. A kit name matches
+  no frame, and a non-empty allowlist replaces the empty-means-every-frame
+  default - so a repo whose list held only kit names ran no checks at all,
+  while the dashboard and `gateway doctor` both reported those entries as
+  active frames. Kits are now expanded to their frame IDs and recorded under
+  `[ui] applied_kits`, the same way the Apply-kit button already did.
+- **Existing repos are repaired on startup.** A warning alone would leave
+  affected repos ungated, so the dashboard rewrites kit names in
+  `[frames] enabled` into frame IDs before it starts serving. Empty lists stay
+  empty, clean repos are untouched, and unrecognised entries are kept rather
+  than silently dropped.
+- **`gateway doctor` misread the frame allowlist.** An empty list means every
+  stdlib frame runs; doctor reported it as a failure. It now reports OK for an
+  empty list, WARN when some entries resolve to no frame, and FAIL only when
+  none resolve and nothing is actually being checked.
+- **Turning a frame on from the tuning page accepted any string.** `toggleFrame`
+  now rejects an id that names no stdlib frame, closing the other route into
+  the allowlist.
+- **Doctor printed a push port it could not know.** The SSH-gate line reported
+  the port the probe reached with "push to this port from your dev box" -
+  inside the container that is sshd's internal `22`, not the published `2222`
+  the operator uses - while the connect URLs hardcoded `2222`, which is wrong
+  on bare metal, where sshd is on `22`. On a real gateway the two lines
+  contradicted each other in one report. Each deploy path now declares its
+  published port through `NIMBLEGATE_PUBLIC_SSH_PORT` (`compose.yaml` from the
+  same variable it publishes, the bare-metal dashboard unit as `22`), and
+  doctor resolves that first, then the port the probe reached where that
+  observation means anything, then the install shape's own convention - 22 on
+  bare metal, 2222 for the compose publish. A container's probe is deliberately
+  ignored: it reaches sshd inside the container, never the published port.
+  `gateway doctor --push-port` overrides.
+- **The container dashboard could not see the container's environment.** Its s6
+  run script used a plain `#!/bin/sh`, which gets s6's environment rather than
+  the container's; it is now `#!/command/with-contenv sh`.
+- **The Relay check ignored the only signal a container has.** It read
+  `relay-status.json`, written solely by the reconcile backstop in
+  `gateway relay-service`, so a gateway relaying every push reported "no relay
+  status yet" forever when that service was not running - and the published
+  image runs no such service at all, relaying inline from post-receive. It now
+  reads the per-push `relay-ok` / `relay-failed` events the dashboard's
+  **Repos** page already used, and the two agree. A push that never reached the
+  upstream is a failure even when a backstop record says otherwise.
+- **Doctor printed remediation for the install it was not running on.** The
+  bind-host fix named compose variables to bare-metal operators, and the relay
+  advice named `systemctl` inside a container that has no such service. The
+  facts a gateway cannot observe about itself now live in one `InstallProfile`
+  per shape, declared by the image (`NIMBLEGATE_INSTALL=container`) and by the
+  bare-metal unit, with `/run/s6` and `/run/systemd/system` as fallback
+  detection. The report names the shape it resolved. Drift recovery is reported
+  once, as a `Relay backstop` check, and only by shapes that have one.
+- **The connect steps assumed you were reading them in the dashboard.** Step 3
+  said "the value shown is the address you reached this dashboard on" in CLI
+  output, where no dashboard was involved.
+
 ## [0.4.1] - 2026-08-28
 
 ### Fixed

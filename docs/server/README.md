@@ -285,6 +285,15 @@ ssh root@<gateway> 'systemctl daemon-reload && systemctl enable --now nimblegate
 
 Edit the paths inside the unit only if your install differs from the runbook defaults (`/usr/local/bin/nimblegate`, `/srv/gateway/cfg`, `/srv/gateway/repos`); `User=git` is correct because those dirs are git-owned (use `root` only if the service can't read them).
 
+The unit sets two environment variables that describe *this* install, because the binary serves both the container and bare metal and cannot tell which it is running on:
+
+| Variable | Value here | What it changes |
+|---|---|---|
+| `NIMBLEGATE_PUBLIC_SSH_PORT` | `22` | The port printed in the connect URLs by `gateway doctor` and the dashboard's **Diagnostics** tab. Set it only if you moved sshd off 22 - a bare-metal install defaults to 22 and prefers whatever port the gate probe actually reached. |
+| `NIMBLEGATE_INSTALL` | `bare-metal` | Which remediation doctor prints: `systemctl` and `nimblegate gateway bind` here, compose variables in the container. |
+
+Both are declarations, not requirements: with neither line, doctor detects `/run/systemd/system`, resolves the bare-metal profile, and prints port 22. Set them when this install differs from the defaults, or to be explicit about what a reader of the unit is looking at.
+
 > **Why copy a file instead of pasting commands?** Every failure setting this up came from pasting structured/long content into a terminal: a heredoc gets auto-indented (a `#!/bin/sh` no longer at column 0 → `Exec format error`), and a long single-line flag list gets a newline injected mid-line so trailing flags are silently dropped (`--policy-root` lost → the dashboard reads the default empty root and shows **0 repos**, with no error). Copying a version-controlled file removes both. Apply the same rule to anything long or sensitive (the upstream-token credential below): put it in a file or write it with `printf`/short lines, never a pasted heredoc, and verify it (`cat -A`) before relying on it.
 
 If `systemctl status` shows `bind: address already in use`, a dashboard you started by hand is still holding port 7900: only one process can bind it. Stop the manual one first, clear the failed state, and restart:
