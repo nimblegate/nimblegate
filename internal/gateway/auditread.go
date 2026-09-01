@@ -35,7 +35,12 @@ func ReadDecisions(policyRoot string, tailPerRepo int) []AuditRecord {
 //
 //	in deadletter file → deadlettered
 //	in queue file      → still queued (left as-is)
-//	in neither         → delivered (removed from the queue on success)
+//	in neither         → settled: it left the queue
+//
+// "Settled" is the honest ceiling here. A record leaves the queue both when a
+// comment was posted and when the ref had no open PR, where the comment step is
+// skipped by design and only the webhook fires - the two are indistinguishable
+// on disk. Callers must not report this as a confirmed delivery.
 func CorrelateNotificationStatus(repoDir string, recs []AuditRecord) {
 	queued := notifIDSet(filepath.Join(repoDir, "pr-comment-queue.jsonl"))
 	dead := notifIDSet(filepath.Join(repoDir, "pr-comment-deadletter.jsonl"))
