@@ -1,0 +1,3 @@
+```
+rsync —archive src dst
+```
