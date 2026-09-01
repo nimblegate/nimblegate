@@ -362,8 +362,10 @@ func TestRunDoctorRelayBackstopIsShapeSpecific(t *testing.T) {
 	if !ok || c.Status != DoctorInfo {
 		t.Fatalf("bare metal with no reconcile record: want INFO, got %+v ok=%v", c, ok)
 	}
-	if c.Fix != ProfileBareMetal.RelayBackstop {
-		t.Errorf("backstop fix should come from the profile, got %q", c.Fix)
+	// No remediation: enabling the unit without provisioning the relay user
+	// leaves a service that silently reconciles nothing.
+	if c.Fix != "" {
+		t.Errorf("backstop check should carry no command, got %q", c.Fix)
 	}
 
 	if _, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer}), "", "Relay backstop"); ok {
@@ -402,6 +404,52 @@ func TestRunDoctorAdviceMatchesProfile(t *testing.T) {
 	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileUnknown})
 	if c, ok := findCheck(rep, "", "Install"); !ok || c.Status != DoctorInfo || c.Fix == "" {
 		t.Errorf("unknown shape should prompt for a declaration, got %+v ok=%v", c, ok)
+	}
+}
+
+// An operator who moved sshd declares the port; the probe has to use it, or it
+// reports a working gate as unreachable - and on a busy host it can reach
+// something unrelated on 2222 and call that the gate.
+func TestDefaultGatePorts(t *testing.T) {
+	for _, tc := range []struct {
+		declared int
+		want     []int
+	}{
+		{0, []int{2222, 22}},
+		{2022, []int{2022, 2222, 22}},
+		{2222, []int{2222, 22}},
+		{22, []int{22, 2222}},
+	} {
+		got := defaultGatePorts(tc.declared)
+		if len(got) != len(tc.want) {
+			t.Errorf("declared %d: got %v want %v", tc.declared, got, tc.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Errorf("declared %d: got %v want %v", tc.declared, got, tc.want)
+				break
+			}
+		}
+	}
+}
+
+func TestRunDoctorProbesDeclaredPort(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	moved := ln.Addr().(*net.TCPAddr).Port
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, PushPort: moved, Profile: ProfileBareMetal})
+	c, ok := findCheck(rep, "", "SSH gate")
+	if !ok || c.Status != DoctorOK {
+		t.Fatalf("declared port should be probed: got %+v ok=%v", c, ok)
+	}
+	if !strings.Contains(c.Reason, fmt.Sprintf(":%d", moved)) {
+		t.Errorf("probe should report the declared port, got %q", c.Reason)
 	}
 }
 

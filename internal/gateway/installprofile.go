@@ -27,10 +27,12 @@ type InstallProfile struct {
 	// BindFix says how to reach a dashboard bound to loopback.
 	BindFix string
 
-	// RelayBackstop says how to start the reconcile backstop. Empty when the
-	// shape runs none, which suppresses the check rather than advising a
-	// command that does not exist there.
-	RelayBackstop string
+	// HasRelayBackstop says whether this shape ships a reconcile backstop at
+	// all. False suppresses the check rather than reporting a service that does
+	// not exist here. No remediation travels with it: starting the backstop
+	// needs the relay user provisioned first (docs/server/README.md), so a
+	// one-line command would be advice that does not work.
+	HasRelayBackstop bool
 
 	// DefaultPushPort is this shape's convention for the port a dev box pushes
 	// to, used when nothing declares one.
@@ -64,6 +66,9 @@ var ProfileContainer = InstallProfile{
 	AuthorizedKeys: "/srv/gateway/ssh/authorized_keys",
 	BindFix:        "set NIMBLEGATE_DASHBOARD_HOST=0.0.0.0 in compose (only behind a proxy that authenticates), or tunnel: ssh -L 7900:127.0.0.1:7900 user@host (127.0.0.1, not localhost - Docker publishes on IPv4)",
 
+	// The image supervises sshd and the dashboard only - no relay-service - so
+	// it relays inline from post-receive and has no backstop to report.
+	//
 	// compose publishes the gate on 2222 by default. The probe is no use here:
 	// it reaches sshd's port inside the container, not the published one.
 	DefaultPushPort: 2222,
@@ -73,10 +78,10 @@ var ProfileContainer = InstallProfile{
 // sshd reads /home/git/.ssh/authorized_keys, and nimblegate-relay.service is
 // the privilege-separated relay plus reconcile backstop.
 var ProfileBareMetal = InstallProfile{
-	Name:           "bare metal",
-	AuthorizedKeys: "/home/git/.ssh/authorized_keys",
-	BindFix:        "nimblegate gateway bind <gateway-ip> (or `all`), then systemctl restart nimblegate-dashboard; or tunnel: ssh -L 7900:127.0.0.1:7900 user@host",
-	RelayBackstop:  "systemctl enable --now nimblegate-relay",
+	Name:             "bare metal",
+	AuthorizedKeys:   "/home/git/.ssh/authorized_keys",
+	BindFix:          "nimblegate gateway bind <gateway-ip> (or `all`), then systemctl restart nimblegate-dashboard; or tunnel: ssh -L 7900:127.0.0.1:7900 user@host",
+	HasRelayBackstop: true,
 
 	// The host's own sshd, so the port the probe reaches is the port dev boxes
 	// use; 22 is the convention when the probe has not run (an offline report).
