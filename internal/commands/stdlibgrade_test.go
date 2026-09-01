@@ -72,7 +72,12 @@ func TestStdlibFramesGradeAgainstTheirCorpus(t *testing.T) {
 	if len(unbound) > 0 {
 		t.Errorf("%d frame(s) ship a corpus with no CheckFunc bound: %s", len(unbound), strings.Join(unbound, ", "))
 	}
-	// Not a failure: a frame with no corpus is untested, not broken. Logged so
-	// the gap is visible in every run rather than discovered by counting dirs.
-	t.Logf("%d frame(s) have NO corpus (untested):\n    %s", len(pending), strings.Join(pending, "\n    "))
+	// Every frame in the catalog now ships a corpus, so an addition without one
+	// is a regression rather than a known gap. Before this was enforced the
+	// list stood at 13, including four security frames that turned out to BLOCK
+	// legitimate emoji - untested and wrong at the same time.
+	if len(pending) > 0 {
+		t.Errorf("%d frame(s) ship no corpus, so nothing checks they still catch what they claim:\n    %s",
+			len(pending), strings.Join(pending, "\n    "))
+	}
 }
