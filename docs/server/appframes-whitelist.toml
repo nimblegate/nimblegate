@@ -56,20 +56,8 @@ reason = "this file contains the very patterns it whitelists - the reasons above
 
 # ---------- Self-referential rule definitions and feature docs ----------
 
-[[entry]]
-frame  = "app-correctness/todo-markers"
-path   = "appframes.toml"
-reason = "the todo-markers rule's own regex definition contains the marker words it matches"
 
-[[entry]]
-frame  = "app-correctness/todo-markers"
-path   = "docs/**"
-reason = "documentation ABOUT the todo-discipline feature necessarily spells the marker words"
 
-[[entry]]
-frame  = "app-correctness/todo-markers"
-path   = "internal/checks/datedtodo*.go"
-reason = "the dated-todo frame's implementation names the markers it detects"
 
 [[entry]]
 frame  = "app-correctness/no-em-dash"

@@ -40,9 +40,10 @@ exclude = [".git", "node_modules", "dist", "build", ".appframes", "bin", ".priva
     severity = "WARN"
     patterns = ["*"]
     regex = "\\x{2014}"
-  [linters.todo-markers]
-    kind = "regex"
-    enabled = true
-    severity = "WARN"
-    patterns = ["*"]
-    regex = "\\b(?:TODO|FIXME|XXX|HACK)\\b"
+  # todo-markers removed 2026-09-01: documentation/dated-todo covers the same
+  # intent and does it better - scoped to source + markdown, and it accepts a
+  # tagged marker (TODO(2026-06-15), TODO(@you), TODO(#42)). The regex matched
+  # every occurrence anywhere, including the pattern literals and labels in
+  # internal/checks that exist to DETECT these markers, so every push carried a
+  # wall of WARNs about the detector's own source. Must stay removed on the
+  # gateway too or the two policies disagree.
