@@ -465,6 +465,56 @@ func TestRunDoctorProbesDeclaredPort(t *testing.T) {
 	}
 }
 
+// The gate loads the repo's whitelist before any frame runs and refuses the
+// push when it cannot, reporting only a bare "rejected" to the pusher because
+// the cause names gateway internals. Removing a linter while its suppressions
+// remained did exactly that here: every push failed and the reason was only in
+// the events file. Doctor now says it in one line.
+func TestRunDoctorWhitelist(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	for _, n := range []string{"stale", "valid", "linter-entry", "absent"} {
+		doctorSeed(t, policyRoot, reposRoot, n, AddOptions{UpstreamURL: "https://github.com/x/" + n + ".git", GateAllRefs: true})
+	}
+	writeWL := func(repo, body string) {
+		t.Helper()
+		dir := filepath.Join(policyRoot, repo, ".appframes", "_canonical")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "whitelist.toml"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeWL("stale", "[[entry]]\nframe = \"app-correctness/todo-markers\"\npath = \"appframes.toml\"\nreason = \"linter since removed\"\n")
+	writeWL("valid", "[[entry]]\nframe = \"security/no-hardcoded-credentials\"\npath = \"internal/checks/*_test.go\"\nreason = \"fixtures are fake by design\"\n")
+	writeWL("linter-entry", "[[entry]]\nframe = \"app-correctness/no-em-dash\"\npath = \"docs/**\"\nreason = \"prose uses them deliberately\"\n")
+	// The linter that entry names must be enabled for the id to be known.
+	lintCfg := "[frames]\nenabled = []\n\n[linters]\n  [linters.no-em-dash]\n    kind = \"regex\"\n    enabled = true\n    severity = \"WARN\"\n    patterns = [\"*\"]\n    regex = \"x\"\n"
+	if err := os.WriteFile(filepath.Join(policyRoot, "linter-entry", "appframes.toml"), []byte(lintCfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal})
+	for repo, want := range map[string]DoctorStatus{
+		"stale":        DoctorFail,
+		"valid":        DoctorOK,
+		"linter-entry": DoctorOK,
+		"absent":       DoctorInfo,
+	} {
+		c, ok := findCheck(rep, repo, "Whitelist")
+		if !ok {
+			t.Errorf("%s: no Whitelist check", repo)
+			continue
+		}
+		if c.Status != want {
+			t.Errorf("%s: got %v want %v (%s)", repo, c.Status, want, c.Reason)
+		}
+	}
+	if c, _ := findCheck(rep, "stale", "Whitelist"); c.Fix == "" || !strings.Contains(c.Reason, "todo-markers") {
+		t.Errorf("a stale entry must name itself and carry a fix, got %+v", c)
+	}
+}
+
 func TestRunDoctorPushURLPort(t *testing.T) {
 	policyRoot, reposRoot := doctorRoots(t)
 	doctorSeed(t, policyRoot, reposRoot, "alpha", AddOptions{UpstreamURL: "https://github.com/x/alpha.git", GateAllRefs: true})

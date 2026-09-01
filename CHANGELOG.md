@@ -9,6 +9,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **`gateway doctor` now checks that each repo's whitelist loads.** The gate
+  reads it before any frame runs and refuses the push when it cannot parse or
+  validate it, reporting only a bare `refs/heads/main: rejected` because the
+  cause names gateway internals. An entry naming a frame or linter that has
+  since been removed therefore failed every push with no visible reason, and
+  the detail was only in the operator-side events file. Doctor reports it as a
+  per-repo FAIL naming the offending entry.
+
 - **`encoding/no-en-dash-in-commands` now reads commands in markdown.** It was
   scoped to shell files and workflow YAML, so `curl -X` written with an en dash
   inside a README fence sailed through - the highest-impact instance of the

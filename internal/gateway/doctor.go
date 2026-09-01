@@ -15,7 +15,10 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"nimblegate/internal/gateway/upstream"
+	"nimblegate/internal/linters"
+	"nimblegate/internal/stdlib"
 	"nimblegate/internal/version"
+	"nimblegate/internal/whitelist"
 )
 
 // DoctorStatus is a check outcome, ordered by ascending severity.
@@ -339,6 +342,25 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 	return rep
 }
 
+// doctorKnownFrameIDs is the set a whitelist entry may name: every stdlib frame
+// plus the repo's enabled linters. Deliberately the full catalog rather than the
+// enabled set - suppressing a frame that a kit will enable later is legitimate,
+// which is the same rule the gate itself applies.
+func doctorKnownFrameIDs(policyRoot, repo string) map[string]bool {
+	known := map[string]bool{}
+	if all, err := stdlib.Load(); err == nil {
+		for _, f := range all {
+			known[f.ID()] = true
+		}
+	}
+	if lp, err := LoadLinterPolicy(policyRoot, repo); err == nil {
+		for _, id := range linters.EnabledIDs(lp.Linters) {
+			known[id] = true
+		}
+	}
+	return known
+}
+
 func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig, name, host string, pushPort int, lastRelayOK map[string]bool) {
 	if barePath, err := resolveRepoBare(cfg.ReposRoot, name); err != nil {
 		add(DoctorCheck{
@@ -436,6 +458,31 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		default:
 			add(DoctorCheck{Repo: name, Name: "Frames", Status: DoctorOK,
 				Reason: fmt.Sprintf("%d frame(s) active - an explicit allowlist, so only these run", len(fp.Enabled))})
+		}
+	}
+
+	// The gate loads this whitelist from the policy dir, overlaid into the scan
+	// worktree, and refuses the push when it cannot parse or validate it. An
+	// entry naming a frame or linter that has since been removed fails EVERY
+	// push with a bare "rejected" - the cause is withheld from the pusher by
+	// design, so without this line an operator has to find the events file.
+	{
+		known := doctorKnownFrameIDs(cfg.PolicyRoot, name)
+		wlPath := filepath.Join(cfg.PolicyRoot, name, ".appframes", "_canonical", "whitelist.toml")
+		wl, err := whitelist.Load(wlPath, known, time.Now().UTC())
+		switch {
+		case err != nil:
+			add(DoctorCheck{
+				Repo:   name,
+				Name:   "Whitelist",
+				Status: DoctorFail,
+				Reason: "will not load, so every push to this repo is rejected before any frame runs: " + err.Error(),
+				Fix:    "remove or correct the entry in " + wlPath + "; an id that names no frame usually means the frame or linter it suppressed was removed",
+			})
+		case wl == nil:
+			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorInfo, Reason: "no whitelist; nothing is suppressed"})
+		default:
+			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorOK, Reason: "loads and every entry names a real frame"})
 		}
 	}
 

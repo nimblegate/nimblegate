@@ -42,3 +42,5 @@ A record is moved to `pr-comment-deadletter.jsonl` after `delivery.max-attempts`
 - Disk-free is measured at the policy root, not `/`. A separate volume for `/srv/gateway` is a sensible deploy choice.
 
 For depth: [docs/notifications.md: Operations](https://github.com/nimblegate/nimblegate/blob/main/docs/notifications.md#operations).
+
+- **Whitelist**: whether the repo's `.appframes/_canonical/whitelist.toml` loads. The gate reads it before any frame runs and refuses the push if it cannot, reporting only a bare `rejected` to the pusher - so a stale entry naming a removed frame or linter fails every push with no visible cause. FAIL here names the entry.
