@@ -315,12 +315,16 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 			}
 		}
 		if ran {
-			add(DoctorCheck{Name: "Relay backstop", Status: DoctorOK, Reason: "reconcile records present"})
+			add(DoctorCheck{
+				Name:   "Relay retry",
+				Status: DoctorOK,
+				Reason: "on: a push the upstream never received gets re-sent automatically",
+			})
 		} else {
 			add(DoctorCheck{
-				Name:   "Relay backstop",
+				Name:   "Relay retry",
 				Status: DoctorInfo,
-				Reason: "no reconcile record: no repo has one, so a ref the upstream missed is not re-pushed automatically. Pushes still relay; this is drift recovery only",
+				Reason: "off. Your pushes relay to the upstream as normal - what is missing is the automatic retry, so a push the upstream never received would stay undelivered until someone notices",
 			})
 		}
 	}
