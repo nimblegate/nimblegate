@@ -302,7 +302,10 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 
 	// Drift recovery is one service for the whole install, so report it once
 	// rather than per repo. A shape that runs no backstop has nothing to start
-	// and gets no check instead of advice it cannot follow.
+	// and gets no check instead of advice it cannot follow. The check reports
+	// the absence of records, never "the service is not running": a running
+	// backstop that cannot read its policy files writes nothing and looks
+	// identical from here.
 	if prof.HasRelayBackstop && len(allRepos) > 0 {
 		ran := false
 		for _, name := range allRepos {
@@ -317,7 +320,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 			add(DoctorCheck{
 				Name:   "Relay backstop",
 				Status: DoctorInfo,
-				Reason: "not running: no repo has a reconcile record, so a ref the upstream missed is not re-pushed automatically. Pushes still relay; this is drift recovery only",
+				Reason: "no reconcile record: no repo has one, so a ref the upstream missed is not re-pushed automatically. Pushes still relay; this is drift recovery only",
 			})
 		}
 	}

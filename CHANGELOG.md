@@ -62,7 +62,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   per shape, declared by the image (`NIMBLEGATE_INSTALL=container`) and by the
   bare-metal unit, with `/run/s6` and `/run/systemd/system` as fallback
   detection. The report names the shape it resolved. Drift recovery is reported
-  once, as a `Relay backstop` check, only by shapes that have one, and with no
+  once, as a `Relay backstop` check, only by shapes that have one, reported as
+  a missing reconcile record rather than a stopped service (a running backstop
+  that cannot read its policy files has no record either), and with no
   command attached - starting that service needs the relay user provisioned
   first, so a one-liner would be advice that silently does nothing.
 - **The reconcile backstop skipped repos in silence.** `ReconcileAll` passed
