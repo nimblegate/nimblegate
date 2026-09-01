@@ -65,6 +65,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   once, as a `Relay backstop` check, only by shapes that have one, and with no
   command attached - starting that service needs the relay user provisioned
   first, so a one-liner would be advice that silently does nothing.
+- **The reconcile backstop skipped repos in silence.** `ReconcileAll` passed
+  over any repo it could not resolve with a bare `continue`, and discarded the
+  error from writing the status record. A relay user that cannot read a
+  git-owned `0600` policy file therefore skipped every repo, wrote nothing, and
+  logged nothing - a service that reconciles no repo at all was
+  indistinguishable from one with nothing to do. Skips and failed status writes
+  now travel back in `ReconcileResult` and are logged once per repo, with the
+  status-write message naming the consequence: the dashboard and doctor will
+  report the backstop as never run.
 - **The connect steps assumed you were reading them in the dashboard.** Step 3
   said "the value shown is the address you reached this dashboard on" in CLI
   output, where no dashboard was involved.
