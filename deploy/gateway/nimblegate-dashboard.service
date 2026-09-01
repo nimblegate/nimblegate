@@ -34,6 +34,13 @@ After=network.target
 # the restart command. See `docs/server/SECURITY-MODEL.md` for the
 # trade-offs of each binding.
 User=git
+# The port dev boxes push to. Doctor cannot infer it - it can only see what
+# sshd binds locally - so each deploy path states it. Bare metal: sshd's own
+# port, 22 unless you moved it. Compose publishes 2222 and sets this to match.
+Environment=NIMBLEGATE_PUBLIC_SSH_PORT=22
+# The install shape, so doctor's remediation names systemctl and `gateway bind`
+# rather than compose variables. Detected from /run/systemd/system when absent.
+Environment=NIMBLEGATE_INSTALL=bare-metal
 ExecStart=/usr/local/bin/nimblegate gateway dashboard --serve --allow-edits --addr 127.0.0.1 --policy-root /srv/gateway/cfg --repos-root /srv/gateway/repos --ssh-authorized-keys /home/git/.ssh/authorized_keys
 Restart=on-failure
 

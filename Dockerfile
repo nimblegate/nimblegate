@@ -100,6 +100,12 @@ VOLUME ["/srv/gateway/repos", "/srv/gateway/cfg", "/srv/gateway/ssh"]
 #   docker logs <container> | grep nbg-supervise
 ENV S6_VERBOSITY=2
 
+# The install shape is intrinsic to the image, so the image declares it: doctor
+# then prints compose remediation rather than systemctl commands that do not
+# exist here. The published SSH port is NOT set here - it is a per-deployment
+# choice compose makes (NIMBLEGATE_PUBLIC_SSH_PORT in compose.yaml).
+ENV NIMBLEGATE_INSTALL=container
+
 # s6-overlay's /init handles tini-style PID 1 duties: signal forwarding,
 # zombie reaping, supervised service startup, and graceful shutdown.
 ENTRYPOINT ["/init"]

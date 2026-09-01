@@ -68,13 +68,14 @@ type DoctorKey struct {
 // DoctorRepoConn is the gateway push URL a dev box points its origin at.
 type DoctorRepoConn struct {
 	Name    string
-	PushURL string // ssh://git@<host>:2222/~/<name>.git
+	PushURL string // ssh://git@<host>:<push port>/~/<name>.git
 }
 
 // DoctorReport is the full read-only preflight result.
 type DoctorReport struct {
 	Checks  []DoctorCheck
 	Host    string
+	Install string // the install shape whose remediation the checks quote
 	Keys    []DoctorKey
 	Repos   []DoctorRepoConn
 	HasFail bool
@@ -89,6 +90,17 @@ type DoctorConfig struct {
 	Version            string
 	RepoFilter         string
 	Offline            bool
+
+	// Profile supplies the facts doctor cannot observe about this install (see
+	// InstallProfile). The zero value resolves from the deploy path's own
+	// declaration; tests set it directly.
+	Profile InstallProfile
+
+	// PushPort is the port a dev box pushes to, as declared by the deploy path
+	// through NIMBLEGATE_PUBLIC_SSH_PORT. The gateway cannot always observe it:
+	// inside the container the probe reaches sshd's internal 22 while operators
+	// push to the published port. 0 leaves it to the install profile.
+	PushPort int
 
 	// GatePorts are the loopback ports the SSH-gate reachability check dials.
 	// Empty means probe the defaults (2222 for the container publish, 22 for a
@@ -119,6 +131,22 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 			rep.HasFail = true
 		}
 		rep.Checks = append(rep.Checks, c)
+	}
+
+	prof := cfg.Profile
+	if prof.Name == "" {
+		prof = ResolveInstallProfile()
+	}
+	rep.Install = prof.Name
+	if prof.Name == ProfileUnknown.Name {
+		add(DoctorCheck{
+			Name:   "Install",
+			Status: DoctorInfo,
+			Reason: "install shape not declared; the advice below names every shape rather than yours",
+			Fix:    "set NIMBLEGATE_INSTALL=container or bare-metal so doctor prints only the commands that work here",
+		})
+	} else {
+		add(DoctorCheck{Name: "Install", Status: DoctorOK, Reason: prof.Name + " (remediation below is written for this shape)"})
 	}
 
 	// A [gateway] knob in the wrong file parses cleanly and does nothing, so the
@@ -152,7 +180,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 			Name:   "Dashboard bind host",
 			Status: DoctorWarn,
 			Reason: "dashboard reached on a loopback address (" + cfg.Host + ")",
-			Fix:    "remote box? tunnel: ssh -L 7900:127.0.0.1:7900 user@host (use 127.0.0.1 not localhost - Docker publishes on IPv4), or set NIMBLEGATE_DASHBOARD_HOST=0.0.0.0 behind a proxy",
+			Fix:    prof.BindFix,
 		})
 	case cfg.Host == "":
 		add(DoctorCheck{
@@ -168,6 +196,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 		})
 	}
 
+	probedPort := 0
 	if !cfg.Offline {
 		ports := cfg.GatePorts
 		if len(ports) == 0 {
@@ -182,8 +211,9 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 				break
 			}
 		}
+		probedPort = reached
 		if reached != 0 {
-			add(DoctorCheck{Name: "SSH gate", Status: DoctorOK, Reason: fmt.Sprintf("reachable on 127.0.0.1:%d (push to this port from your dev box)", reached)})
+			add(DoctorCheck{Name: "SSH gate", Status: DoctorOK, Reason: fmt.Sprintf("reachable on 127.0.0.1:%d", reached)})
 		} else {
 			add(DoctorCheck{
 				Name:   "SSH gate",
@@ -229,6 +259,21 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 		}
 	}
 
+	// Latest live relay outcome per repo. post-receive records one per push in
+	// both install shapes, so this is the only relay signal a container ever
+	// has - it runs no reconcile backstop. Read once; ReadEvents is
+	// chronological, so the last write per repo wins.
+	lastRelayOK := map[string]bool{}
+	if evs, err := ReadEvents(cfg.PolicyRoot, func(e Event) bool {
+		return e.Event == "relay-ok" || e.Event == "relay-failed"
+	}); err == nil {
+		for _, e := range evs {
+			lastRelayOK[e.Repo] = e.Event == "relay-ok"
+		}
+	}
+
+	pushPort := prof.PushPort(cfg.PushPort, probedPort)
+
 	allRepos := doctorListRepos(cfg.PolicyRoot)
 	if len(allRepos) == 0 {
 		add(DoctorCheck{Name: "Repos", Status: DoctorWarn, Reason: "no repos registered yet"})
@@ -236,17 +281,40 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 		add(DoctorCheck{Name: "Repos", Status: DoctorOK, Reason: fmt.Sprintf("%d repo(s) registered", len(allRepos))})
 	}
 
+	// Drift recovery is one service for the whole install, so report it once
+	// rather than per repo. A shape that runs no backstop has nothing to start
+	// and gets no check instead of advice it cannot follow.
+	if prof.RelayBackstop != "" && len(allRepos) > 0 {
+		ran := false
+		for _, name := range allRepos {
+			if _, ok := ReadRelayStatus(cfg.PolicyRoot, name); ok {
+				ran = true
+				break
+			}
+		}
+		if ran {
+			add(DoctorCheck{Name: "Relay backstop", Status: DoctorOK, Reason: "reconcile records present"})
+		} else {
+			add(DoctorCheck{
+				Name:   "Relay backstop",
+				Status: DoctorInfo,
+				Reason: "never run: no repo has a reconcile record, so a ref the upstream missed is not re-pushed automatically",
+				Fix:    prof.RelayBackstop,
+			})
+		}
+	}
+
 	for _, name := range allRepos {
 		if cfg.RepoFilter != "" && name != cfg.RepoFilter {
 			continue
 		}
-		doctorCheckRepo(&rep, add, cfg, name, host)
+		doctorCheckRepo(&rep, add, cfg, name, host, pushPort, lastRelayOK)
 	}
 
 	return rep
 }
 
-func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig, name, host string) {
+func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig, name, host string, pushPort int, lastRelayOK map[string]bool) {
 	if barePath, err := resolveRepoBare(cfg.ReposRoot, name); err != nil {
 		add(DoctorCheck{
 			Repo:   name,
@@ -258,7 +326,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		add(DoctorCheck{Repo: name, Name: "Bare repo", Status: DoctorOK, Reason: barePath})
 		rep.Repos = append(rep.Repos, DoctorRepoConn{
 			Name:    name,
-			PushURL: "ssh://git@" + host + ":2222/~/" + name + ".git",
+			PushURL: fmt.Sprintf("ssh://git@%s:%d/~/%s.git", host, pushPort, name),
 		})
 	}
 
@@ -352,17 +420,32 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		add(DoctorCheck{Repo: name, Name: "Notifications", Status: DoctorOK, Reason: "notifications on"})
 	}
 
-	// Relay health from the persisted backstop status - read-only, no network,
-	// so it works even when Offline.
-	switch rs, known := ReadRelayStatus(cfg.PolicyRoot, name); {
-	case !known:
-		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorInfo, Reason: "no relay status yet (backstop has not run)"})
-	case rs.OK && rs.DriftedRefs == 0:
-		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorOK, Reason: "relay healthy"})
-	case rs.OK:
-		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorWarn, Reason: fmt.Sprintf("last reconcile re-pushed %d ref(s) the upstream was missing", rs.DriftedRefs)})
-	default:
+	// Relay health from two read-only sources, no network: every push records
+	// its own outcome (the signal /repos reads, and the only one a container
+	// has), and the reconcile backstop records drift where it runs. A failure
+	// from either wins - the point of the check is a gate that accepts pushes
+	// the upstream never receives.
+	rs, haveStatus := ReadRelayStatus(cfg.PolicyRoot, name)
+	pushOK, havePush := lastRelayOK[name]
+	switch {
+	case haveStatus && !rs.OK:
 		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorFail, Reason: "relay failing: " + rs.Error, Fix: "check the upstream token/host; see gateway logs"})
+	case havePush && !pushOK:
+		add(DoctorCheck{
+			Repo:   name,
+			Name:   "Relay",
+			Status: DoctorFail,
+			Reason: "the last accepted push did not reach the upstream; the gate accepted it and the upstream never got it",
+			Fix:    "check the upstream credential and that the upstream host is reachable from the gateway; see gateway logs",
+		})
+	case haveStatus && rs.DriftedRefs > 0:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorWarn, Reason: fmt.Sprintf("last reconcile re-pushed %d ref(s) the upstream was missing", rs.DriftedRefs)})
+	case havePush:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorOK, Reason: "last push relayed to the upstream"})
+	case haveStatus:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorOK, Reason: "relay healthy"})
+	default:
+		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorInfo, Reason: "nothing relayed yet; push once to see relay health here"})
 	}
 
 	if !cfg.Offline && strings.HasPrefix(pol.UpstreamURL, "https://") {

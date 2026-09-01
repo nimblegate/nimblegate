@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -290,8 +291,15 @@ func TestRunDoctorGatePort(t *testing.T) {
 	openPort := ln.Addr().(*net.TCPAddr).Port
 
 	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, GatePorts: []int{openPort}})
-	if c, ok := findCheck(rep, "", "SSH gate"); !ok || c.Status != DoctorOK {
+	c, ok := findCheck(rep, "", "SSH gate")
+	if !ok || c.Status != DoctorOK {
 		t.Fatalf("open gate port: want OK, got %+v ok=%v", c, ok)
+	}
+	// The probe sees the port sshd listens on inside the container, which is not
+	// the published port the operator pushes to. Only the Connect block prints a
+	// push URL, so this line must not advise a port.
+	if strings.Contains(c.Reason, "push to this port") {
+		t.Fatalf("gate port reason advises pushing to the probed port: %q", c.Reason)
 	}
 
 	ln2, err := net.Listen("tcp", "127.0.0.1:0")
@@ -301,8 +309,146 @@ func TestRunDoctorGatePort(t *testing.T) {
 	closedPort := ln2.Addr().(*net.TCPAddr).Port
 	_ = ln2.Close()
 	rep2 := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, GatePorts: []int{closedPort}})
-	if c, ok := findCheck(rep2, "", "SSH gate"); !ok || c.Status != DoctorWarn {
+	if c, ok = findCheck(rep2, "", "SSH gate"); !ok || c.Status != DoctorWarn {
 		t.Fatalf("closed gate port: want WARN, got %+v ok=%v", c, ok)
+	}
+}
+
+// The live push path records relay-ok/relay-failed on every push in both
+// install shapes; the container has no other relay signal because it runs no
+// reconcile backstop. Doctor must read it, or it reports "nothing relayed yet"
+// on a gateway that has been relaying all along.
+func TestRunDoctorRelayFromPushEvents(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	for _, n := range []string{"pushed", "lost", "stale-ok"} {
+		doctorSeed(t, policyRoot, reposRoot, n, AddOptions{UpstreamURL: "https://github.com/x/" + n + ".git", GateAllRefs: true})
+	}
+	for _, e := range []Event{
+		{Event: "relay-ok", Repo: "pushed", OK: true},
+		{Event: "relay-ok", Repo: "lost", OK: true},
+		{Event: "relay-failed", Repo: "lost", OK: false},
+		{Event: "relay-failed", Repo: "stale-ok", OK: false},
+	} {
+		if err := AppendEvent(policyRoot, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A backstop record saying "fine" must not mask a live push that never
+	// landed: the gate accepted something the upstream never received.
+	if err := WriteRelayStatus(policyRoot, "stale-ok", RelayStatus{OK: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer})
+	if c, ok := findCheck(rep, "pushed", "Relay"); !ok || c.Status != DoctorOK {
+		t.Errorf("relayed push: want OK, got %+v ok=%v", c, ok)
+	}
+	if c, ok := findCheck(rep, "lost", "Relay"); !ok || c.Status != DoctorFail {
+		t.Errorf("last push failed to relay: want FAIL, got %+v ok=%v", c, ok)
+	}
+	if c, ok := findCheck(rep, "stale-ok", "Relay"); !ok || c.Status != DoctorFail {
+		t.Errorf("failed push under an OK backstop record: want FAIL, got %+v ok=%v", c, ok)
+	}
+}
+
+// The backstop is one service for the whole install, so it is reported once -
+// and only by shapes that have one to start.
+func TestRunDoctorRelayBackstopIsShapeSpecific(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "alpha", AddOptions{UpstreamURL: "https://github.com/x/alpha.git", GateAllRefs: true})
+
+	bare := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal})
+	c, ok := findCheck(bare, "", "Relay backstop")
+	if !ok || c.Status != DoctorInfo {
+		t.Fatalf("bare metal with no reconcile record: want INFO, got %+v ok=%v", c, ok)
+	}
+	if c.Fix != ProfileBareMetal.RelayBackstop {
+		t.Errorf("backstop fix should come from the profile, got %q", c.Fix)
+	}
+
+	if _, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer}), "", "Relay backstop"); ok {
+		t.Error("container runs no backstop; it must not be told to start one")
+	}
+
+	if err := WriteRelayStatus(policyRoot, "alpha", RelayStatus{OK: true}); err != nil {
+		t.Fatal(err)
+	}
+	if c, ok := findCheck(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal}), "", "Relay backstop"); !ok || c.Status != DoctorOK {
+		t.Errorf("reconcile record present: want OK, got %+v ok=%v", c, ok)
+	}
+}
+
+// Remediation must match the install doctor is running on, never the other one.
+func TestRunDoctorAdviceMatchesProfile(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	for _, tc := range []struct {
+		prof    InstallProfile
+		wantFix string
+	}{
+		{ProfileBareMetal, ProfileBareMetal.BindFix},
+		{ProfileContainer, ProfileContainer.BindFix},
+	} {
+		rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "127.0.0.1", Offline: true, Profile: tc.prof})
+		c, ok := findCheck(rep, "", "Dashboard bind host")
+		if !ok || c.Fix != tc.wantFix {
+			t.Errorf("%s: bind fix should be the profile's, got %+v ok=%v", tc.prof.Name, c, ok)
+		}
+		if c, ok := findCheck(rep, "", "Install"); !ok || !strings.Contains(c.Reason, tc.prof.Name) {
+			t.Errorf("%s: report should name the install shape, got %+v ok=%v", tc.prof.Name, c, ok)
+		}
+	}
+
+	// Undeclared and undetected: say so rather than picking a shape.
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileUnknown})
+	if c, ok := findCheck(rep, "", "Install"); !ok || c.Status != DoctorInfo || c.Fix == "" {
+		t.Errorf("unknown shape should prompt for a declaration, got %+v ok=%v", c, ok)
+	}
+}
+
+func TestRunDoctorPushURLPort(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "alpha", AddOptions{UpstreamURL: "https://github.com/x/alpha.git", GateAllRefs: true})
+
+	pushURL := func(rep DoctorReport) string {
+		t.Helper()
+		for _, r := range rep.Repos {
+			if r.Name == "alpha" {
+				return r.PushURL
+			}
+		}
+		t.Fatal("no connect entry for alpha")
+		return ""
+	}
+
+	// A declared port wins: the container publishes 2222 while its probe can
+	// only ever reach sshd's internal port.
+	got := pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", PushPort: 2222, Offline: true, Profile: ProfileBareMetal}))
+	if want := "ssh://git@gw:2222/~/alpha.git"; got != want {
+		t.Fatalf("declared port: got %q want %q", got, want)
+	}
+
+	// Nothing declared, bare metal: the probe reached the host's own sshd, which
+	// is the port dev boxes use.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	open := ln.Addr().(*net.TCPAddr).Port
+	got = pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", GatePorts: []int{open}, Profile: ProfileBareMetal}))
+	if want := fmt.Sprintf("ssh://git@gw:%d/~/alpha.git", open); got != want {
+		t.Fatalf("probed port: got %q want %q", got, want)
+	}
+
+	// Offline (the dashboard's default view) has no probe, so the shape decides.
+	// Getting this wrong is what sent a bare-metal operator's dev box at 2222.
+	got = pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileBareMetal}))
+	if want := "ssh://git@gw:22/~/alpha.git"; got != want {
+		t.Fatalf("bare-metal fallback: got %q want %q", got, want)
+	}
+	got = pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileContainer}))
+	if want := "ssh://git@gw:2222/~/alpha.git"; got != want {
+		t.Fatalf("container fallback: got %q want %q", got, want)
 	}
 }
 

@@ -28,12 +28,17 @@
 
 services:
   nimblegate:
-    image: ghcr.io/nimblegate/nimblegate:0.4.1
+    image: ghcr.io/nimblegate/nimblegate:0.4.2
     container_name: nimblegate
     restart: unless-stopped
     ports:
       - "${NIMBLEGATE_DASHBOARD_HOST:-127.0.0.1}:${NIMBLEGATE_DASHBOARD_PORT:-7900}:7900"
       - "${NIMBLEGATE_SSH_PORT:-2222}:22"
+    environment:
+      # The published gate port, for the connect URLs `gateway doctor` and the
+      # dashboard's Diagnostics tab print. Inside the container sshd listens on
+      # 22, so the published port has to be told, not probed.
+      NIMBLEGATE_PUBLIC_SSH_PORT: "${NIMBLEGATE_SSH_PORT:-2222}"
     volumes:
       - nimblegate-repos:/srv/gateway/repos
       - nimblegate-cfg:/srv/gateway/cfg
