@@ -43,6 +43,7 @@ hashes, and compiled assets.
 | Pattern | Example prefix |
 |---|---|
 | AWS access key ID | `AKIA…` |
+| AWS secret access key | `AWS_SECRET_ACCESS_KEY=…` (matched only in an assignment naming it) |
 | GitHub personal access token (classic) | `ghp_…` |
 | GitHub fine-grained PAT | `github_pat_…` |
 | GitHub OAuth token | `gho_…` |
@@ -52,6 +53,11 @@ hashes, and compiled assets.
 | Stripe secret key (live) | `sk_live_…` |
 | Stripe secret key (test) | `sk_test_…` |
 | Stripe restricted key | `rk_live_…` / `rk_test_…` |
+| Anthropic API key | `sk-ant-…` |
+| OpenAI API key | `sk-…`, `sk-proj-…`, `sk-svcacct-…`, `sk-admin-…` |
+| Hugging Face token | `hf_…` |
+| Groq API key | `gsk_…` |
+| xAI API key | `xai-…` |
 | Slack token | `xoxb-…` / `xoxp-…` / `xoxa-…` / `xoxr-…` / `xoxs-…` |
 | Google API key | `AIza…` |
 
@@ -142,9 +148,18 @@ Documented so a future "why didn't it catch X?" has an answer:
   intentionally public; not a leak.
 - **Private SSH keys / TLS certs** - handled by a separate frame
   (`security/no-private-keys-in-repo`, Tier 1 candidate).
-- **AWS secret access keys** (40-char strings) - too ambiguous without
-  context. The access-key-ID match is usually paired with the secret
-  in the same file and is the higher-leverage detection.
+- **A token split across string concatenation** (`"ghp_" + rest`) or stored
+  base64-encoded. Both are out of reach of any pattern matcher; the frame
+  matches what is literally present in the file.
+- **AI provider keys without a distinctive prefix** - Mistral and Cohere
+  issue bare fixed-length alphanumerics, unmatchable for the same reason
+  a bare AWS secret is. Add a project-specific linter if you use them.
+- **AWS secret access keys assigned to an unrelated name.** The value is
+  40 chars of `[A-Za-z0-9/+=]`, the same shape as every git SHA and
+  base64 blob, so it is matched only where the assignment names it
+  (`AWS_SECRET_ACCESS_KEY=…`, `aws_secret_access_key: …`). A bare
+  40-char token is left alone; catching it would fire on every
+  lockfile.
 - **Database connection strings with embedded passwords** - pattern is
   too varied (`postgres://`, `mysql://`, `mongodb+srv://…`). Future
   expansion candidate.

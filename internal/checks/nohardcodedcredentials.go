@@ -19,8 +19,12 @@ import (
 // INFO patterns are publishable-by-design tokens we surface for
 // inventory but don't gate on.
 //
-// All regexes are anchored on word boundaries so a partial prefix
-// embedded in another token doesn't match.
+// The regexes carry no word-boundary anchors. \b needs a word/non-word
+// transition, so a token glued to a letter, digit or underscore was invisible:
+// test_ghp_…, ghp_…_dev and ghp_…X all slipped through while the same token in
+// quotes was caught. One padding character is not a defence anyone should have
+// to think about, and these prefixes are distinctive enough that a match inside
+// a longer string is a find, not a false positive.
 type credentialPattern struct {
 	Name     string
 	Pattern  *regexp.Regexp
@@ -32,34 +36,60 @@ type credentialPattern struct {
 // we surface for inventory (so a swapped pk_live_/pk_test_ shows up).
 var credentialPatterns = []credentialPattern{
 	// AWS access key ID - 20 chars total: AKIA + 16 uppercase alphanumerics.
-	{Name: "AWS access key", Pattern: regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`), Severity: engine.OutcomeBlock},
+	{Name: "AWS access key", Pattern: regexp.MustCompile(`AKIA[0-9A-Z]{16}`), Severity: engine.OutcomeBlock},
+
+	// AWS secret access key - 40 chars of [A-Za-z0-9/+=], which is also the
+	// shape of every git SHA, base64 blob and lockfile hash, so the value
+	// alone is unmatchable without drowning in false positives. Anchor on the
+	// assignment instead and capture the value, so a config that commits the
+	// secret is caught while a bare 40-char token is left alone. A secret
+	// assigned to an unrelated name is deliberately out of reach. No trailing
+	// \b: the charset includes `=`, and a boundary after a non-word character
+	// never matches at end of line, which would miss a padded value.
+	{Name: "AWS secret access key", Pattern: regexp.MustCompile(`(?i)aws_?secret_?access_?key\s*["']?\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})`), Severity: engine.OutcomeBlock},
 
 	// GitHub tokens. https://github.blog/2021-04-05-behind-githubs-new-authentication-token-formats/
-	{Name: "GitHub personal access token (classic)", Pattern: regexp.MustCompile(`\bghp_[A-Za-z0-9]{36}\b`), Severity: engine.OutcomeBlock},
-	{Name: "GitHub OAuth token", Pattern: regexp.MustCompile(`\bgho_[A-Za-z0-9]{36}\b`), Severity: engine.OutcomeBlock},
-	{Name: "GitHub user-to-server token", Pattern: regexp.MustCompile(`\bghu_[A-Za-z0-9]{36}\b`), Severity: engine.OutcomeBlock},
-	{Name: "GitHub server-to-server token", Pattern: regexp.MustCompile(`\bghs_[A-Za-z0-9]{36}\b`), Severity: engine.OutcomeBlock},
-	{Name: "GitHub refresh token", Pattern: regexp.MustCompile(`\bghr_[A-Za-z0-9]{76}\b`), Severity: engine.OutcomeBlock},
-	{Name: "GitHub fine-grained PAT", Pattern: regexp.MustCompile(`\bgithub_pat_[A-Za-z0-9_]{82}\b`), Severity: engine.OutcomeBlock},
+	{Name: "GitHub personal access token (classic)", Pattern: regexp.MustCompile(`ghp_[A-Za-z0-9]{36}`), Severity: engine.OutcomeBlock},
+	{Name: "GitHub OAuth token", Pattern: regexp.MustCompile(`gho_[A-Za-z0-9]{36}`), Severity: engine.OutcomeBlock},
+	{Name: "GitHub user-to-server token", Pattern: regexp.MustCompile(`ghu_[A-Za-z0-9]{36}`), Severity: engine.OutcomeBlock},
+	{Name: "GitHub server-to-server token", Pattern: regexp.MustCompile(`ghs_[A-Za-z0-9]{36}`), Severity: engine.OutcomeBlock},
+	{Name: "GitHub refresh token", Pattern: regexp.MustCompile(`ghr_[A-Za-z0-9]{76}`), Severity: engine.OutcomeBlock},
+	{Name: "GitHub fine-grained PAT", Pattern: regexp.MustCompile(`github_pat_[A-Za-z0-9_]{82}`), Severity: engine.OutcomeBlock},
 
 	// Stripe secret + restricted keys - real credentials, BLOCK.
-	{Name: "Stripe secret key (live)", Pattern: regexp.MustCompile(`\bsk_live_[A-Za-z0-9]{24,}\b`), Severity: engine.OutcomeBlock},
-	{Name: "Stripe secret key (test)", Pattern: regexp.MustCompile(`\bsk_test_[A-Za-z0-9]{24,}\b`), Severity: engine.OutcomeBlock},
-	{Name: "Stripe restricted key (live)", Pattern: regexp.MustCompile(`\brk_live_[A-Za-z0-9]{24,}\b`), Severity: engine.OutcomeBlock},
-	{Name: "Stripe restricted key (test)", Pattern: regexp.MustCompile(`\brk_test_[A-Za-z0-9]{24,}\b`), Severity: engine.OutcomeBlock},
+	{Name: "Stripe secret key (live)", Pattern: regexp.MustCompile(`sk_live_[A-Za-z0-9]{24,}`), Severity: engine.OutcomeBlock},
+	{Name: "Stripe secret key (test)", Pattern: regexp.MustCompile(`sk_test_[A-Za-z0-9]{24,}`), Severity: engine.OutcomeBlock},
+	{Name: "Stripe restricted key (live)", Pattern: regexp.MustCompile(`rk_live_[A-Za-z0-9]{24,}`), Severity: engine.OutcomeBlock},
+	{Name: "Stripe restricted key (test)", Pattern: regexp.MustCompile(`rk_test_[A-Za-z0-9]{24,}`), Severity: engine.OutcomeBlock},
 
 	// Stripe publishable keys - INTENTIONALLY PUBLIC. Catalogued at INFO
 	// severity so users can audit where they appear (a swapped
 	// pk_live_/pk_test_ in test fixtures or dev configs is the realistic
 	// concern). Does NOT fail the commit gate.
-	{Name: "Stripe publishable key (live)", Pattern: regexp.MustCompile(`\bpk_live_[A-Za-z0-9]{24,}\b`), Severity: engine.OutcomeInfo},
-	{Name: "Stripe publishable key (test)", Pattern: regexp.MustCompile(`\bpk_test_[A-Za-z0-9]{24,}\b`), Severity: engine.OutcomeInfo},
+	{Name: "Stripe publishable key (live)", Pattern: regexp.MustCompile(`pk_live_[A-Za-z0-9]{24,}`), Severity: engine.OutcomeInfo},
+	{Name: "Stripe publishable key (test)", Pattern: regexp.MustCompile(`pk_test_[A-Za-z0-9]{24,}`), Severity: engine.OutcomeInfo},
+
+	// AI provider keys. An agent leaking the key to its own model provider is
+	// the failure this tool exists around, so these are stdlib rather than an
+	// opt-in starter linter. Every entry needs a distinctive prefix: providers
+	// whose keys are bare alphanumerics of a fixed length (Mistral, Cohere)
+	// are unmatchable for the same reason a bare AWS secret is, and are left
+	// to a user-defined linter with project context.
+	//
+	// No trailing \b where the body charset contains `-`: a boundary after a
+	// non-word character never matches, which would miss a key ending in one.
+	{Name: "Anthropic API key", Pattern: regexp.MustCompile(`sk-ant-[A-Za-z0-9_-]{20,}`), Severity: engine.OutcomeBlock},
+	{Name: "OpenAI project key", Pattern: regexp.MustCompile(`sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}`), Severity: engine.OutcomeBlock},
+	{Name: "OpenAI API key", Pattern: regexp.MustCompile(`sk-[A-Za-z0-9]{48}`), Severity: engine.OutcomeBlock},
+	{Name: "Hugging Face token", Pattern: regexp.MustCompile(`hf_[A-Za-z0-9]{30,}`), Severity: engine.OutcomeBlock},
+	{Name: "Groq API key", Pattern: regexp.MustCompile(`gsk_[A-Za-z0-9]{40,}`), Severity: engine.OutcomeBlock},
+	{Name: "xAI API key", Pattern: regexp.MustCompile(`xai-[A-Za-z0-9]{40,}`), Severity: engine.OutcomeBlock},
 
 	// Slack legacy + new tokens.
-	{Name: "Slack token", Pattern: regexp.MustCompile(`\bxox[baprsoe]-[0-9A-Za-z-]{10,}\b`), Severity: engine.OutcomeBlock},
+	{Name: "Slack token", Pattern: regexp.MustCompile(`xox[baprsoe]-[0-9A-Za-z-]{10,}`), Severity: engine.OutcomeBlock},
 
 	// Google API key - AIza + 35 url-safe alphanumerics.
-	{Name: "Google API key", Pattern: regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{35}\b`), Severity: engine.OutcomeBlock},
+	{Name: "Google API key", Pattern: regexp.MustCompile(`AIza[0-9A-Za-z_-]{35}`), Severity: engine.OutcomeBlock},
 }
 
 // credentialDocSentinels are provider-published documentation values -
@@ -67,15 +97,26 @@ var credentialPatterns = []credentialPattern{
 // philosophy as the PII frame's publishable test cards). AWS uses these
 // two in its own docs everywhere.
 var credentialDocSentinels = map[string]bool{
-	"AKIAIOSFODNN7EXAMPLE": true,
-	"AKIAI44QH8DHBEXAMPLE": true,
+	"AKIAIOSFODNN7EXAMPLE":                     true,
+	"AKIAI44QH8DHBEXAMPLE":                     true,
+	"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY": true,
+	"je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY": true,
 }
 
 // credentialLineFires reports whether the pattern matches something on
 // the line that is NOT a known documentation sentinel.
+//
+// A pattern that needs surrounding context to be safe (see the AWS secret
+// key) captures the credential itself in group 1, so the sentinel test reads
+// that rather than the whole match - which would carry the variable name and
+// never equal a published example value.
 func credentialLineFires(p credentialPattern, line string) bool {
-	for _, m := range p.Pattern.FindAllString(line, -1) {
-		if !credentialDocSentinels[m] {
+	for _, m := range p.Pattern.FindAllStringSubmatch(line, -1) {
+		hit := m[0]
+		if len(m) > 1 && m[1] != "" {
+			hit = m[1]
+		}
+		if !credentialDocSentinels[hit] {
 			return true
 		}
 	}

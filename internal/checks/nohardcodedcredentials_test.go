@@ -329,3 +329,111 @@ func TestNoHardcodedCredentials_SentinelPlusRealKeyStillFires(t *testing.T) {
 		t.Fatalf("non-sentinel key on same line must still BLOCK, got %v (%s)", res.Outcome, res.Reason)
 	}
 }
+
+// The AWS secret access key is 40 chars of [A-Za-z0-9/+=] - the same shape as
+// every git SHA and base64 blob - so it is matched only in an assignment that
+// names it. Found missing during pre-launch testing: a config committing the
+// secret alone sailed through the gate while the AKIA id beside it blocked.
+func TestNoHardcodedCredentials_AWSSecretKeyNeedsContext(t *testing.T) {
+	const secret = "AbCdEf0123456789/GhIjKlMnOpQrStUvWxYz+12"
+	const padded = "AbCdEf0123456789/GhIjKlMnOpQrStUvWxYz12="
+
+	fires := []struct {
+		name string
+		line string
+	}{
+		{"env assignment", "AWS_SECRET_ACCESS_KEY=" + secret + "\n"},
+		{"yaml", "  aws_secret_access_key: \"" + secret + "\"\n"},
+		{"camel case", "awsSecretAccessKey = '" + secret + "'\n"},
+		{"base64 padding at end of line", "AWS_SECRET_ACCESS_KEY=" + padded + "\n"},
+	}
+	for _, tc := range fires {
+		root := t.TempDir()
+		piiWrite(t, root, "app.env", tc.line)
+		if res := NoHardcodedCredentials(piiCtx(root)); res.Outcome != engine.OutcomeBlock {
+			t.Errorf("%s: want BLOCK, got %v (%s)", tc.name, res.Outcome, res.Reason)
+		}
+	}
+
+	passes := []struct {
+		name string
+		file string
+		line string
+	}{
+		{"bare value, no context", "notes.md", secret + "\n"},
+		{"git sha in a lockfile", "go.sum", "example.com/m v1.2.3 h1:4b825dc642cb6eb9a060e54bf8d69288fbee4904abc\n"},
+		{"aws doc sentinel", "app.env", "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n"},
+		{"second aws doc sentinel", "app.env", "aws_secret_access_key: je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY\n"},
+	}
+	for _, tc := range passes {
+		root := t.TempDir()
+		piiWrite(t, root, tc.file, tc.line)
+		if res := NoHardcodedCredentials(piiCtx(root)); res.Outcome != engine.OutcomePass {
+			t.Errorf("%s: want pass, got %v (%s)", tc.name, res.Outcome, res.Reason)
+		}
+	}
+}
+
+// An agent leaking the key to its own model provider is the scenario this tool
+// is built around, so AI provider keys are stdlib rather than an opt-in starter
+// linter. Each needs a distinctive prefix: a provider whose key is a bare
+// fixed-length alphanumeric is unmatchable without false-positiving on hashes.
+func TestNoHardcodedCredentials_AIProviderKeys(t *testing.T) {
+	fires := map[string]string{
+		"anthropic":      "ANTHROPIC_API_KEY=sk-ant-api03-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqr-abcdefghijklmnAA\n",
+		"openai legacy":  "OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV\n",
+		"openai project": "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijkl\n",
+		"openai service": "OPENAI_API_KEY=sk-svcacct-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567\n",
+		"openai admin":   "OPENAI_ADMIN_KEY=sk-admin-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567\n",
+		"hugging face":   "HF_TOKEN=hf_abcdefghijklmnopqrstuvwxyzABCDEFGH\n",
+		"groq":           "GROQ_API_KEY=gsk_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n",
+		"xai":            "XAI_API_KEY=xai-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqr\n",
+	}
+	for name, line := range fires {
+		root := t.TempDir()
+		piiWrite(t, root, "app.env", line)
+		if res := NoHardcodedCredentials(piiCtx(root)); res.Outcome != engine.OutcomeBlock {
+			t.Errorf("%s: want BLOCK, got %v (%s)", name, res.Outcome, res.Reason)
+		}
+	}
+
+	passes := map[string]string{
+		"short sk- value":     "key = sk-abcdefghijkl\n",
+		"sklearn in prose":    "from sklearn-preprocessing import scale\n",
+		"short hf_":           "hf_abcdefgh\n",
+		"short gsk_":          "gsk_abcdefghij\n",
+		"subresource hash":    "sha256-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ=\n",
+		"prose mentioning sk": "The examples use sk- prefixed keys; see the provider docs.\n",
+	}
+	for name, line := range passes {
+		root := t.TempDir()
+		piiWrite(t, root, "notes.md", line)
+		if res := NoHardcodedCredentials(piiCtx(root)); res.Outcome != engine.OutcomePass {
+			t.Errorf("%s: want pass, got %v (%s)", name, res.Outcome, res.Reason)
+		}
+	}
+}
+
+// A word-boundary anchor needs a word/non-word transition, so a token glued to
+// a letter, digit or underscore was invisible: test_ghp_… and ghp_…X both
+// passed the gate while the same token in quotes was caught. One padding
+// character must not be a way around a credential gate.
+func TestNoHardcodedCredentials_MatchesEmbeddedTokens(t *testing.T) {
+	const tok = "ghp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
+	for name, line := range map[string]string{
+		"underscore prefix": "test_" + tok,
+		"alnum prefix":      "TEST" + tok,
+		"underscore suffix": tok + "_dev",
+		"alnum suffix":      tok + "X",
+		"no delimiters":     "constk=" + tok + "andmore",
+		"inside json":       `{"auth":{"token":"` + tok + `"}}`,
+		"inside a comment":  "// legacy token " + tok + " remove me",
+		"csv cell":          "alice," + tok + ",admin",
+	} {
+		root := t.TempDir()
+		piiWrite(t, root, "app.txt", line+"\n")
+		if res := NoHardcodedCredentials(piiCtx(root)); res.Outcome != engine.OutcomeBlock {
+			t.Errorf("%s: want BLOCK, got %v (%s)", name, res.Outcome, res.Reason)
+		}
+	}
+}

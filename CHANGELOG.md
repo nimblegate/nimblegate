@@ -7,6 +7,36 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **`security/no-hardcoded-credentials` now catches AWS secret access keys.**
+  Only the access key ID (`AKIA…`) was matched, so a config committing just
+  `AWS_SECRET_ACCESS_KEY=…` passed the gate - found by pushing one at a test
+  gateway. The value is 40 characters of `[A-Za-z0-9/+=]`, the same shape as
+  every git SHA and base64 blob, so it is matched only in an assignment that
+  names it; a bare 40-char token is still ignored, because catching it would
+  fire on every lockfile. AWS's two published example secrets join the
+  documentation sentinels already excluded for the key IDs.
+- **AI provider keys are now stdlib, not an opt-in linter.** An agent leaking
+  the key to its own model provider is the scenario this tool is built around,
+  and a default install caught a leaked Stripe key while letting an Anthropic
+  or OpenAI one through - `sk-…` existed only as a starter linter an operator
+  had to add by hand. `security/no-hardcoded-credentials` now blocks Anthropic
+  (`sk-ant-…`), OpenAI (`sk-…`, `sk-proj-…`, `sk-svcacct-…`, `sk-admin-…`),
+  Hugging Face (`hf_…`), Groq (`gsk_…`) and xAI (`xai-…`). Providers issuing
+  bare fixed-length alphanumerics (Mistral, Cohere) stay out: there is no
+  prefix to anchor on, so a pattern would fire on every hash.
+- **Credential patterns now match a token embedded in surrounding text.** Every
+  pattern carried `\b` anchors, and a word boundary needs a word/non-word
+  transition - so a token glued to a letter, digit or underscore was invisible.
+  `test_ghp_…`, `ghp_…_dev` and `ghp_…X` all passed the gate while the same
+  token in quotes was blocked, which made one padding character a way around a
+  credential gate. The anchors are gone; a token is now found wherever it
+  literally appears, including inside minified JavaScript, a CSV cell, a SQL
+  insert or a 4000-character line. A token split across string concatenation or
+  stored base64-encoded remains out of reach of any matcher, and is now
+  documented as such.
+
 ### Fixed
 
 - **The Auto-PR page's delivery counter could never report a success.** It read
