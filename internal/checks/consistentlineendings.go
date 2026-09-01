@@ -163,7 +163,7 @@ func ConsistentLineEndings(ctx engine.CheckContext) engine.CheckResult {
 		if isLikelyBinaryContent(data) {
 			continue
 		}
-		if strings.Contains(string(data), lineEndingsDisableMarker) {
+		if fileDisabledByMarker(string(data), lineEndingsDisableMarker) {
 			continue
 		}
 		crlf := bytes.Count(data, []byte("\r\n"))

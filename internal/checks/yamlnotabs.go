@@ -69,12 +69,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, yamlNoTabsDisableMarker) {
+		if fileDisabledByMarker(content, yamlNoTabsDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], yamlNoTabsDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], yamlNoTabsDisableLineMarker) {
 				continue
 			}
 			leadingTab := false

@@ -122,7 +122,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, dynamicEnvDisableMarker) {
+		if fileDisabledByMarker(content, dynamicEnvDisableMarker) {
 			continue
 		}
 		// Cheap pre-check: skip files that don't import dynamic/public.
@@ -131,7 +131,7 @@ filesLoop:
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], dynamicEnvDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], dynamicEnvDisableLineMarker) {
 				continue
 			}
 			for _, m := range dynamicEnvAccessRegex.FindAllStringSubmatch(line, -1) {

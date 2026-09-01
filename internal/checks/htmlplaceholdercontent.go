@@ -120,12 +120,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, htmlPlaceholderDisableMarker) {
+		if fileDisabledByMarker(content, htmlPlaceholderDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], htmlPlaceholderDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], htmlPlaceholderDisableLineMarker) {
 				continue
 			}
 			for _, shape := range placeholderShapes {

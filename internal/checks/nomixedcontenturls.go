@@ -110,12 +110,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, mixedContentDisableMarker) {
+		if fileDisabledByMarker(content, mixedContentDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], mixedContentDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], mixedContentDisableLineMarker) {
 				continue
 			}
 			for _, m := range mixedContentSrcRegex.FindAllStringSubmatch(line, -1) {

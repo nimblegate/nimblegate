@@ -232,12 +232,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, piiDisableMarker) {
+		if fileDisabledByMarker(content, piiDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], piiDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], piiDisableLineMarker) {
 				continue
 			}
 			for _, label := range piiScanLine(line) {

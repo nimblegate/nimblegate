@@ -13,6 +13,12 @@ import (
 	"nimblegate/internal/frames"
 )
 
+// This file declares the patterns the frame detects, so the frame must
+// not report on it. Until the matcher required a standalone line, the
+// marker const below suppressed this file by accident rather than by
+// decision; the decision is now on the record.
+// appframes:disable security/no-kubeconfig-in-repo
+
 const kubeconfigDisableMarker = "appframes:disable security/no-kubeconfig-in-repo"
 const kubeconfigDisableLineMarker = "appframes:disable-next-line security/no-kubeconfig-in-repo"
 
@@ -79,7 +85,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, kubeconfigDisableMarker) {
+		if fileDisabledByMarker(content, kubeconfigDisableMarker) {
 			continue
 		}
 
@@ -87,7 +93,7 @@ filesLoop:
 		lines := strings.Split(content, "\n")
 		contentMatched := false
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], kubeconfigDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], kubeconfigDisableLineMarker) {
 				continue
 			}
 			if strings.Contains(line, "client-key-data:") {

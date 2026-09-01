@@ -120,7 +120,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, migrationVerificationDisableMarker) {
+		if fileDisabledByMarker(content, migrationVerificationDisableMarker) {
 			continue
 		}
 		applyLoc := migrationVerificationApplyRegex.FindStringIndex(content)

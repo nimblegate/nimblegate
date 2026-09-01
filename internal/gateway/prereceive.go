@@ -418,7 +418,7 @@ func relativizeSuppressions(logs []engine.SuppressionLog, root string) []Suppres
 	prefix := strings.TrimRight(root, string(os.PathSeparator)) + string(os.PathSeparator)
 	out := make([]Suppression, 0, len(logs))
 	for _, l := range logs {
-		out = append(out, Suppression{Frame: l.FrameID, File: strings.TrimPrefix(l.File, prefix), Label: l.Label})
+		out = append(out, Suppression{Frame: l.FrameID, File: strings.TrimPrefix(l.File, prefix), Label: l.Label, Severity: l.Severity, Origin: l.Origin})
 	}
 	return out
 }

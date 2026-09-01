@@ -65,6 +65,12 @@ const (
 	OutcomeError CheckOutcome = "ERROR"
 )
 
+// OriginLinter marks a result produced by a linter configured in
+// appframes.toml / gateway.toml rather than by a stdlib frame. Recorded at
+// scan time because the audit log keeps only the ID: deciding it later from
+// current config would mislabel history the moment a linter is removed.
+const OriginLinter = "linter"
+
 // Hit is a structured finding location, optionally populated by frames
 // that produce file:line findings. Used by the dedup pass (V0.5) to
 // collapse rows where multiple frames hit the same scope, and by the
@@ -106,6 +112,13 @@ type CheckResult struct {
 
 	Hits     []Hit
 	DedupKey string
+
+	// Origin distinguishes a configured linter from a stdlib frame. Both
+	// carry a <category>/<name> ID, and configured linters are namespaced
+	// under app-correctness/, which is also a real stdlib category - so the
+	// ID alone cannot tell an operator whether a verdict came from the
+	// catalog or from their own config. Empty means stdlib frame.
+	Origin string
 }
 
 // CheckFunc is the signature every frame's check implementation must have.

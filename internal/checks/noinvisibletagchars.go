@@ -68,12 +68,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, noInvisibleTagCharsDisableMarker) {
+		if fileDisabledByMarker(content, noInvisibleTagCharsDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], noInvisibleTagCharsDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], noInvisibleTagCharsDisableLineMarker) {
 				continue
 			}
 			for j := 0; j < len(line); {

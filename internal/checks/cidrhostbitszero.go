@@ -102,12 +102,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, cidrHostBitsDisableMarker) {
+		if fileDisabledByMarker(content, cidrHostBitsDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], cidrHostBitsDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], cidrHostBitsDisableLineMarker) {
 				continue
 			}
 			for _, m := range cidrRegex.FindAllStringSubmatch(line, -1) {

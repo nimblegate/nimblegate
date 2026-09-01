@@ -104,7 +104,7 @@ func DocTouchesWithCode(ctx engine.CheckContext) engine.CheckResult {
 			// contains the disable marker.
 			absSrc := filepath.Join(ctx.ProjectRoot, src)
 			if data, ok := ReadFileBounded(absSrc, DefaultMaxFileBytes); ok {
-				if strings.Contains(string(data), docTouchesDisableMarker) {
+				if fileDisabledByMarker(string(data), docTouchesDisableMarker) {
 					continue
 				}
 			}

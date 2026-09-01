@@ -77,12 +77,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, noBidiOverrideDisableMarker) {
+		if fileDisabledByMarker(content, noBidiOverrideDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], noBidiOverrideDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], noBidiOverrideDisableLineMarker) {
 				continue
 			}
 			for j := 0; j < len(line); {

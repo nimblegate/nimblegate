@@ -103,7 +103,7 @@ func NoEnvFileInRepo(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, envFileDisableMarker) {
+		if fileDisabledByMarker(content, envFileDisableMarker) {
 			continue
 		}
 		for i, line := range strings.Split(content, "\n") {

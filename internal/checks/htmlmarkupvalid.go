@@ -93,7 +93,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, htmlMarkupValidDisableMarker) {
+		if fileDisabledByMarker(content, htmlMarkupValidDisableMarker) {
 			continue
 		}
 		body := extractHTMLBody(file, content)

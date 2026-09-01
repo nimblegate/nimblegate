@@ -190,6 +190,7 @@ func skipResult(id, reason string) engine.CheckResult {
 	return engine.CheckResult{
 		FrameID:   id,
 		Category:  frames.CategoryAppCorrectness,
+		Origin:    engine.OriginLinter,
 		Outcome:   engine.OutcomeSkip,
 		Reason:    reason,
 		Timestamp: time.Now().UTC(),
@@ -242,6 +243,7 @@ func buildResult(id, toolLabel string, hits []engine.Hit, findingOutcome engine.
 	res := engine.CheckResult{
 		FrameID:   id,
 		Category:  frames.CategoryAppCorrectness,
+		Origin:    engine.OriginLinter,
 		Timestamp: time.Now().UTC(),
 	}
 	if len(hits) == 0 {

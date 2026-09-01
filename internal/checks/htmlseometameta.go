@@ -97,7 +97,7 @@ func HTMLSEOMeta(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, htmlSEOMetaDisableMarker) {
+		if fileDisabledByMarker(content, htmlSEOMetaDisableMarker) {
 			continue
 		}
 		body := extractHTMLBody(file, content)

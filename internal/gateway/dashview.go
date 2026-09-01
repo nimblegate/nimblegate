@@ -38,6 +38,10 @@ type DecisionRow struct {
 	Messages    []string
 	Locations   []string // path:line hits extracted from Messages (fast feed scan)
 	Findings    []Finding
+	// Suppressed is what the gateway whitelist exempted on this push. It did
+	// not affect the decision; it is shown so an operator can see what the
+	// gate chose not to act on rather than having to read the audit log.
+	Suppressed []Suppression
 
 	// NotificationStatus is the row-level summary of the notification rail's
 	// state for this push. Nil = rail disabled or AuditRecord predates the
@@ -253,6 +257,7 @@ func BuildView(records []AuditRecord, f Filter) ViewModel {
 			Messages:           r.Messages,
 			Locations:          LocationsFromMessages(r.Messages),
 			Findings:           r.Findings,
+			Suppressed:         r.Suppressed,
 			NotificationStatus: notifStatusView(r.Notification),
 		})
 	}

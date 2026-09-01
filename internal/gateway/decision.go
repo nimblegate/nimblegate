@@ -60,16 +60,16 @@ func Decide(p Policy, refs []RefUpdate, resultsByRef map[string][]engine.CheckRe
 					msgs = append(msgs, fmt.Sprintf("%s: rejected", r.Name))
 				}
 				scanFailures = append(scanFailures, fmt.Sprintf("%s: %s [%s] %s", r.Name, res.Outcome, res.FrameID, res.Reason))
-				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res)})
+				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res), Origin: res.Origin})
 				continue
 			}
 			switch res.Outcome {
 			case engine.OutcomeBlock, engine.OutcomeError:
 				reject = true
 				msgs = append(msgs, fmt.Sprintf("%s: %s [%s] %s", r.Name, res.Outcome, res.FrameID, res.Reason))
-				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res)})
+				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res), Origin: res.Origin})
 			case engine.OutcomeWarn, engine.OutcomeInfo:
-				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res)})
+				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res), Origin: res.Origin})
 			}
 		}
 	}

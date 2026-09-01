@@ -9,6 +9,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **The feed shows what the whitelist exempted.** Suppressions were already
+  recorded on every push so a bypass could never be silent, but nothing read
+  them back: a fully whitelisted frame was demoted to PASS and a partial
+  suppression rebuilt its reason from the surviving hits alone, so the feed
+  looked identical to a push that found nothing. Rows now carry an `N
+  suppressed` pill, collapsed behind a count and drawn outside the BLOCK/WARN
+  geometry because it did not affect the decision. The record gained the
+  severity the frame would have reported, so an exemption says whether it
+  would have blocked.
+
+- **Findings say whether they came from a linter.** Configured linters are
+  namespaced under `app-correctness/`, which is also a real stdlib category,
+  so `app-correctness/todo-markers` and `app-correctness/dynamic-env-declared`
+  were indistinguishable - and a linter has no catalog entry and stops
+  existing when the config drops it, which is what makes a stale whitelist
+  entry naming one reject every push. The origin is stamped when the push is
+  judged rather than inferred from current config, so old rows stay accurate
+  after a linter is removed.
+
 - **`gateway doctor` now checks that each repo's whitelist loads.** The gate
   reads it before any frame runs and refuses the push when it cannot parse or
   validate it, reporting only a bare `refs/heads/main: rejected` because the
@@ -70,6 +89,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   documented as such.
 
 ### Fixed
+
+- **A disable marker inside a string literal no longer switches a frame off.**
+  All 44 checks skipped a file when `appframes:disable <id>` appeared anywhere
+  in its body, with no requirement that it be a comment. Every check declares
+  its own marker as a string const, so each was exempt from itself on its own
+  source file, and a marker quoted in a fixture exempted that fixture's whole
+  file - which hid eight AI-provider keys from the gate for a release cycle.
+  A marker now counts only when it holds its line behind whitespace and an
+  optional comment opener. Seven files that were being skipped by accident now
+  carry a deliberate marker instead.
 
 - **Three frames blocked legitimate Unicode.** A subdivision flag emoji is
   `U+1F3F4` plus tag letters terminated by `U+E007F`, so

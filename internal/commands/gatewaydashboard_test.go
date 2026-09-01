@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"nimblegate/internal/engine"
 	"nimblegate/internal/gateway"
 )
 
@@ -314,5 +315,102 @@ func TestLoadHasMore_requiresNPlus1Read(t *testing.T) {
 	vmNoMore := gateway.BuildView(gateway.ReadDecisionsBefore(root, time.Time{}, tail), f)
 	if vmNoMore.Summary.HasMore {
 		t.Error("sanity: reading only tail records should yield HasMore=false (all records fit)")
+	}
+}
+
+// The pill must render as an exemption, not as a finding: an accepted push
+// carrying suppressions must still read as accepted, and the row's severity
+// bucket must not be driven by a hit the gate deliberately ignored.
+func TestRenderFeed_showsWhitelistSuppressions(t *testing.T) {
+	base := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+	vm := gateway.BuildView([]gateway.AuditRecord{
+		{Time: base, Repo: "api", Refs: []string{"refs/heads/main"}, Accept: true,
+			Suppressed: []gateway.Suppression{{
+				Frame:    "security/no-private-keys-in-repo",
+				File:     "internal/stdlib/testdata/key.pem",
+				Label:    "PEM RSA private key",
+				Severity: "BLOCK",
+			}}},
+	}, gateway.Filter{})
+	rec := httptest.NewRecorder()
+	renderGwFeed(rec, vm)
+	b := rec.Body.String()
+
+	for _, want := range []string{
+		"suppressed",
+		"security/no-private-keys-in-repo",
+		"internal/stdlib/testdata/key.pem",
+		"PEM RSA private key",
+		"fnd SUPP",
+	} {
+		if !strings.Contains(b, want) {
+			t.Errorf("suppression pill missing %q:\n%s", want, b)
+		}
+	}
+	if !strings.Contains(b, "accept") {
+		t.Error("a suppressed hit must not change the rendered decision")
+	}
+	if strings.Contains(b, `data-feedsev="BLOCK"`) {
+		t.Error("a suppressed hit must not drive the row's severity bucket")
+	}
+}
+
+// The tag has to distinguish a configured linter from a stdlib frame sharing
+// the same app-correctness/ namespace. Built from engine.OriginLinter so a
+// rename of the constant fails here rather than silently dropping the tag.
+func TestRenderFeed_tagsLinterFindings(t *testing.T) {
+	base := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+	vm := gateway.BuildView([]gateway.AuditRecord{
+		{Time: base, Repo: "api", Refs: []string{"refs/heads/main"}, Accept: true,
+			Findings: []gateway.Finding{
+				{ID: "app-correctness/todo-markers", Severity: "WARN", Message: "TODO without owner", Origin: engine.OriginLinter},
+				{ID: "app-correctness/dynamic-env-declared", Severity: "WARN", Message: "undeclared env var"},
+			}},
+	}, gateway.Filter{})
+	rec := httptest.NewRecorder()
+	renderGwFeed(rec, vm)
+	b := rec.Body.String()
+
+	if strings.Count(b, `class="gw-orig"`) != 1 {
+		t.Errorf("want exactly one linter tag (the stdlib frame must not get one), got %d:\n%s",
+			strings.Count(b, `class="gw-orig"`), b)
+	}
+	if !strings.Contains(b, ">linter<") {
+		t.Errorf("linter tag text missing:\n%s", b)
+	}
+	for _, want := range []string{"app-correctness/todo-markers", "app-correctness/dynamic-env-declared"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("missing %q:\n%s", want, b)
+		}
+	}
+}
+
+// The case this repo actually produces: the only configured linter's hits are
+// all whitelisted, so the tag has to ride on the suppression pill or it never
+// appears at all.
+func TestRenderFeed_tagsSuppressedLinterHits(t *testing.T) {
+	base := time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC)
+	vm := gateway.BuildView([]gateway.AuditRecord{
+		{Time: base, Repo: "api", Refs: []string{"refs/heads/main"}, Accept: true,
+			Suppressed: []gateway.Suppression{
+				{Frame: "app-correctness/no-em-dash", File: "internal/checks/x_test.go", Label: "U+2014", Severity: "WARN", Origin: engine.OriginLinter},
+				{Frame: "security/no-private-keys-in-repo", File: "testdata/key.pem", Label: "PEM RSA private key", Severity: "BLOCK"},
+			}},
+	}, gateway.Filter{})
+	rec := httptest.NewRecorder()
+	renderGwFeed(rec, vm)
+	b := rec.Body.String()
+
+	if strings.Count(b, `class="gw-orig"`) != 1 {
+		t.Errorf("want exactly one linter tag on the suppression pills, got %d:\n%s",
+			strings.Count(b, `class="gw-orig"`), b)
+	}
+	if !strings.Contains(b, "2 suppressed") {
+		t.Errorf("the list must collapse behind a count, not render one pill each:\n%s", b)
+	}
+	for _, want := range []string{"app-correctness/no-em-dash", "security/no-private-keys-in-repo", "WARN", "BLOCK"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("missing %q:\n%s", want, b)
+		}
 	}
 }

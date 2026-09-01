@@ -88,13 +88,13 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, noZeroWidthInContentDisableMarker) {
+		if fileDisabledByMarker(content, noZeroWidthInContentDisableMarker) {
 			continue
 		}
 		offset := 0
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			suppressLine := i > 0 && strings.Contains(lines[i-1], noZeroWidthInContentDisableLineMarker)
+			suppressLine := i > 0 && lineCarriesMarker(lines[i-1], noZeroWidthInContentDisableLineMarker)
 			for j := 0; j < len(line); {
 				r, size := utf8.DecodeRuneInString(line[j:])
 				abs := offset + j

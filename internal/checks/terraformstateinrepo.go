@@ -13,6 +13,12 @@ import (
 	"nimblegate/internal/frames"
 )
 
+// This file declares the patterns the frame detects, so the frame must
+// not report on it. Until the matcher required a standalone line, the
+// marker const below suppressed this file by accident rather than by
+// decision; the decision is now on the record.
+// appframes:disable security/no-terraform-state-in-repo
+
 const tfstateDisableMarker = "appframes:disable security/no-terraform-state-in-repo"
 
 // tfstateContentMatch reports whether the content looks like a Terraform
@@ -81,7 +87,7 @@ func NoTerraformStateInRepo(ctx engine.CheckContext) engine.CheckResult {
 		contentMatch := false
 		if ok && bytes.IndexByte(data, 0) < 0 {
 			content := string(data)
-			if strings.Contains(content, tfstateDisableMarker) {
+			if fileDisabledByMarker(content, tfstateDisableMarker) {
 				continue
 			}
 			contentMatch = tfstateContentMatch(content)

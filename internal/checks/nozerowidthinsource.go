@@ -108,7 +108,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, noZeroWidthInSourceDisableMarker) {
+		if fileDisabledByMarker(content, noZeroWidthInSourceDisableMarker) {
 			continue
 		}
 		// Track absolute byte offset across the whole file so we can
@@ -116,7 +116,7 @@ filesLoop:
 		offset := 0
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			suppressLine := i > 0 && strings.Contains(lines[i-1], noZeroWidthInSourceDisableLineMarker)
+			suppressLine := i > 0 && lineCarriesMarker(lines[i-1], noZeroWidthInSourceDisableLineMarker)
 			for j := 0; j < len(line); {
 				r, size := utf8.DecodeRuneInString(line[j:])
 				abs := offset + j

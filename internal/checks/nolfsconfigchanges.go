@@ -51,7 +51,7 @@ func NoLFSConfigChanges(ctx engine.CheckContext) engine.CheckResult {
 	// every file's bounded content.
 	for _, file := range ctx.ChangedFiles {
 		if data, ok := ReadFileBounded(file, DefaultMaxFileBytes); ok {
-			if strings.Contains(string(data), noLFSConfigDisableMarker) {
+			if fileDisabledByMarker(string(data), noLFSConfigDisableMarker) {
 				res.Outcome = engine.OutcomeSkip
 				res.Reason = "override marker present"
 				return res

@@ -151,12 +151,12 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, proxyLocalhostDisableMarker) {
+		if fileDisabledByMarker(content, proxyLocalhostDisableMarker) {
 			continue
 		}
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], proxyLocalhostDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], proxyLocalhostDisableLineMarker) {
 				continue
 			}
 			for _, shape := range proxyLocalhostShapes {

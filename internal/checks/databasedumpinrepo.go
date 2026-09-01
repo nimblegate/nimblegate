@@ -107,7 +107,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, dbdumpDisableMarker) {
+		if fileDisabledByMarker(content, dbdumpDisableMarker) {
 			continue
 		}
 		window := content

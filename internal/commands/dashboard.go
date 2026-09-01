@@ -416,6 +416,8 @@ const dashStyle = `<style>` + gwRootVars + `
  .fnd.INFO{background:var(--gw-info-bg);color:var(--gw-accent)}
  .fnd.BLOCK,.fnd.ERROR{background:var(--gw-block-bg);color:var(--gw-block-text)}
  .fnd.LOOP{background:rgba(94,155,230,0.18);color:#5e9be6}
+.fnd.SUPP{background:transparent;color:var(--gw-text-fainter);border:1px dashed var(--gw-border)}
+.gw-orig{font-size:10px;padding:0 5px;border-radius:8px;margin-right:6px;background:transparent;color:var(--gw-text-fainter);border:1px solid var(--gw-border)}
  .gw-looprow{margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
  .gw-loopresetform{display:inline;margin:0}
  .gw-loopreset{font-size:11px;padding:1px 7px;border-radius:10px;border:1px solid var(--gw-border);background:var(--gw-bg-soft);color:var(--gw-text-muted);cursor:pointer;font-family:inherit;line-height:1.4}

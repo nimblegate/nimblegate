@@ -129,7 +129,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, cfGraphQLDisableMarker) {
+		if fileDisabledByMarker(content, cfGraphQLDisableMarker) {
 			continue
 		}
 
@@ -137,7 +137,7 @@ filesLoop:
 		// lines for datetime args and check the span.
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], cfGraphQLDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], cfGraphQLDisableLineMarker) {
 				continue
 			}
 			m := cfDatasetRegex.FindStringSubmatch(line)

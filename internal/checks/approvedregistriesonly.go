@@ -165,7 +165,7 @@ filesLoop:
 			continue
 		}
 		content := string(data)
-		if strings.Contains(content, arDisableMarker) {
+		if fileDisabledByMarker(content, arDisableMarker) {
 			continue
 		}
 
@@ -180,7 +180,7 @@ filesLoop:
 		inPomRepo := false
 		lines := strings.Split(content, "\n")
 		for i, line := range lines {
-			if i > 0 && strings.Contains(lines[i-1], arDisableLineMarker) {
+			if i > 0 && lineCarriesMarker(lines[i-1], arDisableLineMarker) {
 				continue
 			}
 
