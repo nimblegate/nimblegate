@@ -48,6 +48,11 @@ func TestServeGatewayFrameDetailNotFound(t *testing.T) {
 	if rec.Code != 404 {
 		t.Errorf("code=%d, want 404", rec.Code)
 	}
+	// Only the linter namespace gets the explanatory page; an ID that was never
+	// a linter is a plain miss.
+	if strings.Contains(rec.Body.String(), "belongs to a <b>linter</b>") {
+		t.Errorf("non-linter ID should not get the linter explanation:\n%s", rec.Body.String())
+	}
 }
 
 func TestGatewayFrames_hasShellChrome(t *testing.T) {
@@ -101,7 +106,9 @@ func TestServeGatewayFrames_resolvesLinterID(t *testing.T) {
 }
 
 // Without the repo there is no policy to resolve against, and a linter the
-// policy no longer declares has genuinely stopped existing - both stay 404.
+// policy no longer declares has genuinely stopped existing - both stay 404,
+// but its findings still link here from the feed, so the page has to say why
+// there is nothing to show instead of reading like a broken link.
 func TestServeGatewayFrames_linterIDNeedsItsRepo(t *testing.T) {
 	root := gwPolicyRootWithLinter(t)
 	for _, url := range []string{
@@ -113,6 +120,12 @@ func TestServeGatewayFrames_linterIDNeedsItsRepo(t *testing.T) {
 		serveGatewayFrames(root)(rec, httptest.NewRequest("GET", url, nil))
 		if rec.Code != 404 {
 			t.Errorf("%s: code=%d, want 404", url, rec.Code)
+		}
+		body := rec.Body.String()
+		for _, want := range []string{"belongs to a <b>linter</b>", "no catalog entry", `class="gw-rail"`} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: explanatory page missing %q\n%s", url, want, body)
+			}
 		}
 	}
 }

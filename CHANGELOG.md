@@ -15,7 +15,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   page now loads the selected repo's policy and renders a linter detail view,
   matching what the local dashboard has always done. Both stats tables carry the
   repo in the link, since a linter ID only means something against the policy
-  that declares it.
+  that declares it. An ID whose linter the policy has since dropped now explains
+  itself - its findings stay in the feed and the stats tables forever, so the
+  page says why there is nothing left to describe rather than reading like a
+  broken link.
 
 ## [0.4.3] - 2026-09-03
 
