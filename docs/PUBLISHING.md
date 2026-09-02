@@ -11,8 +11,8 @@ the README quickstart (`docker compose up -d` against the tag `compose.yaml`
 pins) returns `manifest unknown` for every reader who isn't signed into a GitHub
 account that owns the package.
 
-> **Where things stand:** v0.1.0 through v0.4.3 are tagged, and
-> `compose.yaml` pins `0.4.3`. The walkthrough below is written around the
+> **Where things stand:** v0.1.0 through v0.4.4 are tagged, and
+> `compose.yaml` pins `0.4.4`. The walkthrough below is written around the
 > v0.1.0 first release and is kept as the worked example; for a routine release
 > go to [Subsequent releases](#subsequent-releases-v020).
 
@@ -27,7 +27,7 @@ account that owns the package.
   `labels:`) because `docker/metadata-action` derives labels from GitHub's own
   repo metadata and applies them *after* the Dockerfile's. GitHub does not
   classify PolyForm, so what it derives is `NOASSERTION` - which is what
-  v0.1.0 through v0.4.2 published. Check the label on a new package with
+  v0.1.0 through v0.4.2 published (fixed since). Check the label on a new package with
   `docker inspect --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}' <image>`.
 
 ## Release flow
