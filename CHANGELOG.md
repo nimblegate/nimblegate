@@ -5,7 +5,7 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.4] - 2026-09-03
+## [0.4.5] - 2026-09-03
 
 ### Fixed
 
@@ -19,6 +19,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   itself - its findings stay in the feed and the stats tables forever, so the
   page says why there is nothing left to describe rather than reading like a
   broken link.
+
+## [0.4.4] - 2026-09-03
+
+Superseded by 0.4.5, which is identical plus a corrected pin. The published
+0.4.4 image was built from a commit whose `compose.yaml` still pinned `0.4.3`,
+so `docker compose up -d` at that tag starts the previous image.
 
 ## [0.4.3] - 2026-09-03
 
