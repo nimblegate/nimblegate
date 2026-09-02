@@ -145,9 +145,11 @@ def main():
             continue
         seen.add(key)
         try:
-            html = fetch(BASE + link).decode("utf-8", "replace")
+            # key, not link: an href carries &amp; and the server would read
+            # that as a parameter named "amp;<name>".
+            html = fetch(BASE + key).decode("utf-8", "replace")
         except Exception as e:
-            print(f"  warn: {link}: {e}", file=sys.stderr)
+            print(f"  warn: {key}: {e}", file=sys.stderr)
             continue
         # enqueue internal links (skip assets / fragments / external)
         for _, target in href_re.findall(html):
