@@ -61,6 +61,20 @@ func serveGatewayFrames(policyRoot string) http.HandlerFunc {
 				renderGwShell(w, gwLayout{Title: id + " : gateway", Chrome: buildChrome("frames", repo, policyRoot), Content: template.HTML(buf.String())})
 				return
 			}
+			// A linter's findings outlive the policy that declared it - the feed
+			// and stats keep linking them by ID - so say why there is nothing to
+			// show rather than reading like a broken link.
+			if strings.HasPrefix(id, linters.Namespace+"/") {
+				var buf bytes.Buffer
+				if err := gwLinterGoneTmpl.Execute(&buf, struct{ ID, Repo string }{id, repo}); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusNotFound)
+				renderGwShell(w, gwLayout{Title: id + " : gateway", Chrome: buildChrome("frames", repo, policyRoot), Content: template.HTML(buf.String())})
+				return
+			}
 			http.Error(w, "no such frame or linter: "+id, http.StatusNotFound)
 			return
 		}
@@ -386,4 +400,12 @@ var gwLinterDetailTmpl = template.Must(template.New("gwlinter").Parse(
   {{if .Command}}<tr><td class="k">Command</td><td>{{.Command}}{{range .Args}} {{.}}{{end}}</td></tr>{{end}}
   {{if .Disable}}<tr><td class="k">Disabled rules</td><td>{{range $i, $d := .Disable}}{{if $i}}, {{end}}{{$d}}{{end}}</td></tr>{{end}}
 </table>
+</section>`))
+
+var gwLinterGoneTmpl = template.Must(template.New("gwlintergone").Parse(
+	`<section>
+<h2 class="gw-pagehead">{{.ID}}</h2>
+<p class="gw-pagedesc"><a href="/frames" style="color:var(--gw-accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="10 4 5 8 10 12"/></svg> all frames</a> · not configured</p>
+<p class="gw-pagedesc">This ID belongs to a <b>linter</b>, not a stdlib frame, so it has no catalog entry.{{if .Repo}} <b>{{.Repo}}</b>'s policy no longer declares a linter by this name, so there is nothing left to describe.{{else}} No repo was named in the link, and a linter only exists inside the policy that declares it - open this ID from a repo's stats page to resolve it.{{end}}</p>
+<p class="gw-pagedesc">Findings it produced stay in the feed and the stats tables. They record what the gate saw when it ran, which is why the ID outlives the linter itself.</p>
 </section>`))

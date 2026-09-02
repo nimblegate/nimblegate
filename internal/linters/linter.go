@@ -82,8 +82,13 @@ func RunEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedD
 	return results, ranIDs
 }
 
+// Namespace is the synthetic frame-ID namespace every linter's findings carry.
+// Findings outlive the policy that declared the linter, so consumers need to
+// recognise the shape of an ID whose linter is gone.
+const Namespace = "app-correctness"
+
 // frameID builds the synthetic frame ID for a linter (e.g. app-correctness/eslint).
-func frameID(name string) string { return "app-correctness/" + name }
+func frameID(name string) string { return Namespace + "/" + name }
 
 // EnabledIDs returns the synthetic frame IDs of the enabled linters. The
 // whitelist loader fails closed on unknown frame IDs, so every path that loads
