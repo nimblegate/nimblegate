@@ -151,8 +151,9 @@ func TestServeStatsFrameIDCrossLinks(t *testing.T) {
 	_, body := getStats(t, root, "repo=repo-a")
 	// html/template URL-escapes the "/" in the href attribute context to %2f;
 	// Go's query parser decodes it back to "/" on the /frames side, so the link
-	// resolves. Assert the escaped link text appears for this frame.
-	if !strings.Contains(body, `<a href="/frames?id=security%2fno-private-keys-in-repo">`+key+`</a>`) {
+	// resolves. The repo rides along because a linter ID only resolves against
+	// the policy that declares it. Assert the escaped link text for this frame.
+	if !strings.Contains(body, `<a href="/frames?id=security%2fno-private-keys-in-repo&amp;repo=repo-a">`+key+`</a>`) {
 		t.Errorf("stats should cross-link frame ID to /frames?id=\n%s", body)
 	}
 }
@@ -313,5 +314,24 @@ func TestStatsPageShowsStaleDataOnIngestWarn(t *testing.T) {
 	}
 	if !strings.Contains(body, "decisions: 5") {
 		t.Errorf("stale stats should still render alongside the warning:\n%s", body)
+	}
+}
+
+// The frame link has to name the repo: a linter ID only resolves against the
+// policy that declares it, so a bare /frames?id=<linter> 404s.
+func TestStatsFrameLinkCarriesRepo(t *testing.T) {
+	for _, tab := range []string{"recurring", "time-saved"} {
+		rec := httptest.NewRecorder()
+		data := statsPageData{Repo: "api", ActiveTab: tab, Repos: []string{"api"}, Blocks: []repoBlock{{
+			Repo: "api", HasData: true,
+			Recurring: []recurringRow{{FrameID: "app-correctness/no-em-dash", Severity: "WARN", Message: "k:1", Seen: 3, LastSeen: 1716724860}},
+			TimeRows:  []timeRow{{FrameID: "app-correctness/no-em-dash"}},
+		}}}
+		renderStatsPage(rec, data, chromeData{ActiveSection: "stats"})
+		b := rec.Body.String()
+		want := `href="/frames?id=app-correctness%2fno-em-dash&amp;repo=api"`
+		if !strings.Contains(b, want) {
+			t.Errorf("%s tab: frame link should be %s:\n%s", tab, want, b)
+		}
 	}
 }

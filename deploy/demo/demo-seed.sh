@@ -47,19 +47,32 @@ rec acme-storefront 96  refs/heads/main false false \
   '[{"id":"git/no-force-push-main","severity":"BLOCK","message":"refs/heads/main: non-fast-forward (force-push) to a protected branch"}]' \
   "$NONE" '["push rejected for acme-storefront"]'
 rec acme-storefront 210 refs/heads/feat-cart true false "$NONE" \
-  '[{"frame":"documentation/dated-todo","file":"src/cart.js","label":"known backlog item"}]' '[]'
+  '[{"frame":"documentation/dated-todo","file":"src/cart.js","label":"known backlog item","severity":"WARN"}]' '[]'
 rec acme-storefront 1490 refs/heads/feat-search true false "$NONE" "$NONE" '[]'
 
 # ---- payments-api: backend, the private-key + migration story ----
 seed_repo "payments-api" "https://github.com/acme/payments-api.git" '"@tier-1", "@migrations", "@security-strict"'
+cat >> "$ROOT/payments-api/appframes.toml" <<'LINTERS'
+
+[linters]
+  [linters.no-em-dash]
+    kind = "regex"
+    enabled = true
+    severity = "WARN"
+    patterns = ["*"]
+    regex = "\\x{2014}"
+LINTERS
 rec payments-api 19  refs/heads/main false false \
   '[{"id":"security/no-private-keys-in-repo","severity":"BLOCK","message":"deploy/release.pem - PEM RSA private key"}]' \
   "$NONE" '["push rejected for payments-api"]'
 rec payments-api 142 refs/heads/feat-payouts false false \
   '[{"id":"database/sqlite-migration-idempotent-wrapper","severity":"BLOCK","message":"migrations/008_payouts.sql:5 - DROP TABLE without IF EXISTS (non-idempotent)"}]' \
   "$NONE" '["push rejected for payments-api"]'
-rec payments-api 320 refs/heads/feat-payouts true false "$NONE" "$NONE" '[]'
-rec payments-api 880 refs/heads/main true false "$NONE" "$NONE" '[]'
+rec payments-api 320 refs/heads/feat-payouts true false "$NONE" \
+  '[{"frame":"security/no-hardcoded-credentials","file":"test/fixtures/stripe_test.go","label":"known-fake test fixtures","severity":"BLOCK"},{"frame":"security/no-private-keys-in-repo","file":"test/fixtures/dummy.pem","label":"known-fake test fixtures","severity":"BLOCK"},{"frame":"app-correctness/no-em-dash","file":"docs/api/webhooks.md","severity":"WARN","origin":"linter"},{"frame":"app-correctness/no-em-dash","file":"docs/api/payouts.md","severity":"WARN","origin":"linter"},{"frame":"app-correctness/no-em-dash","file":"README.md","severity":"WARN","origin":"linter"}]' '[]'
+rec payments-api 880 refs/heads/main true false \
+  '[{"id":"app-correctness/no-em-dash","severity":"WARN","origin":"linter","message":"docs/api/refunds.md:22 - em dash in prose"}]' \
+  "$NONE" '[]'
 
 # ---- marketing-site: static/web, observe-mode + rm-rf story ----
 seed_repo "marketing-site" "https://github.com/acme/marketing-site.git" '"@tier-1", "@web", "@cf-pages"'
