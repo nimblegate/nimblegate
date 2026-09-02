@@ -6,12 +6,14 @@ import (
 	"bytes"
 	"html/template"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"nimblegate/internal/config"
 	"nimblegate/internal/frames"
 	"nimblegate/internal/gwicons"
+	"nimblegate/internal/linters"
 	"nimblegate/internal/stdlib"
 )
 
@@ -33,6 +35,9 @@ func serveGatewayFrames(policyRoot string) http.HandlerFunc {
 			expanded = append(expanded, f.ID())
 		}
 		cfg := config.ProjectConfig{}
+		if repo != "" {
+			cfg, _ = config.LoadProject(filepath.Join(policyRoot, repo, "appframes.toml"))
+		}
 
 		if id := r.URL.Query().Get("id"); id != "" {
 			if d, ok := buildFrameDetail(id, stdlibFrames, projectFrames, expanded, cfg); ok {
@@ -44,7 +49,19 @@ func serveGatewayFrames(policyRoot string) http.HandlerFunc {
 				renderGwShell(w, gwLayout{Title: id + " : gateway", Chrome: buildChrome("frames", repo, policyRoot), Content: template.HTML(buf.String())})
 				return
 			}
-			http.Error(w, "no such frame: "+id, http.StatusNotFound)
+			// A linter ID (app-correctness/<name>) has no catalog entry - it
+			// exists only while this repo's policy declares it - so the stats
+			// page's frame link would 404 on its own linter findings.
+			if li, ok := linters.ByID(id, cfg.Linters); ok {
+				var buf bytes.Buffer
+				if err := gwLinterDetailTmpl.Execute(&buf, li); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				renderGwShell(w, gwLayout{Title: id + " : gateway", Chrome: buildChrome("frames", repo, policyRoot), Content: template.HTML(buf.String())})
+				return
+			}
+			http.Error(w, "no such frame or linter: "+id, http.StatusNotFound)
 			return
 		}
 		tree := buildFramesCatalogTree(stdlibFrames)
@@ -354,4 +371,19 @@ var gwFrameDetailTmpl = template.Must(template.New("gwframe").Funcs(template.Fun
   <tr><td class="k">Source</td><td>{{.Source}} - {{.SourcePath}}</td></tr>
 </table>
 <pre class="body">{{.Body}}</pre>
+</section>`))
+
+var gwLinterDetailTmpl = template.Must(template.New("gwlinter").Parse(
+	`<section>
+<h2 class="gw-pagehead"><span class="tag {{.Severity}}">{{.Severity}}</span> {{.ID}}</h2>
+<p class="gw-pagedesc"><a href="/frames" style="color:var(--gw-accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="10 4 5 8 10 12"/></svg> all frames</a> · linter</p>
+<p class="gw-pagedesc">A <b>linter</b> this repo's policy configures, not a stdlib frame. It has no catalog entry and stops existing if the policy drops it; its findings carry the synthetic frame ID above so they flow through the same audit, whitelist and gate pipeline as a frame's.</p>
+<table class="fr">
+  <tr><td class="k">Linter</td><td>{{.Name}}{{if .Builtin}} (built-in adapter){{else}} (custom){{end}}</td></tr>
+  <tr><td class="k">Severity</td><td>{{.Severity}}</td></tr>
+  {{if .Dir}}<tr><td class="k">Runs in</td><td>{{.Dir}}</td></tr>{{end}}
+  {{if .Patterns}}<tr><td class="k">Patterns</td><td>{{range $i, $p := .Patterns}}{{if $i}}, {{end}}{{$p}}{{end}}</td></tr>{{end}}
+  {{if .Command}}<tr><td class="k">Command</td><td>{{.Command}}{{range .Args}} {{.}}{{end}}</td></tr>{{end}}
+  {{if .Disable}}<tr><td class="k">Disabled rules</td><td>{{range $i, $d := .Disable}}{{if $i}}, {{end}}{{$d}}{{end}}</td></tr>{{end}}
+</table>
 </section>`))

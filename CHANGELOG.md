@@ -5,6 +5,18 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Linter findings no longer link to a dead page.** The gateway's frames page
+  built an empty project config, so a synthetic linter ID (`app-correctness/
+  <name>`) never resolved and the stats page's own frame links 404'd on it. The
+  page now loads the selected repo's policy and renders a linter detail view,
+  matching what the local dashboard has always done. Both stats tables carry the
+  repo in the link, since a linter ID only means something against the policy
+  that declares it.
+
 ## [0.4.3] - 2026-09-03
 
 ### Added
