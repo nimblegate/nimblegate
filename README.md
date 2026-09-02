@@ -2,7 +2,7 @@
 
 > Git push guardrails for AI agents: block unsafe pushes consistently, forward safe ones, record every decision.
 
-**Status:** v0.4.4 · used in production since early 2026
+**Status:** [![latest release](https://img.shields.io/github/v/release/nimblegate/nimblegate?label=release&color=555)](https://github.com/nimblegate/nimblegate/releases/latest) · used in production since early 2026
 
 nimblegate sits **between your AI agent and your real git host**. Every push your
 agent makes is checked against the rules you turned on; clean pushes forward to

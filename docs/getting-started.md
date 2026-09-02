@@ -140,15 +140,17 @@ machine that *can*, then transfer it:
 
 ```bash
 # on a build machine with the source checked out:
-docker build -t ghcr.io/nimblegate/nimblegate:0.4.4 .
-docker save ghcr.io/nimblegate/nimblegate:0.4.4 | gzip > nimblegate.tar.gz
+TAG=$(grep -oE 'nimblegate:[0-9]+\.[0-9]+\.[0-9]+' compose.yaml | cut -d: -f2)
+docker build -t ghcr.io/nimblegate/nimblegate:"$TAG" .
+docker save ghcr.io/nimblegate/nimblegate:"$TAG" | gzip > nimblegate.tar.gz
 # copy nimblegate.tar.gz to the gateway, then on the gateway:
 docker load -i nimblegate.tar.gz
 docker compose up -d
 ```
 
-The tag you build must match the one `compose.yaml` pins (`0.4.4`) - an
-air-gapped box can't fall back to pulling if they differ.
+The tag you build must match the one `compose.yaml` pins - an air-gapped box
+can't fall back to pulling if they differ, which is why the snippet reads the
+pin out of `compose.yaml` rather than repeating it.
 
 **Port already in use?** Set `NIMBLEGATE_DASHBOARD_PORT` / `NIMBLEGATE_SSH_PORT`
 inline or in a `.env` file next to `compose.yaml`, no need to edit the recipe.

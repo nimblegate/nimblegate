@@ -11,8 +11,8 @@ the README quickstart (`docker compose up -d` against the tag `compose.yaml`
 pins) returns `manifest unknown` for every reader who isn't signed into a GitHub
 account that owns the package.
 
-> **Where things stand:** v0.1.0 through v0.4.4 are tagged, and
-> `compose.yaml` pins `0.4.4`. The walkthrough below is written around the
+> **Where things stand:** every release from v0.1.0 on is tagged, and
+> `compose.yaml` carries the pin every other file derives from. The walkthrough below is written around the
 > v0.1.0 first release and is kept as the worked example; for a routine release
 > go to [Subsequent releases](#subsequent-releases-v020).
 
@@ -149,10 +149,18 @@ Once v0.1.0 is published and the package is public, future releases are
 simpler:
 
 ```sh
+# 1. Bump the pin FIRST - compose.yaml is the single source the docs derive
+#    from, and `go test ./internal/version/` fails if it lags the changelog.
+#    Then date the changelog heading and commit both.
+# 2. Tag that commit, never one before it:
 git tag -a v0.2.0 -m "v0.2.0 - <one-line summary>"
 git push origin v0.2.0
 # Action runs, image is pushed, visibility is already Public (sticky).
 # Verify anonymous pull + smoke compose, then edit the release notes.
 ```
+
+`TestComposePinMatchesChangelog` and `TestCurrentVersionAppearsOnlyInThePin`
+enforce step 1, so a release cut with a stale pin fails the gate rather than
+shipping a compose file that starts the previous image.
 
 The visibility flip is only required for the first release of each package.
