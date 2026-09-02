@@ -1,3 +1,3 @@
-def run():
-    if True:
+def run(flag):
+    if flag:
         pass
