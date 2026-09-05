@@ -135,10 +135,12 @@ func (h *sshKeyHandlers) addKey(line string) (_ sshKey, err error) {
 		// canonical OpenSSH shorthand for no-port-forwarding + no-agent-forwarding +
 		// no-X11-forwarding + no-pty + no-user-rc (and future restrictions). The git
 		// user's login shell is git-shell, which already caps the session to git
-		// transfer verbs and routes the `~/<repo>.git` path; `restrict` closes the
-		// SSH-channel vectors git-shell doesn't (forwarding/pty). The clean
-		// `ssh://host/repo.git` URL is intentionally NOT supported - push via the
-		// `ssh://host:2222/~/<repo>.git` path form (see README / getting-started).
+		// transfer verbs; `restrict` closes the SSH-channel vectors git-shell
+		// doesn't (forwarding/pty). The clean `ssh://host/repo.git` URL is
+		// intentionally NOT supported - push via the repo's full path,
+		// `ssh://host:2222/srv/gateway/repos/<repo>.git`. The `~/<repo>.git`
+		// shorthand routes only where the git user's home IS the repos root: the
+		// image symlinks it there, a bare-metal install leaves it at /home/git.
 		line = "restrict " + canonical
 	}
 

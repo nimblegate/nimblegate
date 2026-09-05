@@ -39,12 +39,12 @@ func TestPublicSSHPort(t *testing.T) {
 func TestRenderDoctorTextUsesResolvedPushURL(t *testing.T) {
 	rep := gateway.DoctorReport{
 		Host:  "gw.example",
-		Repos: []gateway.DoctorRepoConn{{Name: "alpha", PushURL: "ssh://git@gw.example:22/~/alpha.git"}},
+		Repos: []gateway.DoctorRepoConn{{Name: "alpha", PushURL: "ssh://git@gw.example:22/srv/gateway/repos/alpha.git"}},
 	}
 	var buf bytes.Buffer
 	renderDoctorText(&buf, rep)
 	out := buf.String()
-	if !strings.Contains(out, "ssh://git@gw.example:22/~/alpha.git") {
+	if !strings.Contains(out, "ssh://git@gw.example:22/srv/gateway/repos/alpha.git") {
 		t.Fatalf("connect block does not use the resolved push URL:\n%s", out)
 	}
 	if strings.Contains(out, ":2222/") {
@@ -55,11 +55,11 @@ func TestRenderDoctorTextUsesResolvedPushURL(t *testing.T) {
 // The connect steps are printed by the CLI as well as the dashboard, so their
 // wording cannot assume a dashboard the reader just loaded.
 func TestPointOriginNote(t *testing.T) {
-	placeholder := pointOriginNote("ssh://git@<host>:22/~/alpha.git")
+	placeholder := pointOriginNote("ssh://git@<host>:22/srv/gateway/repos/alpha.git")
 	if !strings.Contains(placeholder, "<host>") {
 		t.Errorf("a placeholder URL must tell the reader to substitute: %q", placeholder)
 	}
-	known := pointOriginNote("ssh://git@gw.example:22/~/alpha.git")
+	known := pointOriginNote("ssh://git@gw.example:22/srv/gateway/repos/alpha.git")
 	if strings.Contains(known, "dashboard") || strings.Contains(known, "<host>") {
 		t.Errorf("a resolved URL needs no substitution and no dashboard reference: %q", known)
 	}

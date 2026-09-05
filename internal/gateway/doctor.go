@@ -71,7 +71,7 @@ type DoctorKey struct {
 // DoctorRepoConn is the gateway push URL a dev box points its origin at.
 type DoctorRepoConn struct {
 	Name    string
-	PushURL string // ssh://git@<host>:<push port>/~/<name>.git
+	PushURL string // ssh://git@<host>:<push port>/<repos root>/<name>.git
 }
 
 // DoctorReport is the full read-only preflight result.
@@ -372,8 +372,12 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	} else {
 		add(DoctorCheck{Repo: name, Name: "Bare repo", Status: DoctorOK, Reason: barePath})
 		rep.Repos = append(rep.Repos, DoctorRepoConn{
-			Name:    name,
-			PushURL: fmt.Sprintf("ssh://git@%s:%d/~/%s.git", host, pushPort, name),
+			Name: name,
+			// Absolute, and the activation path rather than barePath: `~/` resolves
+			// only where the git user's home is the repos root (true in the image,
+			// not on bare metal), and the canonical dir stays reachable after
+			// deactivation removes the link.
+			PushURL: fmt.Sprintf("ssh://git@%s:%d%s", host, pushPort, filepath.Join(cfg.ReposRoot, name+".git")),
 		})
 	}
 

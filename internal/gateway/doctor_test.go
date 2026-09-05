@@ -533,7 +533,7 @@ func TestRunDoctorPushURLPort(t *testing.T) {
 	// A declared port wins: the container publishes 2222 while its probe can
 	// only ever reach sshd's internal port.
 	got := pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", PushPort: 2222, Offline: true, Profile: ProfileBareMetal}))
-	if want := "ssh://git@gw:2222/~/alpha.git"; got != want {
+	if want := fmt.Sprintf("ssh://git@gw:2222%s/alpha.git", reposRoot); got != want {
 		t.Fatalf("declared port: got %q want %q", got, want)
 	}
 
@@ -546,18 +546,18 @@ func TestRunDoctorPushURLPort(t *testing.T) {
 	defer ln.Close()
 	open := ln.Addr().(*net.TCPAddr).Port
 	got = pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", GatePorts: []int{open}, Profile: ProfileBareMetal}))
-	if want := fmt.Sprintf("ssh://git@gw:%d/~/alpha.git", open); got != want {
+	if want := fmt.Sprintf("ssh://git@gw:%d%s/alpha.git", open, reposRoot); got != want {
 		t.Fatalf("probed port: got %q want %q", got, want)
 	}
 
 	// Offline (the dashboard's default view) has no probe, so the shape decides.
 	// Getting this wrong is what sent a bare-metal operator's dev box at 2222.
 	got = pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileBareMetal}))
-	if want := "ssh://git@gw:22/~/alpha.git"; got != want {
+	if want := fmt.Sprintf("ssh://git@gw:22%s/alpha.git", reposRoot); got != want {
 		t.Fatalf("bare-metal fallback: got %q want %q", got, want)
 	}
 	got = pushURL(RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileContainer}))
-	if want := "ssh://git@gw:2222/~/alpha.git"; got != want {
+	if want := fmt.Sprintf("ssh://git@gw:2222%s/alpha.git", reposRoot); got != want {
 		t.Fatalf("container fallback: got %q want %q", got, want)
 	}
 }
