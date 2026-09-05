@@ -47,6 +47,13 @@ func AddRepo(o AddOptions) error {
 	if err := os.MkdirAll(libPolicy, 0o755); err != nil {
 		return err
 	}
+	// Group write + setgid: the relay service runs as its own user and creates
+	// relay-status.json here, and what it creates has to keep the shared group
+	// or the dashboard cannot read it back.
+	if err := os.Chmod(libPolicy, 0o775|os.ModeSetgid); err != nil {
+		_ = os.RemoveAll(libPolicy)
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(libBare), 0o755); err != nil {
 		_ = os.RemoveAll(libPolicy)
 		return err

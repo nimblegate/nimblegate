@@ -653,8 +653,8 @@ func TestRepoLifecycle_addHandler_withCredential(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat credential: %v", err)
 	}
-	if st.Mode().Perm() != 0o600 {
-		t.Errorf("credential perms = %v, want 0600", st.Mode().Perm())
+	if st.Mode().Perm() != 0o640 {
+		t.Errorf("credential perms = %v, want 0640", st.Mode().Perm())
 	}
 	// The whole point: secret must NOT appear in the audit log.
 	if events := readEventsBytes(t, policyRoot); strings.Contains(string(events), secret) {

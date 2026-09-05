@@ -61,6 +61,8 @@ scp bin/nimblegate root@<gateway>:/usr/local/bin/nimblegate
 ssh root@<gateway> 'chmod 755 /usr/local/bin/nimblegate && nimblegate version'   # must print the commit you just built
 ```
 
+> **One thing the binary swap does not do: repair file permissions.** The privilege-separated relay reads `gateway.toml` and `credential` and writes `relay-status.json`, all owned by the dashboard's user, and older builds wrote those files owner-only - which locks the relay out of every repo, silently, since the gate keeps accepting pushes it cannot deliver. The current build writes them `0640` and creates new repo dirs setgid, but only **as it writes them**: files already on disk keep the mode they have until something saves them. After updating, run `nimblegate gateway doctor` - the per-repo **Relay access** check names any file the relay user cannot reach and prints the exact `chmod`. The blanket repair is step 3 of the relay setup below (`chmod -R g+rX` plus `chmod g+ws` on the repo dirs), and it now sticks.
+
 The hooks reference `/usr/local/bin/nimblegate` by path, so replacing the binary is the whole update: **no re-registration**. The `version.Version` label is set to the commit SHA on purpose: `nimblegate version` on the gateway then tells you exactly which build is live, so "is the gateway running my new code?" is a one-command answer. A local build **never** reaches the gateway on its own; you must `scp` it; that gap is the usual cause of a gateway that looks "stale."
 
 ### Update from Gitea (server pulls + builds)
@@ -143,14 +145,14 @@ Easier still: leave it minimal here and tune the whole frame selection (apply ki
 
 ### 3. Point developers at the gateway, then lock it down
 
-The `git` user's home is the activation root (`/srv/gateway/repos`), so the documented URL is short: no `/srv/gateway/repos/` prefix in what your devs type:
+Devs point `origin` at the repo's full path under the activation root. That form routes whatever the `git` user's home is, so it is the one to document:
 
 ```sh
-git remote set-url origin git@<gateway>:myrepo.git    # sshd on default port 22
+git remote set-url origin ssh://git@<gateway>/srv/gateway/repos/myrepo.git   # sshd on default port 22
 git push origin main      # gated: rejected if it carries an open BLOCK; relayed to upstream if clean
 ```
 
-In containerised eval setups where sshd is on host port 2222, add a one-time ssh config entry (`Host gateway / Port 2222`) so the short form stays short, or write the explicit port in the URL: `ssh://git@<gateway>:2222/~/myrepo.git` (note the `~/` - the git-shell-restricted user resolves repo paths relative to its home; a bare `/myrepo.git` won't route).
+In containerised eval setups where sshd is on host port 2222, write the port into the URL (`ssh://git@<gateway>:2222/srv/gateway/repos/myrepo.git`) or add a one-time ssh config entry (`Host gateway / Port 2222`) so the port never has to be typed. The shorter `~/myrepo.git` form works on the **image**, whose git user's home is a symlink to the repos root; on this bare-metal install the home stays `/home/git`, so `~/` points at nothing and only the full path routes. A bare `/myrepo.git` never routes either - nothing lives at the filesystem root.
 
 If the dev box has nimblegate installed locally, leaks are caught at commit/push time and never traverse to the gateway: that's defence-in-depth working, not a fault. The gateway audit log (`/srv/gateway/cfg/<repo>/audit.log`) is the authoritative record of what actually reached the boundary.
 
@@ -165,14 +167,19 @@ By default the relay runs inline as the `git` user, which means the `git` user c
 useradd -r -M -s /usr/sbin/nologin nbg-relay
 groupadd -f gwshare && usermod -aG gwshare git && usermod -aG gwshare nbg-relay
 
-# 2. Credential: ONLY in the per-repo file, owned by nbg-relay, never in the URL
+# 2. Credential: ONLY in the per-repo file, never in the URL. The dashboard
+#    writes it 0640 in the shared group. To keep it from the git user, chown it
+#    to nbg-relay at 0600 - the dashboard can then no longer update that token.
 printf '%s' "<upstream-token>" > /srv/gateway/cfg/<repo>/credential
 chown nbg-relay:nbg-relay /srv/gateway/cfg/<repo>/credential
 chmod 600 /srv/gateway/cfg/<repo>/credential
 
-# 3. gateway.toml is non-secret (upstream URL + gating) and read by BOTH users
+# 3. gateway.toml is non-secret (upstream URL + gating) and read by BOTH users.
+#    Existing files only: nimblegate writes 0640 and creates repo dirs setgid,
+#    so a later dashboard save does not undo this.
 chgrp -R gwshare /srv/gateway/cfg && chmod -R g+rX /srv/gateway/cfg
-chmod 600 /srv/gateway/cfg/*/credential          # re-tighten the credential files
+find /srv/gateway/cfg -type d -exec chmod g+ws {} +   # relay writes relay-status.json into these
+chmod 600 /srv/gateway/cfg/*/credential   # ONLY if you took the hardened nbg-relay-owned route in step 2
 
 # 4. Bare repos readable by nbg-relay (it reads objects to push; code isn't the secret)
 chgrp -R gwshare /srv/gateway/repos && chmod -R g+rX /srv/gateway/repos
@@ -313,6 +320,7 @@ systemctl restart nimblegate-dashboard
 | Service fails `203/EXEC` / `Exec format error` | a hand-created launcher script whose `#!/bin/sh` isn't at column 0 | `cat -A script \| head -1` must show `#!/bin/sh$`; copy a file rather than pasting a heredoc |
 | Accepted pushes never reach the upstream | empty/missing/wrong `credential` (or token-in-URL) | the relay fails closed; check the per-repo `credential` file is non-empty and has push scope |
 | Accepted pushes never reach the upstream; relay logs `Host key verification failed` (exit 128) | upstream is an `ssh://` / `git@…` URL and the gateway's relay user has **never accepted the upstream's SSH host key** (strict host-key check rejects the connection *before* auth) | on the gateway, as the relay user: `ssh-keyscan -H <upstream-host> >> ~/.ssh/known_hosts`, **and** confirm the gateway's own key is an authorized deploy key on the upstream repo. Simpler: switch the upstream to `http(s)://USER:TOKEN@…` (PAT in URL) to skip SSH host-key/key setup entirely. Note: a **PAT does nothing for an `ssh://` upstream**; the URL scheme decides which credential is used. |
+| Relay is `active`, delivers nothing, and its journal says `load policy: ... permission denied` for **every** repo | the relay user cannot read `<policy-root>/<repo>/gateway.toml`. Older builds wrote it `0600`, and owner-only defeats the shared group no matter which groups the relay user is in; the same applies one line later to `credential`, and to the repo dir it writes `relay-status.json` into | `nimblegate gateway doctor` reports this per repo as **Relay access** with the command to run. By hand: `chmod 640 /srv/gateway/cfg/_repos/*/gateway.toml /srv/gateway/cfg/_repos/*/credential` and `chmod g+ws /srv/gateway/cfg/_repos/*/`, then `systemctl restart nimblegate-relay`. Compare `id <relay-user>` against `ls -ln` (numeric - `ls -l` prints names and hides a uid/gid mismatch) |
 | Relay won't start; `systemctl` shows `status=217/USER` | the unit's relay `User=` (e.g. `nbg-relay`) **no longer exists** - most often dropped during a host rebuild / OS migration | `getent passwd nbg-relay` (empty = gone). Recreate it (see "privilege-separated relay" step 1) + re-add to the socket group (`usermod -aG git nbg-relay`), then `systemctl restart nimblegate-relay`. Recreating the user does **not** restore its `~/.ssh` key - see the next row. |
 | Relay is `active` but pushes never reach the upstream and **nothing is logged** | reconcile logs only on success, so a failing relay is currently silent. After a relay-user or upstream-repo recreate the usual cause is a missing/unregistered relay SSH key (`useradd -M` leaves no `~/.ssh`; or a per-repo deploy key died when the repo was recreated) | confirm the key exists (`ls ~nbg-relay/.ssh/`) and its **public** half is on the upstream **account's** SSH keys (an account key survives repo recreates; a deploy key does not) with **write**. Prove it with a manual relay push, which surfaces the error reconcile hides: `sudo -u nbg-relay env HOME=~nbg-relay git --git-dir=<repo>.git push <upstream-url> <sha>:refs/heads/main` |
 

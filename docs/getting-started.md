@@ -260,7 +260,7 @@ give it a label, and click **Authorize key**. It's active immediately.
   - **Gitea**: **`write:repository`**.
   - **GitLab**: **`write_repository`**.
 
-  Stored locked-down (0600), never logged. *(Auto-PR posts findings as PR
+  Stored locked-down (0640, no world read), never logged. *(Auto-PR posts findings as PR
   comments, which needs a little more: on **Gitea** also add **`write:issue`**;
   on **GitLab** use **`api`**; on **GitHub** classic `repo` already covers it
   (fine-grained: add **Pull requests: Read** to find the PR **and Issues: Read

@@ -157,16 +157,16 @@ The gate is only un-bypassable if the **upstream credential lives where the push
 
 **The privilege-separated relay closes it.** Opt in with `gateway add --relay-socket <path>` + the `nimblegate-relay.service` unit, and:
 
-- The **credential is owned by a dedicated `nbg-relay` user, mode `0600`**, so the `git` user cannot read it. Run the relay as `nbg-relay` (the systemd unit does this).
+- The relay runs as a dedicated **`nbg-relay`** user (the systemd unit does this). The dashboard writes `credential` at **`0640`** in the shared `git`+`nbg-relay` group, so the relay can read a token the dashboard saved. To put the credential **beyond the `git` user**, `chown nbg-relay:nbg-relay` it and set `0600`: the relay still reads it, but the dashboard can no longer update that repo's token, so from then on the operator owns that file by hand. That is the hardened setting, not the default.
 - The `post-receive` hook (as `git`) holds **no credential**; it hands a **credential-free `(repo, refs)` job** to the relay service over a **local Unix socket** (`0660`, group-restricted to the `git` user) and blocks for the result, so the pusher still sees an immediate `relay FAILED`.
 - The relay service **validates every job against the gated bare repo**: it only relays a `ref@rev` whose object matches the repo's *current* state. A forged or replayed job cannot make the credential-holding service push un-gated content; the content must already be in the gated repo to be pushable.
 - A **reconciler** re-pushes any ref the upstream is missing or behind (recovers pushes accepted while the relay was down, automating the old "operator must re-run relay").
 
-With this on, an attacker who gets the `git` user (a `git-shell` escape, a subverted hook) gets **nothing reusable**: no credential, no way to reach the upstream directly.
+With this on, an attacker who gets the `git` user (a `git-shell` escape, a subverted hook) cannot forge un-gated content past the relay's job validation, and cannot reach the upstream directly. Whether they also get **no credential** depends on the file: at the default `0640` in the shared group the `git` user can still read the token, so credential secrecy needs the `nbg-relay:0600` setting above.
 
 Two rules the separated model **requires** (enforced/warned by `gateway add`):
 
-1. **The credential lives ONLY in `<policy-root>/<repo>/credential`** (`nbg-relay:0600`), **never** as a token in the `upstream-url`. `gateway.toml` is git-readable (the `git` user needs the gating config in `pre-receive`), so a token in the URL would be readable by exactly the user the boundary excludes. `gateway add --relay-socket` warns if the upstream URL embeds a token.
+1. **The credential lives ONLY in `<policy-root>/<repo>/credential`** (`0640` in the shared group by default, `nbg-relay:0600` when hardened), **never** as a token in the `upstream-url`. `gateway.toml` is git-readable (the `git` user needs the gating config in `pre-receive`), so a token in the URL would be readable by exactly the user the boundary excludes. `gateway add --relay-socket` warns if the upstream URL embeds a token.
 2. **`gateway.toml` must be relay-readable** (e.g. a shared `git`+`nbg-relay` group, `0640`): it holds the *non-secret* upstream URL + gating config that both users read.
 
 Pair this with the inbound hardening (`AuthorizedKeysFile` pointed at a **root-owned** file outside the `git` user's home, so a compromised `git` user can't add its own keys) and the boundary holds in software, not just by convention. See [`README.md`](README.md) "Deploy the privilege-separated relay" for the runbook.
@@ -232,7 +232,7 @@ It does NOT contain: source code, repo contents, the credential used to push, or
 
 ### Webhook secret handling
 
-The webhook auth secret lives at `<policy-root>/<repo>/gateway.toml` (mode 0600 like the upstream credential). It's never logged, never echoed in events, masked in the dashboard's reveal control until the operator opts in to view it. HMAC mode is recommended over Bearer because HMAC verifies the request body's integrity too, not just authenticity: a tampered payload fails verification.
+The webhook auth secret lives at `<policy-root>/<repo>/gateway.toml` (mode 0640: no world read, readable by the gateway group because the relay reads the upstream URL from the same file). It's never logged, never echoed in events, masked in the dashboard's reveal control until the operator opts in to view it. HMAC mode is recommended over Bearer because HMAC verifies the request body's integrity too, not just authenticity: a tampered payload fails verification.
 
 ### HMAC vs Bearer trade-off
 
@@ -486,7 +486,7 @@ Git CVEs land at unpredictable intervals. Auto-security-updates is the differenc
 
 ### Don't write the gateway PAT into `gateway.toml` (URL-embedded credential)
 
-The old pattern was `upstream = "https://<token>@gitea/repo.git"`. That puts the credential in cleartext in a config file alongside other config: easy to leak via `cat`, `grep`, backup tooling, etc. The new model puts the URL in `gateway.toml` and the credential separately in `<policyRoot>/<repo>/credential` (mode 0600). Don't revert to embedded URLs.
+The old pattern was `upstream = "https://<token>@gitea/repo.git"`. That puts the credential in cleartext in a config file alongside other config: easy to leak via `cat`, `grep`, backup tooling, etc. The new model puts the URL in `gateway.toml` and the credential separately in `<policyRoot>/<repo>/credential` (mode 0640, or `nbg-relay:0600` when hardened). Don't revert to embedded URLs.
 
 ### Don't share an upstream credential across repos that don't need it
 

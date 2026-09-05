@@ -118,12 +118,15 @@ func (s FilePolicyStore) Save(p Policy) error {
 // AddRepo, which writes to the lib path before the activation symlink exists
 // (so Save's path-via-symlink wouldn't resolve yet).
 //
-// Mode 0600 because [notification.webhook] sections can carry HMAC / Bearer
-// secrets. Matches the cred.go pattern: explicit 0600 on create, plus a
-// follow-up Chmod so pre-existing files written by an older binary at the
-// default 0644 get tightened on the next write.
+// Mode 0640, not 0600: [notification.webhook] sections can carry HMAC / Bearer
+// secrets, so world read stays off - but the privilege-separated relay runs as
+// its own user and MUST read this file, and owner-only locked it out of every
+// repo (it reads the upstream URL from here). Group is the shared gateway group
+// the install puts the git and relay users in. Matches the cred.go pattern:
+// explicit mode on create, plus a follow-up Chmod so a file written by an older
+// binary is corrected on the next write.
 func writeGatewayTOML(path string, p Policy) (err error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o640)
 	if err != nil {
 		return err
 	}
@@ -148,7 +151,7 @@ func writeGatewayTOML(path string, p Policy) (err error) {
 	// written by an earlier binary that used os.Create's default mode).
 	// Chmod works by path and does not require the handle to be closed first;
 	// the deferred close runs after this return value is set.
-	return os.Chmod(path, 0o600)
+	return os.Chmod(path, 0o640)
 }
 
 // SetEnabled flips a repo's gating on/off (gateway.toml enabled), preserving the

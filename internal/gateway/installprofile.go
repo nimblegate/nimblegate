@@ -27,6 +27,12 @@ type InstallProfile struct {
 	// BindFix says how to reach a dashboard bound to loopback.
 	BindFix string
 
+	// RelayUnit is the systemd unit that runs this shape's reconcile backstop.
+	// Its User= is the account the backstop runs as, which the shared policy
+	// files must be reachable by even when no repo routes its pushes through
+	// the relay socket. Empty where the shape ships no backstop.
+	RelayUnit string
+
 	// HasRelayBackstop says whether this shape ships a reconcile backstop at
 	// all. False suppresses the check rather than reporting a service that does
 	// not exist here. No remediation travels with it: starting the backstop
@@ -81,6 +87,7 @@ var ProfileBareMetal = InstallProfile{
 	Name:             "bare metal",
 	AuthorizedKeys:   "/home/git/.ssh/authorized_keys",
 	BindFix:          "nimblegate gateway bind <gateway-ip> (or `all`), then systemctl restart nimblegate-dashboard; or tunnel: ssh -L 7900:127.0.0.1:7900 user@host",
+	RelayUnit:        "/etc/systemd/system/nimblegate-relay.service",
 	HasRelayBackstop: true,
 
 	// The host's own sshd, so the port the probe reaches is the port dev boxes

@@ -41,7 +41,10 @@ func ReadRelayStatus(policyRoot, repo string) (RelayStatus, bool) {
 }
 
 // WriteRelayStatus atomically writes the relay status for repo (temp file +
-// rename). Mode 0600 because Error can carry a redacted upstream error string.
+// rename). Mode 0640 because Error can carry a redacted upstream error string,
+// so world read stays off - but the writer is the relay user and the readers
+// (dashboard, doctor) are not, so owner-only made every status unreadable to
+// the pages that exist to show it.
 func WriteRelayStatus(policyRoot, repo string, s RelayStatus) error {
 	b, err := json.Marshal(s)
 	if err != nil {
@@ -49,7 +52,10 @@ func WriteRelayStatus(policyRoot, repo string, s RelayStatus) error {
 	}
 	path := relayStatusPath(policyRoot, repo)
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	if err := os.WriteFile(tmp, b, 0o640); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp, 0o640); err != nil { // WriteFile's mode is umask-masked; this is not
 		return err
 	}
 	return os.Rename(tmp, path)

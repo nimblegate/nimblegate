@@ -36,6 +36,14 @@ func TestInstallProfilesAreComplete(t *testing.T) {
 	if !ProfileBareMetal.HasRelayBackstop {
 		t.Error("bare metal ships nimblegate-relay.service; the backstop is reportable there")
 	}
+	// A shape with a backstop must name its unit: that file's User= is the only
+	// way to learn which account the backstop runs as before it has run once.
+	if ProfileBareMetal.RelayUnit == "" {
+		t.Error("bare metal names no relay unit; the relay-access check cannot find the backstop's user")
+	}
+	if ProfileContainer.RelayUnit != "" {
+		t.Error("the image ships no relay unit")
+	}
 }
 
 // Each shape's advice must be written for that shape only - the whole point of

@@ -5,6 +5,53 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`gateway doctor` checks the relay user's file access.** The
+  privilege-separated relay runs as its own account, and the whole boundary is
+  file permissions between it and the dashboard - the one thing nothing
+  verified. A per-repo **Relay access** check now asks what that user would
+  ask: can it read `gateway.toml` and `credential`, can it write the policy dir
+  where `relay-status.json` goes. A failure names the file and prints the exact
+  `chmod`. The account is resolved rather than assumed: where a repo routes its
+  pushes through the relay socket, the socket's owner is the account that
+  created it; where the hooks carry no socket and pushes relay inline, the
+  reconcile backstop still runs as its own user, read from that unit's `User=`.
+  A shape with neither - the container image - emits nothing, since one account
+  owns both sides there.
+
+### Fixed
+
+- **The privilege-separated relay could not read the files it needs.**
+  `gateway.toml`, `credential` and `relay-status.json` are each written by one
+  account and read by the other, and all three were written owner-only, which
+  no group membership can rescue. On an affected gateway the relay failed
+  `load policy: permission denied` for every repo and delivered nothing, while
+  the gate kept accepting pushes - and `SECURITY-MODEL.md` had required
+  `gateway.toml` to be relay-readable at `0640` all along. All three writers now
+  use `0640` (world read still off) with an explicit `Chmod`, since a create
+  mode is umask-masked and an existing file keeps its own; `gateway add` also
+  makes each repo's policy dir setgid and group-writable so the relay can write
+  its status file and the dashboard can still read it back. **Updating the
+  binary does not repair files already on disk** - run `gateway doctor` after
+  updating and apply what **Relay access** reports. The security model now
+  names `nbg-relay:0600` on `credential` as the hardened setting rather than
+  the default, because at `0640` in the shared group the `git` user can read
+  the token.
+
+- **Doctor printed a push URL that only works on the container.** The connect
+  block built `ssh://git@<host>:<port>/~/<repo>.git`, which resolves only where
+  the git user's home is the activation root - true in the image, which
+  symlinks it there, false on a bare-metal install that leaves the home at
+  `/home/git`. Bare-metal operators were handed a `git remote set-url` that
+  could not work, and a `git ls-remote` to confirm it that failed the same way.
+  It now prints the repo's full path under the repos root, which routes under
+  plain git-shell, under the scoped forced command, and in the image. The path
+  is the activation link rather than the resolved directory, so deactivating a
+  repo still retires the URL.
+
 ## [0.4.5] - 2026-09-03
 
 ### Fixed

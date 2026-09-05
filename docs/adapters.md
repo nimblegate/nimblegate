@@ -77,7 +77,7 @@ PATCH the body of an existing comment. 404 means the comment was deleted between
 
 ## Authentication
 
-Adapters use the **existing per-repo `credential` file** at `<policy-root>/<repo>/credential` (mode 0600). The orchestrator passes the credential string to the adapter constructor; the adapter sends it in whatever auth header the host expects:
+Adapters use the **existing per-repo `credential` file** at `<policy-root>/<repo>/credential` (mode 0640). The orchestrator passes the credential string to the adapter constructor; the adapter sends it in whatever auth header the host expects:
 
 - Gitea: `Authorization: token <pat>`
 - GitHub: `Authorization: Bearer <pat>`

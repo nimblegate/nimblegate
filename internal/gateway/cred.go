@@ -17,7 +17,8 @@ type CredentialStore interface {
 	Save(repo, cred string) error
 }
 
-// FileCredentialStore stores the credential at <Root>/<repo>/credential (0600).
+// FileCredentialStore stores the credential at <Root>/<repo>/credential (0640:
+// the relay user reads it through the shared gateway group).
 type FileCredentialStore struct{ Root string }
 
 func (s FileCredentialStore) file(repo string) string {
@@ -29,10 +30,10 @@ func (s FileCredentialStore) Save(repo, cred string) error {
 		return err
 	}
 	p := s.file(repo)
-	if err := os.WriteFile(p, []byte(cred), 0o600); err != nil {
+	if err := os.WriteFile(p, []byte(cred), 0o640); err != nil {
 		return err
 	}
-	return os.Chmod(p, 0o600) // enforce 0600 even if the file pre-existed with looser perms
+	return os.Chmod(p, 0o640) // enforce the mode even if the file pre-existed with different perms
 }
 
 func (s FileCredentialStore) Load(repo string) (string, error) {

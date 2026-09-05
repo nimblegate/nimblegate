@@ -159,6 +159,10 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 	if prof.Name == "" {
 		prof = ResolveInstallProfile()
 	}
+	// Every downstream check reads the shape from cfg, so the detected profile
+	// has to land back in it: leaving cfg.Profile zero made the relay-access
+	// check believe no shape ships a backstop and skip silently.
+	cfg.Profile = prof
 	rep.Install = prof.Name
 	if prof.Name == ProfileUnknown.Name {
 		add(DoctorCheck{
@@ -371,6 +375,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		})
 	} else {
 		add(DoctorCheck{Repo: name, Name: "Bare repo", Status: DoctorOK, Reason: barePath})
+		doctorCheckRelayAccess(add, cfg, name, barePath)
 		rep.Repos = append(rep.Repos, DoctorRepoConn{
 			Name: name,
 			// Absolute, and the activation path rather than barePath: `~/` resolves

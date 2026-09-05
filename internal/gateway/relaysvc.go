@@ -87,7 +87,7 @@ func writeResp(conn net.Conn, r relayResponse) {
 // NewRepoResolver builds the production Resolve for a RelayService running on
 // the gateway: a repo name maps to its symlink-safe, root-confined bare dir
 // (resolveRepoBare), its upstream URL (gateway.toml), and its credential (the
-// per-repo credential file, readable only by the relay user). Tests inject
+// per-repo credential file, group-readable to the gateway group). Tests inject
 // their own Resolve instead.
 func NewRepoResolver(reposRoot, policyRoot string) func(repo string) (string, string, string, error) {
 	return func(repo string) (string, string, string, error) {

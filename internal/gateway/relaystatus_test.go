@@ -35,3 +35,22 @@ func TestRelayStatus_absentReturnsFalse(t *testing.T) {
 		t.Fatal("absent record should return ok=false")
 	}
 }
+
+// The relay user writes this file and the dashboard and doctor read it. 0600
+// made every status unreadable to the pages whose whole job is to show it.
+func TestWriteRelayStatus_mode0640(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteRelayStatus(root, "demo", RelayStatus{OK: true}); err != nil {
+		t.Fatalf("WriteRelayStatus: %v", err)
+	}
+	st, err := os.Stat(filepath.Join(root, "demo", "relay-status.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0o640 {
+		t.Errorf("relay-status.json mode = %o, want 640", st.Mode().Perm())
+	}
+}

@@ -7,7 +7,7 @@ import "testing"
 // TestIsSSHUpstream covers every reasonable upstream URL shape an operator
 // might paste into the registration form. SSH shapes return true (no
 // per-repo credential needed); HTTP and other shapes return false (PAT
-// stored at <policy-root>/<repo>/credential mode 0600).
+// stored at <policy-root>/<repo>/credential mode 0640).
 func TestIsSSHUpstream(t *testing.T) {
 	cases := []struct {
 		url  string

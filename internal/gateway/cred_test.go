@@ -19,8 +19,8 @@ func TestFileCredentialStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf("credential perms = %o, want 600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o640 {
+		t.Errorf("credential perms = %o, want 640", info.Mode().Perm())
 	}
 	got, err := s.Load("demo")
 	if err != nil || got != "ghp_secrettoken" {
@@ -31,7 +31,7 @@ func TestFileCredentialStore(t *testing.T) {
 	}
 }
 
-func TestFileCredentialStore_SaveEnforces0600OnExistingFile(t *testing.T) {
+func TestFileCredentialStore_SaveEnforces0640OnExistingFile(t *testing.T) {
 	root := t.TempDir()
 	repo := "tighten"
 	credFile := filepath.Join(root, repo, "credential")
@@ -53,7 +53,7 @@ func TestFileCredentialStore_SaveEnforces0600OnExistingFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf("perms after Save on pre-existing file = %o, want 0600", info.Mode().Perm())
+	if info.Mode().Perm() != 0o640 {
+		t.Errorf("perms after Save on pre-existing file = %o, want 0640", info.Mode().Perm())
 	}
 }
