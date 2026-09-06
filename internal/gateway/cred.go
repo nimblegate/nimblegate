@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,6 +27,9 @@ func (s FileCredentialStore) file(repo string) string {
 }
 
 func (s FileCredentialStore) Save(repo, cred string) error {
+	if !safeRepoName(repo) {
+		return fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	if err := os.MkdirAll(filepath.Dir(s.file(repo)), 0o755); err != nil {
 		return err
 	}
@@ -37,6 +41,9 @@ func (s FileCredentialStore) Save(repo, cred string) error {
 }
 
 func (s FileCredentialStore) Load(repo string) (string, error) {
+	if !safeRepoName(repo) {
+		return "", fmt.Errorf("gateway: invalid repo name %q", repo)
+	}
 	b, err := os.ReadFile(s.file(repo))
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil

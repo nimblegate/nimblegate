@@ -28,8 +28,11 @@ type AddOptions struct {
 // AddRepo creates the bare repo, installs the pre/post-receive hooks, and saves
 // the policy. The credential (if any) is installed separately via the cred store.
 func AddRepo(o AddOptions) error {
-	if o.Name == "_repos" || strings.HasPrefix(o.Name, "_archive") || strings.HasPrefix(o.Name, "_events") {
-		return fmt.Errorf("reserved repo name: %q", o.Name)
+	// Every other store method guards its own path; this one trusted its callers,
+	// which left the CLI free to write outside the roots. safeRepoName subsumes
+	// the reserved names too - _repos, _archive*, _events* all start with "_".
+	if !safeRepoName(o.Name) {
+		return fmt.Errorf("invalid or reserved repo name %q: one path segment, no leading %q or %q", o.Name, ".", "_")
 	}
 	libPolicy := filepath.Join(o.PolicyRoot, "_repos", o.Name)
 	libBare := filepath.Join(o.ReposRoot, "_repos", o.Name+".git")

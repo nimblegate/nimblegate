@@ -57,3 +57,21 @@ func TestFileCredentialStore_SaveEnforces0640OnExistingFile(t *testing.T) {
 		t.Errorf("perms after Save on pre-existing file = %o, want 0640", info.Mode().Perm())
 	}
 }
+
+// The credential store builds its path from the repo name the same way the
+// policy store does, and had no guard at all - on the more sensitive file.
+func TestFileCredentialStore_rejectsNamesThatEscapeTheRoot(t *testing.T) {
+	root := t.TempDir()
+	s := FileCredentialStore{Root: root}
+	for _, name := range []string{"../escape", "a/b", ".."} {
+		if err := s.Save(name, "ghp_secret"); err == nil {
+			t.Errorf("Save(%q) succeeded; want rejection", name)
+		}
+		if _, err := s.Load(name); err == nil {
+			t.Errorf("Load(%q) succeeded; want rejection", name)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(root), "escape")); err == nil {
+		t.Error("a rejected name still wrote outside the root")
+	}
+}

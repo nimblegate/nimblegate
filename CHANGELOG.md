@@ -24,6 +24,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **`gateway add` and the credential store now validate the repo name.** Both
+  joined the caller's name straight into a path. Every other store method guards
+  with `safeRepoName`; these two trusted their callers, and while the dashboard
+  validates before either is reached, `gateway add --name ../..` from the CLI
+  wrote outside the roots. Both now reject anything that is not a single path
+  segment. (Found by CodeQL's `go/path-injection` on the policy writer, which
+  re-flagged unchanged code because the mode literal on its line moved.)
+
 - **The privilege-separated relay could not read the files it needs.**
   `gateway.toml`, `credential` and `relay-status.json` are each written by one
   account and read by the other, and all three were written owner-only, which

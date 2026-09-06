@@ -541,3 +541,25 @@ func TestDeleteRepo_errorsOnMissingRepo(t *testing.T) {
 		t.Error("must error when the repo doesn't exist (guards typos)")
 	}
 }
+
+// AddRepo joins the name into four paths under the roots, and was the one store
+// entry point that trusted its caller for it: the dashboard validates, the CLI
+// did not, so `gateway add --name ../..` wrote outside the policy root.
+func TestAddRepo_rejectsNamesThatEscapeTheRoots(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"../escape", "a/b", `a\b`, "..", ".hidden", "_lib"} {
+		err := AddRepo(AddOptions{
+			Name:        name,
+			UpstreamURL: "http://x",
+			PolicyRoot:  filepath.Join(tmp, "p"),
+			ReposRoot:   filepath.Join(tmp, "r"),
+			SelfExe:     "/bin/true",
+		})
+		if err == nil {
+			t.Errorf("AddRepo(%q) succeeded; want rejection", name)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(tmp, "escape")); err == nil {
+		t.Error("a rejected name still created a path outside the roots")
+	}
+}
