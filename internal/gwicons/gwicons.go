@@ -14,9 +14,12 @@ import (
 
 // svg wraps a path body in the shared <svg> chrome. fill="none" + stroke makes
 // every icon inherit the surrounding text color, so the existing .acc / .rej /
-// .gw-health-status-* color rules still apply.
+// .gw-health-status-* color rules still apply. The width/height attributes look
+// redundant next to .gw-ico's 1em sizing and are not: a viewBox-only SVG has no
+// intrinsic size, so if the page arrives without its stylesheet the icon falls
+// back to the 300x150 default and swamps the layout.
 func svg(body string) string {
-	return `<svg class="gw-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` + body + `</svg>`
+	return `<svg class="gw-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` + body + `</svg>`
 }
 
 // set maps a status-icon name to its inline SVG. Names are stable - they're
