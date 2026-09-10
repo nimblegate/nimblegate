@@ -29,7 +29,7 @@ If you run `gateway add` from a CLI session under a different Unix user than the
 
 Registration writes every file a fully-wired repo needs, so there's no "click Apply kit → nothing happens" trap on a fresh registration. The seed includes:
 
-- `<policy-root>/<repo>/gateway.toml`: per-repo upstream URL + protected refs + status (mode 0600 because notification webhooks may carry secrets).
+- `<policy-root>/<repo>/gateway.toml`: per-repo upstream URL + protected refs + status (mode 0640: no world access because notification webhooks may carry secrets, group read so the relay user can load it).
 - `<policy-root>/<repo>/appframes.toml`: empty `[frames]` section so the dashboard's frame toggle / kit apply handlers find a parseable file. Without this seed, the first click silently no-ops until a save creates it; the trap surfaced during ai-assistant onboarding.
 - `<repos-root>/<repo>.git/`: bare repo with `receive.maxInputSize` cap applied and pre/post-receive hooks installed.
 - Activation symlinks at `<policy-root>/<repo>` and `<repos-root>/<repo>.git` pointing at the `_repos/` lib paths (so archive removes the symlink only, preserving files).
@@ -52,7 +52,7 @@ The banner stays hidden when every repo is connected, no clutter in the common c
 
 Each row's status column shows one of three credential badges depending on the upstream URL shape + whether a credential file exists on disk:
 
-- **credential set** (filled pill): a PAT or deploy token sits at `<policy-root>/<repo>/credential` mode 0600. Normal state for `https://` relays.
+- **credential set** (filled pill): a PAT or deploy token sits at `<policy-root>/<repo>/credential` mode 0640. Normal state for `https://` relays.
 - **credential n/a (SSH)** (dashed pill): upstream URL is SSH-shaped (`ssh://...` or `git@host:path`), relaying via the gateway's own SSH identity, so no per-repo credential is needed. You only see this on a gateway where an ssh client was **added to the container yourself** (the opt-in SSH path) - the default container rejects SSH upstreams at registration, so the normal state is an HTTPS upstream with **credential set**.
 - **credential unset** (plain pill): upstream URL is HTTP but no credential file exists. Relays will fail with a 401 / Permission denied. Either install a PAT via the "Add or rotate upstream credential" section below, or convert the upstream URL to SSH if the gateway is configured for SSH relay.
 

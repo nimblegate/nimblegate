@@ -199,7 +199,7 @@ func gatewayAdd(args []string) int {
 		}
 	}
 	fmt.Printf("registered %q → %s (bare repo under %s)\n", *name, *upstream, *reposRoot)
-	fmt.Printf("install the upstream credential at %s/%s/credential (0600) if needed\n", *policyRoot, *name)
+	fmt.Printf("install the upstream credential at %s/%s/credential (mode 0640) if needed\n", *policyRoot, *name)
 
 	// Mirror the upstream's existing history so the repo is immediately
 	// clone-able from the gateway. No-op for an empty upstream. SSH upstreams

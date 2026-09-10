@@ -5,6 +5,16 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Messages and help still quoted the old `0600` file mode.** The `gateway add`
+  hint, the dashboard's credential forms and the Repos help page told operators
+  the credential and `gateway.toml` are stored `0600`. They have been written
+  `0640` since 0.4.6, and a credential created by hand at `0600` on a bare-metal
+  install is unreadable to the relay user. The text now says `0640`.
+
 ## [0.4.6] - 2026-09-11
 
 ### Added

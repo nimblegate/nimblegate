@@ -43,8 +43,8 @@ chmod a+rX "$REPOS" "$REPOS/_repos" "$POLICY" "$POLICY/demo"
 chmod -R a+rX "$REPOS/_repos/demo.git"
 # gateway.toml holds non-secret config (upstream URL, gating) that BOTH git and
 # the relay user read. The credential is NOT here - it is the separate 0600 file
-# below. gateway add writes gateway.toml 0600 (git-only); make it relay-readable.
-# (Production: a shared git+relay group, gateway.toml 0640.)
+# below. gateway add writes gateway.toml 0640 for a shared git+relay group; this
+# test has no such group, so make it world-readable.
 chmod a+r "$POLICY/demo/gateway.toml"
 
 echo "== setup: credential owned by nbg-relay, 0600 (git must not read it) =="

@@ -147,7 +147,7 @@ func (h repoLifecycleHandlers) add(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// Upstream credential (optional). Stored mode 0600 at
+	// Upstream credential (optional). Stored mode 0640 at
 	// <policyRoot>/<repo>/credential. Never logged or surfaced in responses.
 	cred := r.FormValue("upstream_credential")
 	credSet := false

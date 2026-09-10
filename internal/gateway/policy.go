@@ -147,7 +147,7 @@ func writeGatewayTOML(path string, p Policy) (err error) {
 	}); err != nil {
 		return err
 	}
-	// Enforce 0600 even if the file pre-existed with looser perms (e.g.,
+	// Enforce 0640 even if the file pre-existed with looser perms (e.g.,
 	// written by an earlier binary that used os.Create's default mode).
 	// Chmod works by path and does not require the handle to be closed first;
 	// the deferred close runs after this return value is set.
