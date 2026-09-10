@@ -60,6 +60,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   is the activation link rather than the resolved directory, so deactivating a
   repo still retires the URL.
 
+- **The dashboard logo and nav icons blew up when the stylesheet was missing.**
+  The inline SVGs carried only a `viewBox`, so a page delivered without its
+  styles, such as a tab restored while the dashboard was still starting,
+  rendered the login logo and every rail icon at the browser's 300x150
+  default. Each now declares its own width and height; the stylesheet still
+  sets the final size.
+
 ## [0.4.5] - 2026-09-03
 
 ### Fixed

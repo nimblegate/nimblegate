@@ -5,6 +5,7 @@ package commands
 import (
 	"net/http/httptest"
 	"nimblegate/internal/gateway"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -123,5 +124,25 @@ func TestLocalDashboardUnaffected(t *testing.T) {
 	}
 	if !strings.Contains(dashStyle, "header{padding") {
 		t.Errorf("dashStyle header rule unexpectedly changed")
+	}
+}
+
+// A viewBox-only <svg> has no intrinsic size and renders at 300x150 when the
+// page arrives without its stylesheet, so every inline mark must carry its own.
+func TestInlineSVGsCarryIntrinsicSize(t *testing.T) {
+	shell := httptest.NewRecorder()
+	renderGwShell(shell, gwLayout{Title: "x", Chrome: chromeData{ActiveSection: "feed", Repos: []string{"api"}}})
+	login := httptest.NewRecorder()
+	renderAuthPage(login, authPageData{Page: "login"})
+	for page, body := range map[string]string{"shell": shell.Body.String(), "login": login.Body.String()} {
+		svgs := regexp.MustCompile(`<svg\b[^>]*>`).FindAllString(body, -1)
+		if len(svgs) == 0 {
+			t.Fatalf("%s: no inline svg rendered", page)
+		}
+		for _, s := range svgs {
+			if !strings.Contains(s, "width=") || !strings.Contains(s, "height=") {
+				t.Errorf("%s: svg without intrinsic size: %s", page, s)
+			}
+		}
 	}
 }
