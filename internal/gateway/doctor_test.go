@@ -763,3 +763,50 @@ func TestRunDoctorRelayRecoveredByBackstop(t *testing.T) {
 		}
 	}
 }
+
+// An upstream that refused the push as non-fast-forward accepted the
+// credential; telling the operator to check the token sent them the wrong way.
+// Both relay FAIL paths name the divergence and give the commands to compare
+// the two sides, while a real auth failure keeps the credential advice.
+func TestRunDoctorRelayDivergedUpstream(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	for _, n := range []string{"backstop", "pushed", "badtoken"} {
+		doctorSeed(t, policyRoot, reposRoot, n, AddOptions{UpstreamURL: "git@example.test:x/" + n + ".git", GateAllRefs: true})
+	}
+	rejected := "relay to git@example.test:x/y.git failed: exit status 1\nTo example.test:x/y.git\n ! [rejected]        beaa634 -> main (non-fast-forward)\nerror: failed to push some refs\nhint: Updates were rejected because the tip of your current branch is behind\nhint: use 'git pull' before pushing again."
+	if err := WriteRelayStatus(policyRoot, "backstop", RelayStatus{OK: false, Error: rejected}); err != nil {
+		t.Fatal(err)
+	}
+	if err := AppendEvent(policyRoot, Event{Event: "relay-failed", Repo: "pushed", Payload: map[string]any{"error": rejected, "heads_only": true}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteRelayStatus(policyRoot, "badtoken", RelayStatus{OK: false, Error: "relay to https://h/x.git failed: exit status 128\nfatal: Authentication failed"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileBareMetal})
+	for _, n := range []string{"backstop", "pushed"} {
+		c, ok := findCheck(rep, n, "Relay")
+		if !ok || c.Status != DoctorFail {
+			t.Fatalf("%s: want FAIL, got %+v ok=%v", n, c, ok)
+		}
+		if !strings.Contains(c.Reason, "commits the gateway does not") || strings.Contains(c.Reason, "hint:") {
+			t.Errorf("%s: reason should name the divergence without git's hints: %s", n, c.Reason)
+		}
+		if strings.Contains(c.Fix, "token") {
+			t.Errorf("%s: a divergence is not a credential problem: %s", n, c.Fix)
+		}
+		for _, want := range []string{
+			"sudo -u git git -C " + filepath.Join(reposRoot, n+".git") + " log --oneline -3 main",
+			"ls-remote git@example.test:x/" + n + ".git main",
+			"--force-with-lease=main:<upstream sha>",
+		} {
+			if !strings.Contains(c.Fix, want) {
+				t.Errorf("%s: fix missing %q:\n%s", n, want, c.Fix)
+			}
+		}
+	}
+	if c, ok := findCheck(rep, "badtoken", "Relay"); !ok || c.Status != DoctorFail || !strings.Contains(c.Fix, "token") {
+		t.Errorf("auth failure should keep the credential advice, got %+v ok=%v", c, ok)
+	}
+}

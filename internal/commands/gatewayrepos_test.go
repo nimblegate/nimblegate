@@ -236,6 +236,9 @@ func TestReposPage_RelayBadgeClearsAfterBackstopRecovery(t *testing.T) {
 		if got := strings.Contains(body, badge); got != c.want {
 			t.Errorf("%s: relay badge shown = %v, want %v", c.name, got, c.want)
 		}
+		if c.want && !strings.Contains(body, "Run nimblegate gateway doctor for the cause.") {
+			t.Errorf("%s: the badge should point to doctor rather than guess a cause", c.name)
+		}
 	}
 }
 

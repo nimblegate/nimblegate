@@ -197,7 +197,7 @@ func renderRepoTable(w io.Writer, rows []repoRow, opts reposPageOpts) {
 			fmt.Fprint(w, `<span class="gw-repo-badge observe">observe</span>`)
 		}
 		if row.RelayFailing {
-			fmt.Fprint(w, `<span class="gw-repo-badge" style="background:var(--gw-block-bg,#3a1414);color:var(--gw-block-text,#ff9b9b);border:1px solid var(--gw-block-border,#7a3030)" title="The gateway accepted pushes but the most recent relay to the upstream FAILED - pushes are not reaching your real host. Check the upstream URL (https:// for a PAT) and credential.">relay failing</span>`)
+			fmt.Fprint(w, `<span class="gw-repo-badge" style="background:var(--gw-block-bg,#3a1414);color:var(--gw-block-text,#ff9b9b);border:1px solid var(--gw-block-border,#7a3030)" title="The gateway accepted pushes but the most recent relay to the upstream FAILED - pushes are not reaching your real host. Run nimblegate gateway doctor for the cause.">relay failing</span>`)
 		}
 		switch {
 		case row.CredentialSet:

@@ -305,3 +305,32 @@ func TestFormatBytes_buckets(t *testing.T) {
 		}
 	}
 }
+
+// Git's hints advise a working copy ("use git pull"); on a gateway they point
+// the wrong way, so Health shows the error without them.
+func TestHealth_relayErrorDropsGitHints(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "repoR")
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "gateway.toml"),
+		[]byte(`upstream-url = "https://example.test/repoR.git"`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := gateway.WriteRelayStatus(root, "repoR", gateway.RelayStatus{OK: false, Error: "relay to upstream failed\nhint: use git pull before pushing again"}); err != nil {
+		t.Fatal(err)
+	}
+	d := collectHealth(root, "", time.Now().Add(-time.Minute), time.Now())
+	var buf bytes.Buffer
+	if err := renderHealth(&buf, d); err != nil {
+		t.Fatalf("renderHealth: %v", err)
+	}
+	body := buf.String()
+	if !strings.Contains(body, "relay failing: relay to upstream failed") {
+		t.Errorf("health page missing failing-relay line\n%s", body)
+	}
+	if strings.Contains(body, "hint:") {
+		t.Errorf("health page still shows git's hints\n%s", body)
+	}
+}

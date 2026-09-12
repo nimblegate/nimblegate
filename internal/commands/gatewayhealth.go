@@ -234,7 +234,7 @@ func collectHealth(policyRoot, reposRoot string, startTime time.Time, now time.T
 		if rs, ok := gateway.ReadRelayStatus(policyRoot, repo); ok {
 			hr.RelayKnown = true
 			hr.RelayOK = rs.OK
-			hr.RelayError = rs.Error
+			hr.RelayError = gateway.WithoutGitHints(rs.Error)
 			hr.RelayDrifted = rs.DriftedRefs
 		}
 

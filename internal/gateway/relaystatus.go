@@ -66,7 +66,8 @@ func WriteRelayStatus(policyRoot, repo string, s RelayStatus) error {
 type PushRelay struct {
 	OK        bool
 	At        time.Time
-	HeadsOnly bool // every ref was a branch update the backstop would re-send
+	HeadsOnly bool   // every ref was a branch update the backstop would re-send
+	Error     string // what a failed push recorded
 }
 
 // LastPushRelays returns each repo's most recent live relay outcome. Events
@@ -82,7 +83,8 @@ func LastPushRelays(policyRoot string) map[string]PushRelay {
 	}
 	for _, e := range evs {
 		heads, _ := e.Payload["heads_only"].(bool)
-		m[e.Repo] = PushRelay{OK: e.Event == "relay-ok", At: e.Timestamp, HeadsOnly: heads}
+		msg, _ := e.Payload["error"].(string)
+		m[e.Repo] = PushRelay{OK: e.Event == "relay-ok", At: e.Timestamp, HeadsOnly: heads, Error: msg}
 	}
 	return m
 }

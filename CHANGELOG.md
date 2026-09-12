@@ -24,6 +24,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   that a repository exists at the path, and the credential checks treat it
   like SSH.
 
+- **Doctor blamed the credential when the upstream refused a push as
+  non-fast-forward.** That rejection means the upstream holds commits the
+  gateway does not, from a direct push or rewritten history, and the credential
+  worked. Doctor now says so and prints the commands to compare the two sides
+  and resolve it either way. Git's working-copy hints no longer appear on
+  doctor or Health, and the Repos badge points to doctor instead of the URL
+  and credential.
+
 ## [0.4.7] - 2026-09-12
 
 ### Changed

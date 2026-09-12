@@ -515,7 +515,8 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	push, havePush := lastPush[name]
 	switch {
 	case haveStatus && !rs.OK:
-		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorFail, Reason: "relay failing: " + rs.Error, Fix: "check the upstream token/host; see gateway logs"})
+		add(relayFailCheck(cfg, name, pol.UpstreamURL, rs.Error,
+			"relay failing: "+WithoutGitHints(rs.Error), "check the upstream token/host; see gateway logs"))
 	case havePush && !push.OK && push.Recovered(rs, haveStatus):
 		add(DoctorCheck{
 			Repo:   name,
@@ -524,13 +525,9 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 			Reason: fmt.Sprintf("the last push failed to relay at %s; the upstream has since caught up (confirmed %s)", push.At.UTC().Format("2006-01-02 15:04Z"), rs.LastSuccess.UTC().Format("2006-01-02 15:04Z")),
 		})
 	case havePush && !push.OK:
-		add(DoctorCheck{
-			Repo:   name,
-			Name:   "Relay",
-			Status: DoctorFail,
-			Reason: "the last accepted push did not reach the upstream; the gate accepted it and the upstream never got it",
-			Fix:    "check the upstream credential and that the upstream host is reachable from the gateway; see gateway logs",
-		})
+		add(relayFailCheck(cfg, name, pol.UpstreamURL, push.Error,
+			"the last accepted push did not reach the upstream; the gate accepted it and the upstream never got it",
+			"check the upstream credential and that the upstream host is reachable from the gateway; see gateway logs"))
 	case haveStatus && rs.DriftedRefs > 0:
 		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorWarn, Reason: fmt.Sprintf("last reconcile re-pushed %d ref(s) the upstream was missing", rs.DriftedRefs)})
 	case havePush:
@@ -668,4 +665,32 @@ func localRepoExists(dir string) bool {
 		}
 	}
 	return false
+}
+
+// relayFailCheck is doctor's Relay FAIL line for a recorded relay error. An
+// upstream that refused the push as non-fast-forward holds commits the gateway
+// does not - the credential worked - so it gets its own reason and the
+// commands to compare the two sides, instead of the credential advice.
+func relayFailCheck(cfg DoctorConfig, repo, upstream, errText, reason, fix string) DoctorCheck {
+	branch, diverged := RelayDiverged(errText)
+	if !diverged {
+		return DoctorCheck{Repo: repo, Name: "Relay", Status: DoctorFail, Reason: reason, Fix: fix}
+	}
+	git := "git"
+	if cfg.Profile.Name == ProfileBareMetal.Name {
+		git = "sudo -u git git" // the relay's SSH identity belongs to the git user
+	}
+	bare := filepath.Join(cfg.ReposRoot, repo+".git")
+	fix = fmt.Sprintf("compare the two sides: %s -C %s log --oneline -3 %s and %s ls-remote %s %s. If the upstream's extra commits are unwanted, overwrite them from the gateway: %s -C %s push --force-with-lease=%s:<upstream sha> %s %s. If they are wanted, merge them into your clone and push through the gateway",
+		git, bare, branch, git, upstream, branch, git, bare, branch, upstream, branch)
+	if strings.HasPrefix(upstream, "http") {
+		fix += "; git asks for the repo's credential for this http(s) upstream"
+	}
+	return DoctorCheck{
+		Repo:   repo,
+		Name:   "Relay",
+		Status: DoctorFail,
+		Reason: fmt.Sprintf("the upstream refused the push to %s because it has commits the gateway does not: someone pushed to it directly, or history was rewritten through the gateway", branch),
+		Fix:    fix,
+	}
 }
