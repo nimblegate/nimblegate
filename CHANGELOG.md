@@ -22,6 +22,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `0640` since 0.4.6, and a credential created by hand at `0600` on a bare-metal
   install is unreadable to the relay user. The text now says `0640`.
 
+- **Doctor and the Repos page kept flagging a relay failure the backstop had
+  already repaired.** A push whose relay failed stayed marked as failed until
+  the next push, even after the relay service had confirmed the upstream
+  matched. A failed branch push now counts as recovered once a later backstop
+  pass succeeds. Failed tag pushes and deletions, which the backstop never
+  re-sends, still show as failed, as do failures recorded before this version.
+
 ### Security
 
 - **Updated `golang.org/x/crypto` to v0.57.0 and `golang.org/x/net` to v0.59.0.**

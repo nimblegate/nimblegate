@@ -60,3 +60,38 @@ func WriteRelayStatus(policyRoot, repo string, s RelayStatus) error {
 	}
 	return os.Rename(tmp, path)
 }
+
+// PushRelay is a repo's most recent live relay outcome, as post-receive
+// recorded it.
+type PushRelay struct {
+	OK        bool
+	At        time.Time
+	HeadsOnly bool // every ref was a branch update the backstop would re-send
+}
+
+// LastPushRelays returns each repo's most recent live relay outcome. Events
+// are chronological, so the last one per repo wins; an unreadable events file
+// yields an empty map, the same as no pushes.
+func LastPushRelays(policyRoot string) map[string]PushRelay {
+	m := map[string]PushRelay{}
+	evs, err := ReadEvents(policyRoot, func(e Event) bool {
+		return e.Event == "relay-ok" || e.Event == "relay-failed"
+	})
+	if err != nil {
+		return m
+	}
+	for _, e := range evs {
+		heads, _ := e.Payload["heads_only"].(bool)
+		m[e.Repo] = PushRelay{OK: e.Event == "relay-ok", At: e.Timestamp, HeadsOnly: heads}
+	}
+	return m
+}
+
+// Recovered reports whether a failed push has since reached the upstream
+// another way. The backstop compares every branch head against the upstream
+// and re-sends any that differ, so a clean pass after the failure means the
+// upstream now holds what a branch-only push carried. A failure recorded
+// before pushes carried that flag stays failed until the next push.
+func (p PushRelay) Recovered(rs RelayStatus, haveStatus bool) bool {
+	return !p.OK && p.HeadsOnly && haveStatus && rs.OK && rs.LastSuccess.After(p.At)
+}

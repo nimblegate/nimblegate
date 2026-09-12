@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // PostReceiveDeps are the injected dependencies for one repo's post-receive run.
@@ -50,7 +51,7 @@ func RunPostReceive(d PostReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 		// recovers it) and say NOTHING to the pusher. git ignores post-receive
 		// exit codes, so the push still shows success.
 		if d.PolicyRoot != "" {
-			_ = AppendEvent(d.PolicyRoot, Event{Event: "relay-failed", Repo: d.Repo, OK: false, Payload: map[string]any{"error": relayErr.Error()}})
+			_ = AppendEvent(d.PolicyRoot, Event{Event: "relay-failed", Repo: d.Repo, OK: false, Payload: map[string]any{"error": relayErr.Error(), "heads_only": headsOnly(refs)}})
 		}
 		return 0
 	}
@@ -80,4 +81,16 @@ func RunPostReceive(d PostReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 		}
 	}
 	return 0
+}
+
+// headsOnly reports whether every update is a branch push, the only kind the
+// reconcile backstop re-sends: it never pushes tags or deletes refs, so its
+// later success says nothing about a failed push of either.
+func headsOnly(refs []RefUpdate) bool {
+	for _, r := range refs {
+		if r.IsDelete() || !strings.HasPrefix(r.Name, "refs/heads/") {
+			return false
+		}
+	}
+	return len(refs) > 0
 }

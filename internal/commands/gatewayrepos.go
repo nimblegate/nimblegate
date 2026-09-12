@@ -61,26 +61,18 @@ func renderReposPage(w io.Writer, opts reposPageOpts) error {
 	activeRepos := listGatewayRepos(opts.PolicyRoot)
 	archivedRepos := gateway.ListArchivedRepos(opts.PolicyRoot)
 
-	// Latest relay outcome per repo (ReadEvents returns chronological order, so
-	// the last relay-ok/relay-failed wins). Surfaces a silently-failing relay -
+	// Latest live relay outcome per repo. Surfaces a silently-failing relay -
 	// pushes the gateway accepted but couldn't deliver upstream.
-	relayFailing := map[string]bool{}
-	if evs, err := gateway.ReadEvents(opts.PolicyRoot, func(e gateway.Event) bool {
-		return e.Event == "relay-ok" || e.Event == "relay-failed"
-	}); err == nil {
-		for _, e := range evs {
-			relayFailing[e.Repo] = e.Event == "relay-failed"
-		}
-	}
+	lastPush := gateway.LastPushRelays(opts.PolicyRoot)
 
 	var rows []repoRow
 	for _, name := range activeRepos {
-		row := repoRow{Name: name, RelayFailing: relayFailing[name]}
-		// The backstop reconcile records its own per-repo outcome; a failing
-		// backstop also flips the badge even if no live push has happened since.
-		if rs, ok := gateway.ReadRelayStatus(opts.PolicyRoot, name); ok && !rs.OK {
-			row.RelayFailing = true
-		}
+		// The backstop records its own outcome: a failing pass flips the badge
+		// even with no push since, and a clean pass after a failed branch push
+		// clears it, since the upstream then holds what that push carried.
+		rs, haveStatus := gateway.ReadRelayStatus(opts.PolicyRoot, name)
+		push, havePush := lastPush[name]
+		row := repoRow{Name: name, RelayFailing: (haveStatus && !rs.OK) || (havePush && !push.OK && !push.Recovered(rs, haveStatus))}
 		p, err := (gateway.FilePolicyStore{Root: opts.PolicyRoot}).Load(name)
 		if err == nil {
 			row.UpstreamURL = p.UpstreamURL

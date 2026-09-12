@@ -704,3 +704,40 @@ func TestRunDoctorFramesReportsDeadEntries(t *testing.T) {
 		t.Errorf("mixed: reason should separate live from dead, got %q", c2.Reason)
 	}
 }
+
+// A failed push stops counting once a later backstop pass has confirmed the
+// upstream holds every branch head - but only for a branch-only push, and only
+// on a pass newer than the failure. Tags and deletions it never re-sends.
+func TestRunDoctorRelayRecoveredByBackstop(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	for _, n := range []string{"recovered", "tag-push", "legacy", "older-pass"} {
+		doctorSeed(t, policyRoot, reposRoot, n, AddOptions{UpstreamURL: "https://github.com/x/" + n + ".git", GateAllRefs: true})
+	}
+	failedAt := time.Date(2026, 9, 3, 4, 55, 0, 0, time.UTC)
+	for _, e := range []Event{
+		{Timestamp: failedAt, Event: "relay-failed", Repo: "recovered", Payload: map[string]any{"error": "rejected", "heads_only": true}},
+		{Timestamp: failedAt, Event: "relay-failed", Repo: "tag-push", Payload: map[string]any{"error": "rejected", "heads_only": false}},
+		{Timestamp: failedAt, Event: "relay-failed", Repo: "legacy", Payload: map[string]any{"error": "rejected"}},
+		{Timestamp: failedAt, Event: "relay-failed", Repo: "older-pass", Payload: map[string]any{"error": "rejected", "heads_only": true}},
+	} {
+		if err := AppendEvent(policyRoot, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	later, earlier := failedAt.Add(time.Hour), failedAt.Add(-time.Hour)
+	for n, at := range map[string]time.Time{"recovered": later, "tag-push": later, "legacy": later, "older-pass": earlier} {
+		if err := WriteRelayStatus(policyRoot, n, RelayStatus{OK: true, LastAttempt: at, LastSuccess: at}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true, Profile: ProfileContainer})
+	if c, ok := findCheck(rep, "recovered", "Relay"); !ok || c.Status != DoctorOK || !strings.Contains(c.Reason, "caught up") {
+		t.Errorf("branch push repaired by a later pass: want OK naming the recovery, got %+v ok=%v", c, ok)
+	}
+	for _, n := range []string{"tag-push", "legacy", "older-pass"} {
+		if c, ok := findCheck(rep, n, "Relay"); !ok || c.Status != DoctorFail {
+			t.Errorf("%s: want FAIL, got %+v ok=%v", n, c, ok)
+		}
+	}
+}

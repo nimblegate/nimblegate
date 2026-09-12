@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"nimblegate/internal/gateway"
 )
@@ -203,5 +204,37 @@ func TestReposPage_ArchivedPanelListsArchived(t *testing.T) {
 	// Active repo appears in the table, not the archived panel.
 	if !strings.Contains(body, "active-repo") {
 		t.Error("active repo missing from repos table")
+	}
+}
+
+// The badge follows the same rule as doctor: a failed branch push stops
+// showing once a later backstop pass confirms the upstream, and not before.
+func TestReposPage_RelayBadgeClearsAfterBackstopRecovery(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedReposTestRepo(t, policyRoot, reposRoot, "alpha", "https://git.example.com/alpha.git")
+	failedAt := time.Date(2026, 9, 3, 4, 55, 0, 0, time.UTC)
+	if err := gateway.AppendEvent(policyRoot, gateway.Event{Timestamp: failedAt, Event: "relay-failed", Repo: "alpha", Payload: map[string]any{"error": "rejected", "heads_only": true}}); err != nil {
+		t.Fatal(err)
+	}
+	const badge = ">relay failing</span>"
+	for _, c := range []struct {
+		name    string
+		success time.Time
+		want    bool
+	}{
+		{"pass before the failure", failedAt.Add(-time.Hour), true},
+		{"pass after the failure", failedAt.Add(time.Hour), false},
+	} {
+		if err := gateway.WriteRelayStatus(policyRoot, "alpha", gateway.RelayStatus{OK: true, LastAttempt: c.success, LastSuccess: c.success}); err != nil {
+			t.Fatal(err)
+		}
+		body := renderReposBody(t, reposPageOpts{PolicyRoot: policyRoot, ReposRoot: reposRoot})
+		if got := strings.Contains(body, badge); got != c.want {
+			t.Errorf("%s: relay badge shown = %v, want %v", c.name, got, c.want)
+		}
 	}
 }

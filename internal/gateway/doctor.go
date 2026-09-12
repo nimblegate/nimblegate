@@ -287,16 +287,8 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 
 	// Latest live relay outcome per repo. post-receive records one per push in
 	// both install shapes, so this is the only relay signal a container ever
-	// has - it runs no reconcile backstop. Read once; ReadEvents is
-	// chronological, so the last write per repo wins.
-	lastRelayOK := map[string]bool{}
-	if evs, err := ReadEvents(cfg.PolicyRoot, func(e Event) bool {
-		return e.Event == "relay-ok" || e.Event == "relay-failed"
-	}); err == nil {
-		for _, e := range evs {
-			lastRelayOK[e.Repo] = e.Event == "relay-ok"
-		}
-	}
+	// has - it runs no reconcile backstop.
+	lastPush := LastPushRelays(cfg.PolicyRoot)
 
 	pushPort := prof.PushPort(cfg.PushPort, probedPort)
 
@@ -340,7 +332,7 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 		if cfg.RepoFilter != "" && name != cfg.RepoFilter {
 			continue
 		}
-		doctorCheckRepo(&rep, add, cfg, name, host, pushPort, lastRelayOK)
+		doctorCheckRepo(&rep, add, cfg, name, host, pushPort, lastPush)
 	}
 
 	return rep
@@ -365,7 +357,7 @@ func doctorKnownFrameIDs(policyRoot, repo string) map[string]bool {
 	return known
 }
 
-func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig, name, host string, pushPort int, lastRelayOK map[string]bool) {
+func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig, name, host string, pushPort int, lastPush map[string]PushRelay) {
 	if barePath, err := resolveRepoBare(cfg.ReposRoot, name); err != nil {
 		add(DoctorCheck{
 			Repo:   name,
@@ -507,11 +499,18 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	// from either wins - the point of the check is a gate that accepts pushes
 	// the upstream never receives.
 	rs, haveStatus := ReadRelayStatus(cfg.PolicyRoot, name)
-	pushOK, havePush := lastRelayOK[name]
+	push, havePush := lastPush[name]
 	switch {
 	case haveStatus && !rs.OK:
 		add(DoctorCheck{Repo: name, Name: "Relay", Status: DoctorFail, Reason: "relay failing: " + rs.Error, Fix: "check the upstream token/host; see gateway logs"})
-	case havePush && !pushOK:
+	case havePush && !push.OK && push.Recovered(rs, haveStatus):
+		add(DoctorCheck{
+			Repo:   name,
+			Name:   "Relay",
+			Status: DoctorOK,
+			Reason: fmt.Sprintf("the last push failed to relay at %s; the upstream has since caught up (confirmed %s)", push.At.UTC().Format("2006-01-02 15:04Z"), rs.LastSuccess.UTC().Format("2006-01-02 15:04Z")),
+		})
+	case havePush && !push.OK:
 		add(DoctorCheck{
 			Repo:   name,
 			Name:   "Relay",

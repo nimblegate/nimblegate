@@ -54,6 +54,31 @@ func TestRunPostReceive_socketRelayFailureSilentToPusher(t *testing.T) {
 	}
 	evs, _ := ReadEvents(policyRoot, func(e Event) bool { return e.Event == "relay-failed" })
 	if len(evs) == 0 {
-		t.Error("relay failure should be recorded as an operator event")
+		t.Fatal("relay failure should be recorded as an operator event")
+	}
+	if heads, _ := evs[len(evs)-1].Payload["heads_only"].(bool); !heads {
+		t.Errorf("a failed branch push must be recorded as heads_only, got payload %v", evs[len(evs)-1].Payload)
+	}
+}
+
+func TestHeadsOnly(t *testing.T) {
+	const sha = "1111111111111111111111111111111111111111"
+	branch := RefUpdate{Name: "refs/heads/main", OldRev: zeroRev, NewRev: sha}
+	tag := RefUpdate{Name: "refs/tags/v1", OldRev: zeroRev, NewRev: sha}
+	del := RefUpdate{Name: "refs/heads/old", OldRev: sha, NewRev: zeroRev}
+	for _, c := range []struct {
+		name string
+		refs []RefUpdate
+		want bool
+	}{
+		{"branch update", []RefUpdate{branch}, true},
+		{"tag", []RefUpdate{tag}, false},
+		{"branch delete", []RefUpdate{del}, false},
+		{"branch and tag", []RefUpdate{branch, tag}, false},
+		{"no refs", nil, false},
+	} {
+		if got := headsOnly(c.refs); got != c.want {
+			t.Errorf("%s: headsOnly = %v, want %v", c.name, got, c.want)
+		}
 	}
 }
