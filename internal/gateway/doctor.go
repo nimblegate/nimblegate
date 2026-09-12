@@ -397,6 +397,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		// allowed to make shows up on the Relay line instead.
 		if p := LocalUpstreamPath(pol.UpstreamURL); localRepoExists(p) {
 			add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorOK, Reason: pol.UpstreamURL + " (a repository on this machine; relays with a plain git push, no credential)"})
+			doctorCheckLocalUpstreamAccess(add, cfg, name, p)
 		} else {
 			add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorFail,
 				Reason: "no git repository at " + p + "; relays to this local upstream will fail",

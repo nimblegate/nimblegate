@@ -22,7 +22,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   fail without a credential, the setup check raised a blocking missing
   credential, and the Repos page showed "credential unset". Doctor now checks
   that a repository exists at the path, and the credential checks treat it
-  like SSH.
+  like SSH. It also warns when an account that relays there cannot use the
+  repository because another user owns it, and gives the `safe.directory`
+  command that fixes it.
 
 - **Doctor blamed the credential when the upstream refused a push as
   non-fast-forward.** That rejection means the upstream holds commits the
