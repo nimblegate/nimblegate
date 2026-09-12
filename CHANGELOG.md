@@ -5,6 +5,15 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Each GitHub release shows its changelog section.** The release notes are
+  now the version's `CHANGELOG.md` section instead of a list of commit IDs, and
+  a tag with no section fails before anything is published. The container
+  image now publishes only after the binaries and the release page succeed.
+
 ## [0.4.7] - 2026-09-12
 
 ### Changed

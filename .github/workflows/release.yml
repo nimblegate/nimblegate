@@ -19,14 +19,27 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27'
+      # The release body is the version's CHANGELOG.md section. Written outside
+      # the checkout so goreleaser does not see a dirty tree.
+      - name: Release notes from CHANGELOG.md
+        run: |
+          notes="$RUNNER_TEMP/release-notes.md"
+          awk -v v="${GITHUB_REF_NAME#v}" -f .github/release-notes.awk CHANGELOG.md > "$notes"
+          if [ ! -s "$notes" ]; then
+            echo "::error::CHANGELOG.md has no section for $GITHUB_REF_NAME"
+            exit 1
+          fi
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --clean
+          args: release --clean --release-notes=${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Only after the binaries and release page exist, so a failed release never
+  # leaves an image (and a moved :latest) behind.
   container:
+    needs: binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

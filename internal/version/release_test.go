@@ -4,6 +4,7 @@ package version
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -77,4 +78,32 @@ func readRepoFile(t *testing.T, root, rel string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+// The release workflow publishes the pinned version's CHANGELOG.md section as
+// the GitHub release notes, through this same script, and refuses to release
+// when it prints nothing. Running it here fails the suite before a tag does.
+func TestReleaseNotesForPinnedVersion(t *testing.T) {
+	awk, err := exec.LookPath("awk")
+	if err != nil {
+		t.Skip("awk not installed")
+	}
+	root := repoRoot(t)
+	pin := composePin(t, root)
+	out, err := exec.Command(awk, "-v", "v="+pin, "-f", filepath.Join(root, ".github", "release-notes.awk"), filepath.Join(root, "CHANGELOG.md")).Output()
+	if err != nil {
+		t.Fatalf("release-notes.awk: %v", err)
+	}
+	notes := string(out)
+	if strings.TrimSpace(notes) == "" {
+		t.Fatalf("CHANGELOG.md has no section for %s, so the release would fail", pin)
+	}
+	if strings.HasPrefix(notes, "\n") || strings.HasSuffix(notes, "\n\n") {
+		t.Error("release notes start or end with a blank line")
+	}
+	for i, line := range strings.Split(notes, "\n") {
+		if strings.HasPrefix(line, " ") {
+			t.Errorf("line %d is still a wrapped continuation: %q", i+1, line)
+		}
+	}
 }

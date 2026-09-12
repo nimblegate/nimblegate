@@ -51,12 +51,12 @@ gh run watch                          # if you have the gh CLI
 # or open https://github.com/nimblegate/nimblegate/actions
 ```
 
-Two jobs run in parallel:
+Two jobs run, the image only after the binaries succeed:
 
-- `binaries`: goreleaser builds platform binaries and uploads them as GitHub release assets.
+- `binaries`: takes the version's `CHANGELOG.md` section as the release notes (`.github/release-notes.awk`), then goreleaser builds platform binaries and publishes the release with them attached. A tag with no changelog section fails here, before anything is published.
 - `container`: docker buildx builds multi-arch (`linux/amd64,linux/arm64`) and pushes to `ghcr.io/nimblegate/nimblegate:0.1.0`, `:0.1`, and `:latest`.
 
-Expected runtime: ~3-5 minutes total. If either job fails, fix and re-tag
+Expected runtime: ~10-12 minutes total. If either job fails, fix and re-tag
 (`git tag -d v0.1.0 && git push origin :v0.1.0 && git tag v0.1.0 && git push origin v0.1.0`).
 
 ### 3. Flip the package to public: **this is the load-bearing step**
@@ -113,10 +113,10 @@ docker compose down --volumes                      # cleanup
 ### 6. Update the release notes + announce
 
 GitHub publishes the release when the tag is pushed (`.goreleaser.yaml` sets
-`draft: false`). It appears with the binaries already attached. Edit it:
-
-- Paste the CHANGELOG.md `[0.1.0]` section as the body.
-- Add a "Container image" line: `ghcr.io/nimblegate/nimblegate:0.1.0` (also `:0.1`, `:latest`).
+`draft: false`). It appears with the binaries already attached and the
+CHANGELOG.md `[0.1.0]` section as its body, so there is nothing to paste.
+`go test ./internal/version/` runs the same extraction for the pinned version,
+so a missing or malformed section fails before you tag.
 
 > **Do not create the release yourself in the GitHub UI.** Wait for the tag push
 > to produce it. Making a release by hand for the same tag produces a *second*
@@ -156,7 +156,7 @@ simpler:
 git tag -a v0.2.0 -m "v0.2.0 - <one-line summary>"
 git push origin v0.2.0
 # Action runs, image is pushed, visibility is already Public (sticky).
-# Verify anonymous pull + smoke compose, then edit the release notes.
+# Verify anonymous pull + smoke compose. The notes are already the changelog section.
 ```
 
 `TestComposePinMatchesChangelog` and `TestCurrentVersionAppearsOnlyInThePin`
