@@ -1,7 +1,7 @@
 # nimblegate public demo - read-only dashboard over fabricated seed data.
 # Build from repo root:  docker build -f deploy/demo/Dockerfile -t nimblegate-demo .
 ARG VERSION=demo
-FROM golang:1.25-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \

@@ -8,7 +8,7 @@
 #   docker build -t nimblegate:eval-alpine .
 # The binary, the module path, and the public brand are all `nimblegate`.
 
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.27
 ARG ALPINE_VERSION=3.20
 ARG S6_OVERLAY_VERSION=3.2.0.2
 

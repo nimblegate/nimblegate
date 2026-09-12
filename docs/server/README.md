@@ -69,10 +69,10 @@ The hooks reference `/usr/local/bin/nimblegate` by path, so replacing the binary
 
 If you publish source to a git host (e.g. Gitea) and prefer the gateway to pull and build it itself instead of receiving an `scp`'d binary, the end state is identical: the same binary swap + the same verify. Only the delivery differs.
 
-One-time on the gateway box: install the Go toolchain (match `go.mod`, currently **Go 1.25**) and `git`, then clone the source with a **read-only** deploy key scoped to just this repo. Never put your dev push key or any write-capable credential on the gateway; the box only ever *reads* source.
+One-time on the gateway box: install the Go toolchain (match `go.mod`, currently **Go 1.27**) and `git`, then clone the source with a **read-only** deploy key scoped to just this repo. Never put your dev push key or any write-capable credential on the gateway; the box only ever *reads* source.
 
 ```sh
-apt install -y git ca-certificates          # plus a Go 1.25 toolchain
+apt install -y git ca-certificates          # plus a Go 1.27 toolchain
 git clone git@<git-host>:nimblegate/nimblegate.git ~/nimblegate-src
 ```
 

@@ -7,6 +7,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- **Building from source now needs Go 1.27.** Go 1.25 is out of security
+  support. `go.mod` requires 1.27 and names go1.27.1 as its toolchain, so
+  `go build` fetches a patched compiler when the local one is older. The
+  release images and binaries are built with 1.27.
+
 ### Fixed
 
 - **Messages and help still quoted the old `0600` file mode.** The `gateway add`
@@ -14,6 +21,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the credential and `gateway.toml` are stored `0600`. They have been written
   `0640` since 0.4.6, and a credential created by hand at `0600` on a bare-metal
   install is unreadable to the relay user. The text now says `0640`.
+
+### Security
+
+- **Updated `golang.org/x/crypto` to v0.57.0 and `golang.org/x/net` to v0.59.0.**
+  This clears three x/crypto SSH advisories and an x/net DNS-parser panic that
+  scanners flagged. nimblegate calls none of the affected functions: it only
+  parses and fingerprints SSH keys.
 
 ## [0.4.6] - 2026-09-11
 
