@@ -16,8 +16,8 @@ import "strings"
 // Edge cases:
 //   - Empty URL → false (no upstream configured; show as "unset" so the
 //     operator notices the registration is incomplete)
-//   - file:// or git:// → false (unsupported relay modes; treat as
-//     "needs credential" until proven otherwise)
+//   - file:// → false; see IsLocalUpstream, which needs no credential either
+//   - git:// → false (unsupported relay mode)
 //   - URLs with no scheme AND no @host: pattern → false (probably typo)
 func IsSSHUpstream(url string) bool {
 	if url == "" {
@@ -34,3 +34,14 @@ func IsSSHUpstream(url string) bool {
 	}
 	return false
 }
+
+// IsLocalUpstream reports whether url names a repository on this machine: an
+// absolute path or a file:// URL. The relay reaches it with a plain git push,
+// so no credential is involved. A relative path is not local in this sense -
+// it would resolve against whatever directory the relay happens to run in.
+func IsLocalUpstream(url string) bool {
+	return strings.HasPrefix(url, "file://") || strings.HasPrefix(url, "/")
+}
+
+// LocalUpstreamPath is the filesystem path a local upstream names.
+func LocalUpstreamPath(url string) string { return strings.TrimPrefix(url, "file://") }

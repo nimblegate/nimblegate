@@ -208,6 +208,8 @@ func renderRepoTable(w io.Writer, rows []repoRow, opts reposPageOpts) {
 			// not needed. Showing "unset" as a warning was misleading -
 			// "n/a (SSH)" surfaces the architectural truth.
 			fmt.Fprint(w, `<span class="gw-repo-badge cred-na" title="SSH relay: uses the gateway's SSH identity, no per-repo credential needed">credential n/a (SSH)</span>`)
+		case gateway.IsLocalUpstream(row.UpstreamURL):
+			fmt.Fprint(w, `<span class="gw-repo-badge cred-na" title="Local path: the relay pushes to a repository on this machine, no credential needed">credential n/a (local)</span>`)
 		default:
 			fmt.Fprint(w, `<span class="gw-repo-badge cred-unset">credential unset</span>`)
 		}

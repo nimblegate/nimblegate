@@ -105,6 +105,21 @@ func TestSkeletonAddRepoLeavesNoIssuesForSSH(t *testing.T) {
 	}
 }
 
+// A local-path upstream needs no credential either: the relay pushes to a
+// repository on this machine.
+func TestSkeletonAddRepoLeavesNoIssuesForLocalPath(t *testing.T) {
+	policyRoot, reposRoot := skeletonRoots(t)
+	addRepoForTest(t, policyRoot, reposRoot, "demo", "file:///srv/mirror.git")
+	sk := Skeleton{PolicyRoot: policyRoot, ReposRoot: reposRoot}
+	issues, err := sk.Verify("demo")
+	if err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	if len(issues) != 0 {
+		t.Errorf("Verify after AddRepo with a local upstream returned %d issue(s); want 0: %+v", len(issues), issues)
+	}
+}
+
 // TestSkeletonAddRepoLeavesOneIssueForHTTPWithoutCred is the credential-leg
 // counterpart: with an HTTP upstream and no credential file, Verify surfaces
 // exactly the missing-credential blocking issue - and no other.

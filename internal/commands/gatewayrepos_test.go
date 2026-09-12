@@ -238,3 +238,20 @@ func TestReposPage_RelayBadgeClearsAfterBackstopRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestReposPage_CredentialNotApplicableForLocalPath(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedReposTestRepo(t, policyRoot, reposRoot, "mirror", "/srv/mirror.git")
+
+	body := renderReposBody(t, reposPageOpts{PolicyRoot: policyRoot})
+	if !strings.Contains(body, "credential n/a (local)") {
+		t.Error("expected 'credential n/a (local)' badge for a local-path upstream")
+	}
+	if strings.Contains(body, "credential unset") {
+		t.Error("a local-path upstream must not be flagged 'credential unset'")
+	}
+}

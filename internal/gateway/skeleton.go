@@ -126,7 +126,7 @@ func (s Skeleton) Verify(repo string) ([]SkeletonIssue, error) {
 
 	credPath := filepath.Join(s.PolicyRoot, repo, "credential")
 	credExists := skeletonFileExists(credPath)
-	if !IsSSHUpstream(pol.UpstreamURL) && !credExists {
+	if !IsSSHUpstream(pol.UpstreamURL) && !IsLocalUpstream(pol.UpstreamURL) && !credExists {
 		issues = append(issues, SkeletonIssue{
 			Repo: repo, File: "credential", Severity: IssueBlocking,
 			What: "HTTP upstream URL without credential file",

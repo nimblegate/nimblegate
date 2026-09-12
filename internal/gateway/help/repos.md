@@ -54,6 +54,7 @@ Each row's status column shows one of three credential badges depending on the u
 
 - **credential set** (filled pill): a PAT or deploy token sits at `<policy-root>/<repo>/credential` mode 0640. Normal state for `https://` relays.
 - **credential n/a (SSH)** (dashed pill): upstream URL is SSH-shaped (`ssh://...` or `git@host:path`), relaying via the gateway's own SSH identity, so no per-repo credential is needed. You only see this on a gateway where an ssh client was **added to the container yourself** (the opt-in SSH path) - the default container rejects SSH upstreams at registration, so the normal state is an HTTPS upstream with **credential set**.
+- **credential n/a (local)** (dashed pill): the upstream is a repository on the gateway itself (an absolute path or `file://` URL), which the relay reaches with a plain `git push`, so no credential is needed.
 - **credential unset** (plain pill): upstream URL is HTTP but no credential file exists. Relays will fail with a 401 / Permission denied. Either install a PAT via the "Add or rotate upstream credential" section below, or convert the upstream URL to SSH if the gateway is configured for SSH relay.
 
 ## Add or rotate upstream credential

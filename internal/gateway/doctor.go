@@ -391,6 +391,17 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorOK, Reason: pol.UpstreamURL})
 	case IsSSHUpstream(pol.UpstreamURL):
 		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorOK, Reason: pol.UpstreamURL + " (relays over SSH with the gateway's own identity)"})
+	case IsLocalUpstream(pol.UpstreamURL):
+		// A plain git push on this machine. The missing repository is the one
+		// failure visible without writing into it; a push the relay user is not
+		// allowed to make shows up on the Relay line instead.
+		if p := LocalUpstreamPath(pol.UpstreamURL); localRepoExists(p) {
+			add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorOK, Reason: pol.UpstreamURL + " (a repository on this machine; relays with a plain git push, no credential)"})
+		} else {
+			add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorFail,
+				Reason: "no git repository at " + p + "; relays to this local upstream will fail",
+				Fix:    "create it (git init --bare " + p + ") or correct the upstream path"})
+		}
 	case strings.HasPrefix(pol.UpstreamURL, "http://"):
 		// Supported on purpose for LAN gitea / on-prem upstreams (relay.go
 		// injects the token for http as well as https). Not a failure - the
@@ -401,7 +412,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 			Fix:    "prefer https:// where the upstream offers it; http is intended for LAN/on-prem hosts"})
 	default:
 		add(DoctorCheck{Repo: name, Name: "Upstream URL", Status: DoctorFail,
-			Reason: "unsupported upstream scheme (" + pol.UpstreamURL + "); the relay speaks https, http and ssh"})
+			Reason: "unsupported upstream scheme (" + pol.UpstreamURL + "); the relay speaks https, http, ssh and local paths"})
 	}
 
 	cred, _ := (FileCredentialStore{Root: cfg.PolicyRoot}).Load(name)
@@ -410,6 +421,8 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 		// SSH upstreams authenticate with the gateway's key, so a per-repo
 		// credential file is not part of that path at all.
 		add(DoctorCheck{Repo: name, Name: "Upstream credential", Status: DoctorInfo, Reason: "not applicable: SSH upstream authenticates with the gateway's key"})
+	case IsLocalUpstream(pol.UpstreamURL):
+		add(DoctorCheck{Repo: name, Name: "Upstream credential", Status: DoctorInfo, Reason: "not applicable: a local path upstream needs no credential"})
 	case strings.TrimSpace(cred) == "":
 		add(DoctorCheck{Repo: name, Name: "Upstream credential", Status: DoctorWarn, Reason: "no upstream credential stored; relay to upstream will fail"})
 	default:
@@ -643,6 +656,16 @@ func isLoopbackHostHint(h string) bool {
 	}
 	if ip := net.ParseIP(h); ip != nil && ip.IsLoopback() {
 		return true
+	}
+	return false
+}
+
+// localRepoExists reports whether dir holds a git repository, bare or not.
+func localRepoExists(dir string) bool {
+	for _, head := range []string{filepath.Join(dir, "HEAD"), filepath.Join(dir, ".git", "HEAD")} {
+		if fi, err := os.Stat(head); err == nil && fi.Mode().IsRegular() {
+			return true
+		}
 	}
 	return false
 }

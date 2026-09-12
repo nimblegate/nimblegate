@@ -14,6 +14,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   a tag with no section fails before anything is published. The container
   image now publishes only after the binaries and the release page succeed.
 
+### Fixed
+
+- **A local-path upstream was reported as broken.** An absolute path or
+  `file://` upstream relays with a plain `git push` and needs no credential,
+  but doctor failed it as an unsupported scheme and warned the relay would
+  fail without a credential, the setup check raised a blocking missing
+  credential, and the Repos page showed "credential unset". Doctor now checks
+  that a repository exists at the path, and the credential checks treat it
+  like SSH.
+
 ## [0.4.7] - 2026-09-12
 
 ### Changed

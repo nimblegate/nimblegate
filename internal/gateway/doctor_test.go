@@ -611,23 +611,40 @@ func TestRunDoctorUpstreamAuthInjection(t *testing.T) {
 // The relay speaks https, http (LAN/on-prem, documented at relay.go's authedURL)
 // and ssh. Doctor accepted only https, so a working LAN gitea upstream reported
 // FAIL and took doctor's exit code with it - the worst thing a diagnostic can do
-// is call a healthy gateway broken.
+// is call a healthy gateway broken. A local path or file:// upstream is a plain
+// git push on this machine; only a missing repository there fails.
 func TestRunDoctorUpstreamSchemes(t *testing.T) {
 	policyRoot, reposRoot := doctorRoots(t)
+	localRepo := func() string {
+		dir := filepath.Join(t.TempDir(), "mirror.git")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return dir
+	}
+	doctorSeed(t, policyRoot, reposRoot, "localpath", AddOptions{UpstreamURL: localRepo(), ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "localfile", AddOptions{UpstreamURL: "file://" + localRepo(), ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "localgone", AddOptions{UpstreamURL: filepath.Join(t.TempDir(), "gone.git"), ProtectedRefs: []string{"refs/heads/*"}})
 	doctorSeed(t, policyRoot, reposRoot, "tls", AddOptions{UpstreamURL: "https://github.com/x/tls.git", ProtectedRefs: []string{"refs/heads/*"}})
 	doctorSeed(t, policyRoot, reposRoot, "lan", AddOptions{UpstreamURL: "http://192.0.2.10:3000/x/lan.git", ProtectedRefs: []string{"refs/heads/*"}})
 	doctorSeed(t, policyRoot, reposRoot, "sshscp", AddOptions{UpstreamURL: "git@example.test:x/sshscp.git", ProtectedRefs: []string{"refs/heads/*"}})
 	doctorSeed(t, policyRoot, reposRoot, "sshurl", AddOptions{UpstreamURL: "ssh://git@example.test/x/sshurl.git", ProtectedRefs: []string{"refs/heads/*"}})
-	doctorSeed(t, policyRoot, reposRoot, "bogus", AddOptions{UpstreamURL: "file:///srv/mirror.git", ProtectedRefs: []string{"refs/heads/*"}})
+	doctorSeed(t, policyRoot, reposRoot, "bogus", AddOptions{UpstreamURL: "git://example.test/x/bogus.git", ProtectedRefs: []string{"refs/heads/*"}})
 
 	rep := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Offline: true})
 
 	for repo, want := range map[string]DoctorStatus{
-		"tls":    DoctorOK,
-		"lan":    DoctorWarn, // relays fine; the credential is in cleartext
-		"sshscp": DoctorOK,
-		"sshurl": DoctorOK,
-		"bogus":  DoctorFail, // the relay genuinely cannot use this
+		"tls":       DoctorOK,
+		"lan":       DoctorWarn, // relays fine; the credential is in cleartext
+		"sshscp":    DoctorOK,
+		"sshurl":    DoctorOK,
+		"localpath": DoctorOK,
+		"localfile": DoctorOK,
+		"localgone": DoctorFail, // nothing to push to
+		"bogus":     DoctorFail, // the relay genuinely cannot use this
 	} {
 		c, ok := findCheck(rep, repo, "Upstream URL")
 		if !ok {
@@ -645,8 +662,13 @@ func TestRunDoctorUpstreamSchemes(t *testing.T) {
 		if c.Name != "Upstream URL" && c.Name != "Upstream credential" {
 			continue
 		}
-		if c.Status == DoctorFail && c.Repo != "bogus" {
+		if c.Status == DoctorFail && c.Repo != "bogus" && c.Repo != "localgone" {
 			t.Errorf("supported upstream reported FAIL: %s/%s - %s", c.Repo, c.Name, c.Reason)
+		}
+	}
+	for _, repo := range []string{"localpath", "localfile"} {
+		if c, ok := findCheck(rep, repo, "Upstream credential"); !ok || c.Status != DoctorInfo {
+			t.Errorf("%s: a local upstream needs no credential, want INFO, got %+v ok=%v", repo, c, ok)
 		}
 	}
 }
