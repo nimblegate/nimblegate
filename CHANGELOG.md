@@ -27,6 +27,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Auto-PR help. That fallback is no longer cached, so it cannot linger after an
   upgrade, and a help load that fails (for example during a restart) now says
   so and retries on the next open instead of leaving the panel empty.
+- **Health shows a whitelist that will not load.** Such a whitelist makes the
+  gate reject every push to the repo while the pusher sees only "rejected".
+  Health now names the repo, the reason and the file to fix, and `gateway
+  doctor` reports how many entries a working whitelist has.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would

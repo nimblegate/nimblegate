@@ -513,6 +513,9 @@ func TestRunDoctorWhitelist(t *testing.T) {
 	if c, _ := findCheck(rep, "stale", "Whitelist"); c.Fix == "" || !strings.Contains(c.Reason, "todo-markers") {
 		t.Errorf("a stale entry must name itself and carry a fix, got %+v", c)
 	}
+	if c, _ := findCheck(rep, "valid", "Whitelist"); !strings.Contains(c.Reason, "1 entry") {
+		t.Errorf("an OK whitelist should report its entry count, got %q", c.Reason)
+	}
 }
 
 func TestRunDoctorPushURLPort(t *testing.T) {

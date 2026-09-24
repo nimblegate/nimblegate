@@ -334,3 +334,39 @@ func TestHealth_relayErrorDropsGitHints(t *testing.T) {
 		t.Errorf("health page still shows git's hints\n%s", body)
 	}
 }
+
+// A whitelist the gate cannot load rejects every push to the repo while the
+// pusher sees only "rejected"; Health must say so, and say nothing otherwise.
+func TestHealth_brokenWhitelistRenders(t *testing.T) {
+	root := t.TempDir()
+	for repo, wl := range map[string]string{
+		"broken": "[[entry]]\nframe = \"app-correctness/removed-linter\"\npath = \"a.go\"\nreason = \"linter since removed\"\n",
+		"fine":   "[[entry]]\nframe = \"security/no-hardcoded-credentials\"\npath = \"a_test.go\"\nreason = \"fixture\"\n",
+		"none":   "",
+	} {
+		dir := filepath.Join(root, repo)
+		if err := os.MkdirAll(filepath.Join(dir, ".appframes", "_canonical"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "gateway.toml"), []byte(`upstream-url = "https://example.test/`+repo+`.git"`+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if wl != "" {
+			if err := os.WriteFile(filepath.Join(dir, ".appframes", "_canonical", "whitelist.toml"), []byte(wl), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	d := collectHealth(root, "", time.Now().Add(-time.Minute), time.Now())
+	if len(d.WhitelistIssues) != 1 || !strings.HasPrefix(d.WhitelistIssues[0], "broken: will not load") {
+		t.Fatalf("want exactly the broken repo flagged, got %q", d.WhitelistIssues)
+	}
+	var buf bytes.Buffer
+	if err := renderHealth(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	if body := buf.String(); !strings.Contains(body, "<dt>Whitelist</dt>") || !strings.Contains(body, "removed-linter") {
+		t.Errorf("health page missing the whitelist line or the offending entry")
+	}
+}
