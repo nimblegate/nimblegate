@@ -63,6 +63,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   them, day separators continue into them, and their columns line up with the
   rows above.
 
+- **Long branch names and timestamps stay inside their feed columns.** Branch
+  names such as `agent/claude/checkout-tax` now wrap after a slash instead of
+  running under the status pills, and a timestamp that does not fit wraps
+  between date and time instead of overlapping the repo name.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would

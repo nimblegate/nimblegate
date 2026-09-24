@@ -114,7 +114,7 @@ const gwShellStyle = `<style>
  .gw-content .gw-sevchip,.gw-content .gw-feedchip,.gw-content .gw-evchip{cursor:pointer;border:1px solid transparent;font:inherit}
  .gw-content .gw-sevchip[aria-pressed="false"],.gw-content .gw-feedchip[aria-pressed="false"],.gw-content .gw-evchip[aria-pressed="false"]{opacity:.4}
  .gw-content .gw-stat{display:inline-block;min-width:92px;white-space:nowrap}
- .gw-content table.fr td.loc{padding:6px 4px;white-space:nowrap;vertical-align:top}
+ .gw-content table.fr td.loc{padding:6px 4px;vertical-align:top;white-space:normal}
  .gw-content table.fr td.gw-statcell{vertical-align:top}
  .gw-content #feed table.fr,.gw-content #feed-older table.fr{table-layout:fixed}
  .gw-content #feed table.fr col.col-loc,.gw-content #feed-older table.fr col.col-loc{width:14%}
@@ -126,7 +126,6 @@ const gwShellStyle = `<style>
    .gw-content #feed table.fr col.col-msg,.gw-content #feed-older table.fr col.col-msg{width:40%}
    .gw-content #feed table.fr col.col-stat,.gw-content #feed-older table.fr col.col-stat{width:30%}
    .gw-content #feed table.fr col.col-reset,.gw-content #feed-older table.fr col.col-reset{width:10%}
-   .gw-content table.fr td.loc{white-space:normal}
    .gw-content section{overflow-x:auto}
    .gw-content table.gw-repos-table td.gw-repos-url{overflow-wrap:anywhere}
  }
@@ -137,7 +136,7 @@ const gwShellStyle = `<style>
  .gw-content table.fr td.gw-msgcell{vertical-align:top}
  .gw-content .gw-repo,.gw-content .gw-ref{display:block}
  .gw-content .gw-ref,.gw-content .gw-rmsg{color:var(--gw-text-faint)}
- .gw-content button.gw-ref{border:0;background:transparent;font:inherit;cursor:pointer;padding:0;text-align:left}
+ .gw-content button.gw-ref{border:0;background:transparent;font:inherit;cursor:pointer;padding:0;text-align:left;overflow-wrap:anywhere}
  .gw-content button.gw-ref:hover{color:var(--gw-accent)}
  .gw-content button.gw-ref[aria-expanded="true"]{color:var(--gw-accent)}
  .gw-content .gw-sha{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--gw-text-fainter);padding:1px 5px;border-radius:3px;background:var(--gw-bg-control);margin-left:4px}

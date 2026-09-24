@@ -94,3 +94,11 @@ func TestNotifRail_overlapEventsRoundtrip(t *testing.T) {
 		t.Error("form should render the overlap checkbox checked")
 	}
 }
+
+// Agent branch names are long and have no spaces; the feed must offer a break
+// after each "/" and still escape the name.
+func TestRefBreaks(t *testing.T) {
+	if got := string(refBreaks("refs/heads/agent/<x>/task")); got != "refs/<wbr>heads/<wbr>agent/<wbr>&lt;x&gt;/<wbr>task" {
+		t.Errorf("refBreaks = %q", got)
+	}
+}
