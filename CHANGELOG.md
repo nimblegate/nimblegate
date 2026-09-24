@@ -54,6 +54,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   header line now reads "whitelist: N entries" with a link to Policy →
   Whitelist, where the entries are listed and edited; the full table at the
   bottom of Stats was buried under long recurring-findings lists.
+- **The feed no longer jumps to the bottom on refresh.** Opening a finding
+  pill, a branch or a commit link left it focused, and the next auto-refresh
+  replaced that element, which made the browser scroll to the end of the page.
+  The feed now keeps your scroll position, and the opened pill keeps focus.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would

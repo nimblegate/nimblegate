@@ -163,8 +163,26 @@
   gwApplyExpand();
   gwDaySeparators();
   gwReportFilter();
+  // The feed's auto-refresh replaces every row, including a pill or link that
+  // still has focus from being clicked. htmx only restores focus to elements
+  // with an id, so the focused element just vanishes and the browser jumps to
+  // the bottom of the page. Take focus off before the swap, and give it back to
+  // the same pill afterwards without scrolling so keyboard use still works.
+  var gwRefocusKey = null;
+  document.body.addEventListener('htmx:beforeSwap', function (e) {
+    var a = document.activeElement;
+    if (!e.detail.target || e.detail.target.id !== 'feed' || !a || !a.closest || !a.closest('#feed')) return;
+    gwRefocusKey = a.matches('button.fnd, button.gw-ref') ? gwExpandKey(a) : null;
+    a.blur();
+  });
   document.body.addEventListener('htmx:afterSwap', function (e) {
     gwApplyTz(e.target); gwFeedFilter(); gwApplyExpand(); gwDaySeparators();
+    if (gwRefocusKey && e.target && e.target.id === 'feed') {
+      var key = gwRefocusKey;
+      gwRefocusKey = null;
+      var again = Array.prototype.find.call(document.querySelectorAll('#feed button.fnd, #feed button.gw-ref'), function (b) { return gwExpandKey(b) === key; });
+      if (again) again.focus({ preventScroll: true });
+    }
     // A freshly-run report replaces #report-out; clear any stale filter text so
     // the new rows aren't hidden by the previous query, then (re)apply.
     if (e.target && e.target.id === 'report-out') { var rb = document.getElementById('report-filter'); if (rb) rb.value = ''; }
