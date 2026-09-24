@@ -69,7 +69,10 @@ a scratch location for local previews, never committed here.
 - **Stateless + self-reseeding.** `demo-seed.sh` regenerates the policy-root on
   every container start with timestamps relative to *now*, so the feed always
   looks live ("7 minutes ago"). A restart is a clean reset - visitor clicks and
-  the dashboard's own runtime files (`analytics.db`) never accumulate.
+  the dashboard's own runtime files (`analytics.db`) never accumulate. It also
+  builds a real bare repo per demo repo (under `--repos-root`), with two agent
+  branches in `acme-storefront` that genuinely change the same files, so the
+  Overlaps page shows a live pair and Health reports every repo connected.
 - **Honest fixtures.** The seed is fabricated-but-representative: a believable
   mix of blocked (live Stripe key, force-push to main, committed PEM key,
   non-idempotent migration, `rm -rf /`) and clean/observed pushes across three

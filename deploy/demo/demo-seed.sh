@@ -8,12 +8,50 @@
 # Timestamps are computed relative to NOW at seed time, so the feed always
 # looks live (most recent push "minutes ago"). Re-run / restart re-seeds fresh.
 #
-#   bash demo-seed.sh <policy-root>      # writes <root>/<repo>/{gateway.toml,appframes.toml,audit.log}
+#   bash demo-seed.sh <policy-root> [repos-root]
+#
+# With a repos-root, each repo also gets a real bare repo, and acme-storefront
+# gets two agent branches that genuinely change the same files, so the Overlaps
+# page shows a live pair and the recorded overlaps carry real commit SHAs.
 set -euo pipefail
 
-ROOT="${1:?usage: demo-seed.sh <policy-root>}"
+ROOT="${1:?usage: demo-seed.sh <policy-root> [repos-root]}"
+REPOS="${2:-}"
 mkdir -p "$ROOT"
 find "$ROOT" -mindepth 1 -delete 2>/dev/null || true
+if [ -n "$REPOS" ]; then
+  mkdir -p "$REPOS"
+  find "$REPOS" -mindepth 1 -delete 2>/dev/null || true
+fi
+export GIT_AUTHOR_NAME=agent GIT_AUTHOR_EMAIL=agent@example.com GIT_COMMITTER_NAME=agent GIT_COMMITTER_EMAIL=agent@example.com
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+# Create <repos-root>/<repo>.git with one commit of the given files on main.
+# args: repo  file...
+bare_repo() {
+  local repo="$1"; shift
+  local w="$WORK/$repo"
+  git init -q -b main "$w"
+  for f in "$@"; do mkdir -p "$w/$(dirname "$f")"; printf '// %s\n' "$f" > "$w/$f"; done
+  git -C "$w" add -A && git -C "$w" commit -qm "Initial import"
+  git init -q --bare "$REPOS/$repo.git"
+  git -C "$REPOS/$repo.git" symbolic-ref HEAD refs/heads/main
+  git -C "$w" push -q "$REPOS/$repo.git" main
+}
+
+# Commit an edit to the given files on branch (created from main if new), push
+# it, and print the commit SHA.
+# args: repo  branch  file...
+agent_commit() {
+  local repo="$1" branch="$2"; shift 2
+  local w="$WORK/$repo"
+  git -C "$w" checkout -q "$branch" 2>/dev/null || git -C "$w" checkout -q -b "$branch" main
+  for f in "$@"; do printf '// %s\n' "$branch" >> "$w/$f"; done
+  git -C "$w" commit -qam "Work on ${branch##*/}"
+  git -C "$w" push -q "$REPOS/$repo.git" "$branch"
+  git -C "$w" rev-parse HEAD
+}
 
 # RFC3339 UTC timestamp, N minutes ago (Go time.Time parses RFC3339).
 ago() { date -u -d "-$1 minutes" +%Y-%m-%dT%H:%M:%SZ; }
@@ -23,8 +61,8 @@ ago() { date -u -d "-$1 minutes" +%Y-%m-%dT%H:%M:%SZ; }
 rec() {
   local repo="$1" mins="$2" ref="$3" accept="$4" observed="$5" findings="$6" supp="$7" msgs="$8"
   local f="$ROOT/$repo/audit.log"
-  printf '{"time":"%s","repo":"%s","refs":["%s"],"ref_updates":[{"Name":"%s","OldRev":"a1b2c3d","NewRev":"e4f5a6b"}],"accept":%s,"observed":%s,"findings":%s,"suppressed":%s,"messages":%s}\n' \
-    "$(ago "$mins")" "$repo" "$ref" "$ref" "$accept" "$observed" "$findings" "$supp" "$msgs" >> "$f"
+  printf '{"time":"%s","repo":"%s","refs":["%s"],"ref_updates":[{"Name":"%s","OldRev":"a1b2c3d","NewRev":"%s"}],"accept":%s,"observed":%s,"findings":%s,"suppressed":%s,"messages":%s}\n' \
+    "$(ago "$mins")" "$repo" "$ref" "$ref" "${NEWREV:-e4f5a6b}" "$accept" "$observed" "$findings" "$supp" "$msgs" >> "$f"
 }
 
 # An accepted push that changes files another open agent branch also changes.
@@ -57,14 +95,23 @@ rec acme-storefront 96  refs/heads/main false false \
 rec acme-storefront 210 refs/heads/feat-cart true false "$NONE" \
   '[{"frame":"documentation/dated-todo","file":"src/cart.js","label":"known backlog item","severity":"WARN"}]' '[]'
 rec acme-storefront 1490 refs/heads/feat-search true false "$NONE" "$NONE" '[]'
-# Two agents working in parallel end up in the same file.
-rec acme-storefront 26 refs/heads/agent/claude/checkout-tax true false "$NONE" "$NONE" '[]'
-rec_overlap acme-storefront 15 refs/heads/agent/cursor/checkout-coupons 7c1e9a4b2d8f3e6a0b5c9d1e4f7a2b8c3d6e9f01 \
-  refs/heads/agent/claude/checkout-tax 3f8b2c7d1e9a4f6b0c5d8e2a7b1f4c9d6e3a0b52 '["src/checkout/total.js"]'
-rec_overlap acme-storefront 4 refs/heads/agent/claude/checkout-tax 9d4a1f7c3e8b2d6a5f0c9e1b4d7a3f8c2e6b0d19 \
-  refs/heads/agent/cursor/checkout-coupons 7c1e9a4b2d8f3e6a0b5c9d1e4f7a2b8c3d6e9f01 '["src/checkout/total.js","src/checkout/total.test.js"]'
+# Two agents working in parallel end up in the same files. With a repos-root
+# these are real commits on real branches; without one, fixed stand-in SHAs.
+TAX1=3f8b2c7d1e9a4f6b0c5d8e2a7b1f4c9d6e3a0b52 COUPONS=7c1e9a4b2d8f3e6a0b5c9d1e4f7a2b8c3d6e9f01 TAX2=9d4a1f7c3e8b2d6a5f0c9e1b4d7a3f8c2e6b0d19
+if [ -n "$REPOS" ]; then
+  bare_repo acme-storefront src/checkout/total.js src/checkout/total.test.js src/cart.js README.md
+  TAX1=$(agent_commit acme-storefront agent/claude/checkout-tax src/checkout/total.js)
+  COUPONS=$(agent_commit acme-storefront agent/cursor/checkout-coupons src/checkout/total.js src/checkout/total.test.js)
+  TAX2=$(agent_commit acme-storefront agent/claude/checkout-tax src/checkout/total.test.js)
+fi
+NEWREV=$TAX1 rec acme-storefront 26 refs/heads/agent/claude/checkout-tax true false "$NONE" "$NONE" '[]'
+rec_overlap acme-storefront 15 refs/heads/agent/cursor/checkout-coupons "$COUPONS" \
+  refs/heads/agent/claude/checkout-tax "$TAX1" '["src/checkout/total.js"]'
+rec_overlap acme-storefront 4 refs/heads/agent/claude/checkout-tax "$TAX2" \
+  refs/heads/agent/cursor/checkout-coupons "$COUPONS" '["src/checkout/total.js","src/checkout/total.test.js"]'
 
 # ---- payments-api: backend, the private-key + migration story ----
+[ -n "$REPOS" ] && bare_repo payments-api cmd/api/main.go migrations/008_payouts.sql README.md
 seed_repo "payments-api" "git@git.example.com:acme/payments-api.git" '"@tier-1", "@migrations", "@security-strict"'
 cat >> "$ROOT/payments-api/appframes.toml" <<'LINTERS'
 
@@ -89,6 +136,7 @@ rec payments-api 880 refs/heads/main true false \
   "$NONE" '[]'
 
 # ---- marketing-site: static/web, observe-mode + rm-rf story ----
+[ -n "$REPOS" ] && bare_repo marketing-site index.html deploy.sh
 seed_repo "marketing-site" "git@git.example.com:acme/marketing-site.git" '"@tier-1", "@web", "@cf-pages"'
 echo 'observe = true' >> "$ROOT/marketing-site/gateway.toml"
 rec marketing-site 12  refs/heads/main true false "$NONE" "$NONE" '[]'
