@@ -4,6 +4,6 @@
 # READ-ONLY mode - --auth=off (no login wall) + NO --allow-edits (every
 # mutation/POST route is unregistered, verified). Restart = clean re-seed.
 set -e
-bash /opt/demo/demo-seed.sh /srv/demo
+bash /opt/demo/demo-seed.sh /srv/demo /srv/demo-repos
 exec nimblegate gateway dashboard --serve --auth=off \
-  --policy-root /srv/demo --addr 0.0.0.0 --port 7900
+  --policy-root /srv/demo --repos-root /srv/demo-repos --addr 0.0.0.0 --port 7900

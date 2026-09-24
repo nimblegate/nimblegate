@@ -9,10 +9,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -o /out/nimblegate ./cmd/nimblegate
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates bash coreutils && adduser -D -u 10001 demo
+RUN apk add --no-cache ca-certificates bash coreutils git && adduser -D -u 10001 demo
 COPY --from=build /out/nimblegate /usr/local/bin/nimblegate
 COPY deploy/demo/demo-seed.sh deploy/demo/entrypoint.sh /opt/demo/
-RUN chmod +x /opt/demo/demo-seed.sh /opt/demo/entrypoint.sh && mkdir -p /srv/demo && chown demo /srv/demo
+RUN chmod +x /opt/demo/demo-seed.sh /opt/demo/entrypoint.sh && mkdir -p /srv/demo /srv/demo-repos && chown demo /srv/demo /srv/demo-repos
 USER demo
 EXPOSE 7900
 ENTRYPOINT ["/opt/demo/entrypoint.sh"]
