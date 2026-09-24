@@ -27,6 +27,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Auto-PR help. That fallback is no longer cached, so it cannot linger after an
   upgrade, and a help load that fails (for example during a restart) now says
   so and retries on the next open instead of leaving the panel empty.
+- **The top-of-page import check only reads files inside the pushed tree.**
+  It resolved `import` paths from the scanned files without keeping them
+  inside the tree, so a pushed import such as `../../../some/file` made the
+  gate open that file on the gateway host. Imports that climb out of the tree
+  are now treated as unresolvable, as symlinks pointing outside already were.
 - **Health shows a whitelist that will not load.** Such a whitelist makes the
   gate reject every push to the repo while the pusher sees only "rejected".
   Health now names the repo, the reason and the file to fix, and `gateway

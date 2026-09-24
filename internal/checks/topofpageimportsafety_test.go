@@ -143,7 +143,7 @@ func TestResolveLocalImport_RelativePath(t *testing.T) {
 	target := filepath.Join(root, "src/routes/SitePanel.svelte")
 	_ = os.MkdirAll(filepath.Dir(page), 0o755)
 	_ = os.WriteFile(target, []byte(""), 0o644)
-	got := resolveLocalImport(page, "./SitePanel.svelte")
+	got := resolveLocalImport(root, page, "./SitePanel.svelte")
 	if got != target {
 		t.Errorf("got %q; want %q", got, target)
 	}
@@ -156,15 +156,44 @@ func TestResolveLocalImport_LibAlias(t *testing.T) {
 	_ = os.MkdirAll(filepath.Dir(page), 0o755)
 	_ = os.MkdirAll(filepath.Dir(target), 0o755)
 	_ = os.WriteFile(target, []byte(""), 0o644)
-	got := resolveLocalImport(page, "$lib/Widget.svelte")
+	got := resolveLocalImport(root, page, "$lib/Widget.svelte")
 	if got != target {
 		t.Errorf("got %q; want %q", got, target)
 	}
 }
 
 func TestResolveLocalImport_External(t *testing.T) {
-	got := resolveLocalImport("/some/page.svelte", "external-package")
+	got := resolveLocalImport("/some", "/some/page.svelte", "external-package")
 	if got != "" {
 		t.Errorf("external imports should return empty; got %q", got)
+	}
+}
+
+// An import is pushed text: a relative path or a $lib lookup that climbs out of
+// the scanned tree must never resolve, even when the target file exists.
+func TestResolveLocalImport_NeverLeavesRoot(t *testing.T) {
+	outside := t.TempDir()
+	root := filepath.Join(outside, "repo")
+	page := filepath.Join(root, "src/routes/+page.svelte")
+	_ = os.MkdirAll(filepath.Dir(page), 0o755)
+	secret := filepath.Join(outside, "secret.svelte")
+	_ = os.WriteFile(secret, []byte("import { env } from '$env/dynamic/public'"), 0o644)
+	_ = os.MkdirAll(filepath.Join(outside, "src", "lib"), 0o755)
+	_ = os.WriteFile(filepath.Join(outside, "src", "lib", "Up.svelte"), []byte(""), 0o644)
+
+	for _, imp := range []string{"../../../secret.svelte", "../../../secret", "$lib/Up.svelte", "$lib/../../../secret.svelte"} {
+		if got := resolveLocalImport(root, page, imp); got != "" {
+			t.Errorf("import %q escaped the scanned tree to %q", imp, got)
+		}
+	}
+}
+
+func TestResolveLocalImport_RelativePageInsideRoot(t *testing.T) {
+	root := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(root, "src/routes"), 0o755)
+	_ = os.WriteFile(filepath.Join(root, "src/routes/SitePanel.svelte"), []byte(""), 0o644)
+	t.Chdir(root)
+	if got := resolveLocalImport(root, "src/routes/+page.svelte", "./SitePanel.svelte"); got == "" {
+		t.Error("a relative page path under the root must still resolve its imports")
 	}
 }
