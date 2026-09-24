@@ -99,7 +99,13 @@ onchange_re = re.compile(r'\sonchange="[^"]*"')
 # tags carry htmx and the demo init and have to survive into the snapshot.
 inline_script_re = re.compile(r'<script(?![^>]*\ssrc=)[^>]*>.*?</script\s*[^>]*>', re.S | re.I)
 
+# Health lines that describe the machine the snapshot was built on (its free
+# disk space and memory pressure), not the demo - meaningless to a visitor and
+# not something to publish.
+host_lines_re = re.compile(r'<dt>(?:Disk free|Scan staging|Memory pressure)</dt><dd>.*?</dd>\s*', re.S)
+
 def neuter(html):
+    html = host_lines_re.sub("", html)
     html = onchange_re.sub("", html)
     html = inline_script_re.sub("", html)
     html = html.replace("<select ", "<select disabled ")
