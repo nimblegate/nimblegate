@@ -223,7 +223,7 @@ When `[notification]` is enabled per repo (post-launch optional feature), the ga
 
 ### What the payload contains
 
-- The rejected push's ref names, old/new SHAs, pusher's SSH key fingerprint
+- The rejected push's ref names and old/new SHAs (not which SSH key pushed: the gateway does not record that)
 - Frame IDs that fired (e.g. `security/no-private-keys-in-repo`)
 - File paths + line numbers from finding messages
 - The operator-configured bot mention + auto-tagged human assignees from the PR
@@ -502,7 +502,7 @@ The whitelist syntax allows `frame = "*"` (suppress every frame for matching pat
 
 ### Audit log
 
-Every push is logged at `/srv/gateway/cfg/<repo>/audit.log` with: timestamp, ref names, SSH key fingerprint, decision (accept / observe / reject), frames fired, frames suppressed by whitelist, and in enforce mode any other open branches that change the same files (overlaps). Tail it or aggregate it elsewhere: that's your forensic record.
+Every push is logged at `/srv/gateway/cfg/<repo>/audit.log` with: timestamp, ref names and old/new SHAs, decision (accept / observe / reject), frames fired, frames suppressed by whitelist, and in enforce mode any other open branches that change the same files (overlaps). Tail it or aggregate it elsewhere: that's your forensic record.
 
 ### Dashboard `/events`
 
@@ -514,7 +514,7 @@ Live push stream. Sit on this during high-trust periods (a new agent's first day
 
 ### Things to watch for
 
-- **Pushes from SSH key fingerprints you don't recognize.** Cross-reference with the `/ssh-keys` page; if a key is in `authorized_keys` you don't remember adding, revoke it.
+- **Logins from SSH keys you don't recognize.** The audit log does not record which key pushed; sshd's own log does, with the key fingerprint of every login (on a bare-metal install, `journalctl -u ssh`). Cross-reference with the `/ssh-keys` page; if a key is in `authorized_keys` you don't remember adding, revoke it.
 - **Repeated relay failures to the same upstream.** Usually a stale credential, occasionally an upstream-side block (e.g. gitea revoked the PAT).
 - **A whitelist entry that fires on every push.** Either the underlying frame is over-broad and needs tightening, or the entry's path glob is too wide. Tightening the entry beats disabling the frame.
 - **An audit-log gap.** Audit log is append-only on disk; gaps mean the dashboard service crashed or someone wrote to the file directly. Investigate.
