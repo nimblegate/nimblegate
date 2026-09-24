@@ -116,16 +116,16 @@ const gwShellStyle = `<style>
  .gw-content .gw-stat{display:inline-block;min-width:92px;white-space:nowrap}
  .gw-content table.fr td.loc{padding:6px 4px;white-space:nowrap;vertical-align:top}
  .gw-content table.fr td.gw-statcell{vertical-align:top}
- .gw-content #feed table.fr{table-layout:fixed}
- .gw-content #feed table.fr col.col-loc{width:14%}
- .gw-content #feed table.fr col.col-msg{width:19%}
- .gw-content #feed table.fr col.col-stat{width:58%}
- .gw-content #feed table.fr col.col-reset{width:9%}
+ .gw-content #feed table.fr,.gw-content #feed-older table.fr{table-layout:fixed}
+ .gw-content #feed table.fr col.col-loc,.gw-content #feed-older table.fr col.col-loc{width:14%}
+ .gw-content #feed table.fr col.col-msg,.gw-content #feed-older table.fr col.col-msg{width:19%}
+ .gw-content #feed table.fr col.col-stat,.gw-content #feed-older table.fr col.col-stat{width:58%}
+ .gw-content #feed table.fr col.col-reset,.gw-content #feed-older table.fr col.col-reset{width:9%}
  @media(max-width:760px){
-   .gw-content #feed table.fr col.col-loc{width:20%}
-   .gw-content #feed table.fr col.col-msg{width:40%}
-   .gw-content #feed table.fr col.col-stat{width:30%}
-   .gw-content #feed table.fr col.col-reset{width:10%}
+   .gw-content #feed table.fr col.col-loc,.gw-content #feed-older table.fr col.col-loc{width:20%}
+   .gw-content #feed table.fr col.col-msg,.gw-content #feed-older table.fr col.col-msg{width:40%}
+   .gw-content #feed table.fr col.col-stat,.gw-content #feed-older table.fr col.col-stat{width:30%}
+   .gw-content #feed table.fr col.col-reset,.gw-content #feed-older table.fr col.col-reset{width:10%}
    .gw-content table.fr td.loc{white-space:normal}
    .gw-content section{overflow-x:auto}
    .gw-content table.gw-repos-table td.gw-repos-url{overflow-wrap:anywhere}

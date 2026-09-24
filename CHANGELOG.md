@@ -58,6 +58,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   pill, a branch or a commit link left it focused, and the next auto-refresh
   replaced that element, which made the browser scroll to the end of the page.
   The feed now keeps your scroll position, and the opened pill keeps focus.
+- **Rows from "Load older" behave like the rest of the feed.** Their finding
+  pills and branches now open on click, the status chips and search box filter
+  them, day separators continue into them, and their columns line up with the
+  rows above.
+
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would
