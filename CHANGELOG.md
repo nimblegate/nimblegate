@@ -31,6 +31,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   gate reject every push to the repo while the pusher sees only "rejected".
   Health now names the repo, the reason and the file to fix, and `gateway
   doctor` reports how many entries a working whitelist has.
+- **Stats shows the whitelist as a count, not a second copy.** Each repo's
+  header line now reads "whitelist: N entries" with a link to Policy →
+  Whitelist, where the entries are listed and edited; the full table at the
+  bottom of Stats was buried under long recurring-findings lists.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would

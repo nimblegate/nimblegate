@@ -199,7 +199,10 @@ func TestServeStatsWhitelistButton(t *testing.T) {
 	}
 }
 
-func TestServeStatsWhitelistedPanel(t *testing.T) {
+// Stats shows how many entries a repo's whitelist has and links to Policy →
+// Whitelist, which is the one place the entries are listed and edited. A full
+// copy here was buried under long recurring-findings tables.
+func TestServeStatsWhitelistSummary(t *testing.T) {
 	root := t.TempDir()
 	registerRepo(t, root, "repo-a")
 	wlPath := filepath.Join(root, "repo-a", ".appframes", "_canonical", "whitelist.toml")
@@ -208,40 +211,26 @@ func TestServeStatsWhitelistedPanel(t *testing.T) {
 	}
 	writeAuditLine(t, root, "repo-a", `{"time":"2026-05-26T00:00:00Z","repo":"repo-a","refs":["refs/heads/main"],"accept":true}`)
 
-	_, body := getStats(t, root, "repo=repo-a&tab=recurring") // read-only path - must show regardless of allow-edits
-	for _, want := range []string{"Whitelist (1)", "commands/curl-pipe-shell", "cmd/installer/install.sh", "documented installer"} {
-		if !strings.Contains(body, want) {
-			t.Errorf("stats body missing %q\n%s", want, body)
+	for _, tab := range []string{"recurring", "timesaved"} {
+		_, body := getStats(t, root, "repo=repo-a&tab="+tab)
+		for _, want := range []string{"whitelist: 1 entry", `href="/policy?repo=repo-a&amp;tab=whitelist"`} {
+			if !strings.Contains(body, want) {
+				t.Errorf("tab %s: stats body missing %q\n%s", tab, want, body)
+			}
+		}
+		if strings.Contains(body, "documented installer") {
+			t.Errorf("tab %s: stats must not list the entries themselves", tab)
 		}
 	}
-	// Read-only path → NO Remove button on whitelisted rows.
-	if strings.Contains(body, "/policy/whitelist/remove") {
-		t.Error("read-only stats must not render the whitelist Remove button")
-	}
-}
-
-func TestServeStatsWhitelistedPanel_hasRemoveButtonWithAllowEdits(t *testing.T) {
-	root := t.TempDir()
-	registerRepo(t, root, "repo-a")
-	wlPath := filepath.Join(root, "repo-a", ".appframes", "_canonical", "whitelist.toml")
-	if _, err := whitelist.AddEntry(wlPath, whitelist.Entry{Frame: "commands/curl-pipe-shell", Path: "cmd/installer/install.sh", Reason: "documented installer"}); err != nil {
-		t.Fatal(err)
-	}
-	writeAuditLine(t, root, "repo-a", `{"time":"2026-05-26T00:00:00Z","repo":"repo-a","refs":["refs/heads/main"],"accept":true}`)
 
 	req := httptest.NewRequest("GET", "/stats?repo=repo-a&tab=recurring", nil)
 	rec := httptest.NewRecorder()
 	serveStats(rec, req, root, true, "tok")
-	body := rec.Body.String()
-	for _, want := range []string{`/policy/whitelist/remove`, `wlrm-out`, `>Remove<`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("stats body missing %q (allow-edits path)\n%s", want, body)
-		}
+	if strings.Contains(rec.Body.String(), "/policy/whitelist/remove") {
+		t.Error("Remove belongs on Policy → Whitelist; stats must not duplicate the editor")
 	}
 }
 
-// The whitelist panel renders even for a repo with no decisions yet (it's repo
-// config, independent of activity) - the panel sits outside the HasData guard.
 func TestStatsLastSeenIsMachineReadable(t *testing.T) {
 	rec := httptest.NewRecorder()
 	data := statsPageData{Repo: "api", ActiveTab: "recurring", Repos: []string{"api"}, Blocks: []repoBlock{{
@@ -268,20 +257,22 @@ func TestStatsLastSeenHasHourColorClass(t *testing.T) {
 	}
 }
 
-func TestServeStatsWhitelistedPanelNoDecisions(t *testing.T) {
+// The whitelist summary shows even for a repo with no decisions yet: it is repo
+// config, independent of activity.
+func TestServeStatsWhitelistSummaryNoDecisions(t *testing.T) {
 	root := t.TempDir()
 	registerRepo(t, root, "repo-a")
 	wlPath := filepath.Join(root, "repo-a", ".appframes", "_canonical", "whitelist.toml")
 	if _, err := whitelist.AddEntry(wlPath, whitelist.Entry{Frame: "commands/curl-pipe-shell", Path: "cmd/installer/install.sh", Reason: "documented installer"}); err != nil {
 		t.Fatal(err)
 	}
-	// No audit lines → HasData false; the whitelist panel must still show on the recurring tab.
+	// No audit lines → HasData false; the whitelist summary must still show.
 	_, body := getStats(t, root, "repo=repo-a&tab=recurring")
 	if !strings.Contains(body, "No decisions recorded yet") {
 		t.Errorf("expected the no-decisions note\n%s", body)
 	}
-	if !strings.Contains(body, "Whitelist (1)") || !strings.Contains(body, "cmd/installer/install.sh") {
-		t.Errorf("whitelist panel must render even with no decisions\n%s", body)
+	if !strings.Contains(body, "whitelist: 1 entry") {
+		t.Errorf("whitelist summary must render even with no decisions\n%s", body)
 	}
 }
 
