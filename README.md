@@ -350,7 +350,8 @@ You get:
   closure, exponential-backoff delivery with deadletter. Gitea + GitHub adapters.
 - **Dashboard**: live feed, time-saved/recurring stats, policy + custom linters +
   whitelist, repo lifecycle, frames catalog, Auto-PR tabs, health, SSH key
-  management, events log, per-page help.
+  management, events log, overlaps between parallel branches, commit SHAs that
+  open on your git host, per-page help.
 - **Upstream credential management** + **whitelist** (with required reason).
 
 ---

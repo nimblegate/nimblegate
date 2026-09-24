@@ -58,6 +58,19 @@ type DecisionRow struct {
 	// PR comment fired. Nil = notifications on, no upstream, or an active loop
 	// is already shown. Surfaces the silent default-off operator-side only.
 	NotifOff *NotifOffView
+	// Overlaps are the other open branches this push shares files with. Shown
+	// as a pill linking to the Overlaps page; empty on older audit lines.
+	Overlaps []Overlap
+}
+
+// OverlapTitle is the feed pill's tooltip: which branches share how many files.
+func (r DecisionRow) OverlapTitle() string {
+	parts := make([]string, 0, len(r.Overlaps))
+	for _, o := range r.Overlaps {
+		parts = append(parts, fmt.Sprintf("%s shares %d file(s) with %s",
+			strings.TrimPrefix(o.Ref, "refs/heads/"), len(o.Files), strings.TrimPrefix(o.OtherRef, "refs/heads/")))
+	}
+	return strings.Join(parts, "; ")
 }
 
 // NotificationStatusView is the row-level rendering data for the
@@ -262,6 +275,7 @@ func BuildView(records []AuditRecord, f Filter) ViewModel {
 			Findings:           r.Findings,
 			Suppressed:         r.Suppressed,
 			NotificationStatus: notifStatusView(r.Notification),
+			Overlaps:           r.Overlaps,
 		})
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Time.After(rows[j].Time) })

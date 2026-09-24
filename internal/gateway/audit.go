@@ -20,6 +20,7 @@ type AuditRecord struct {
 	Findings     []Finding           `json:"findings,omitempty"`
 	Suppressed   []Suppression       `json:"suppressed,omitempty"`
 	Notification *NotificationStatus `json:"notification,omitempty"`
+	Overlaps     []Overlap           `json:"overlaps,omitempty"` // other open branches changing the same files; enforce-mode accepts only. Added 2026-09-24.
 }
 
 // NotificationStatus records the notification-rail lifecycle per AuditRecord.

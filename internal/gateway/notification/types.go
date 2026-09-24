@@ -21,16 +21,27 @@ const SchemaVersion = "1.0"
 // comment + webhook POST body). Versioned via SchemaVersion; consumers compare
 // the field to their expected major.minor.
 type Notification struct {
-	SchemaVersion string       `json:"schema_version"`
-	Event         string       `json:"event"`    // "push.rejected" | "push.observed"
-	EventID       string       `json:"event_id"` // unique per notification; webhook idempotency key
-	Gateway       GatewayInfo  `json:"gateway"`
-	Repo          RepoInfo     `json:"repo"`
-	Push          PushInfo     `json:"push"`
-	Decision      DecisionInfo `json:"decision"`
-	Mention       *MentionInfo `json:"mention,omitempty"`
-	LoopState     *LoopState   `json:"loop_state,omitempty"`
-	NextSteps     *NextSteps   `json:"next_steps,omitempty"`
+	SchemaVersion string        `json:"schema_version"`
+	Event         string        `json:"event"`    // "push.rejected" | "push.observed" | "push.resolved" | "push.overlap"
+	EventID       string        `json:"event_id"` // unique per notification; webhook idempotency key
+	Gateway       GatewayInfo   `json:"gateway"`
+	Repo          RepoInfo      `json:"repo"`
+	Push          PushInfo      `json:"push"`
+	Decision      DecisionInfo  `json:"decision"`
+	Mention       *MentionInfo  `json:"mention,omitempty"`
+	LoopState     *LoopState    `json:"loop_state,omitempty"`
+	NextSteps     *NextSteps    `json:"next_steps,omitempty"`
+	Overlaps      []OverlapInfo `json:"overlaps,omitempty"` // "push.overlap" only
+}
+
+// OverlapInfo names another open branch that changes some of the same files as
+// the pushed ref.
+type OverlapInfo struct {
+	Ref      string   `json:"ref"`
+	OtherRef string   `json:"other_ref"`
+	Files    []string `json:"files"`
+	SHA      string   `json:"sha,omitempty"`
+	OtherSHA string   `json:"other_sha,omitempty"`
 }
 
 type GatewayInfo struct {
@@ -130,10 +141,11 @@ type NextSteps struct {
 // internal types (Policy, RefUpdate, Decision, Suppression) into this shape so
 // the notification package does not depend on internal/gateway.
 type BuildInput struct {
-	Repo        string // logical repo name (Policy.Repo)
-	UpstreamURL string // Policy.UpstreamURL
-	Observed    bool   // would-have-rejected under enforcement (observe mode)
-	Resolved    bool   // clean push closed a prior fix-loop → "push.resolved"
+	Repo        string        // logical repo name (Policy.Repo)
+	UpstreamURL string        // Policy.UpstreamURL
+	Observed    bool          // would-have-rejected under enforcement (observe mode)
+	Resolved    bool          // clean push closed a prior fix-loop → "push.resolved"
+	Overlaps    []OverlapInfo // non-empty → "push.overlap" (accepted push, webhook only)
 	Refs        []BuildRef
 	Findings    []BuildFinding
 	Suppressed  []BuildSuppression
@@ -189,6 +201,9 @@ func Build(in BuildInput, gatewayVersion, instanceID string) Notification {
 	if in.Resolved {
 		event = "push.resolved"
 	}
+	if len(in.Overlaps) > 0 {
+		event = "push.overlap"
+	}
 
 	refs := make([]RefInfo, 0, len(in.Refs))
 	for _, r := range in.Refs {
@@ -238,11 +253,12 @@ func Build(in BuildInput, gatewayVersion, instanceID string) Notification {
 			Refs:      refs,
 		},
 		Decision: DecisionInfo{
-			Accepted:   in.Observed, // observed mode relays, so "accepted" wire-wise
+			Accepted:   in.Observed || len(in.Overlaps) > 0, // observed mode relays, and overlaps are only reported on accepted pushes
 			Observed:   in.Observed,
 			Findings:   findings,
 			Suppressed: suppressed,
 		},
+		Overlaps: in.Overlaps,
 	}
 }
 

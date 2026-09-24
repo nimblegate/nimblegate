@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -62,6 +63,26 @@ func TestFeedSHA_copiesWhenNoLinkCanBeWorkedOut(t *testing.T) {
 	}
 	if body := feedRowsFor(t, root, "lan"); !strings.Contains(body, `href="http://192.168.1.20:3000/acme/app/commit/`+linkSHA+`"`) {
 		t.Errorf("a host mapping should turn the chip into a link:\n%s", body)
+	}
+}
+
+func TestOverlapsPage_linksBothCommits(t *testing.T) {
+	root := t.TempDir()
+	saveRepoWithUpstream(t, root, "gh", "https://github.com/acme/app.git")
+	_ = gateway.AppendAudit(filepath.Join(root, "gh", "audit.log"), gateway.AuditRecord{
+		Time: time.Now(), Repo: "gh", Refs: []string{"refs/heads/mine"}, Accept: true,
+		Overlaps: []gateway.Overlap{{Ref: "refs/heads/mine", OtherRef: "refs/heads/other", Files: []string{"a.go"}, SHA: linkSHA, OtherSHA: strings.Repeat("b", 40)}},
+	})
+	rec := httptest.NewRecorder()
+	serveGatewayOverlaps(root, t.TempDir())(rec, httptest.NewRequest("GET", "/overlaps", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`href="https://github.com/acme/app/commit/` + linkSHA + `"`,
+		`href="https://github.com/acme/app/commit/` + strings.Repeat("b", 40) + `"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("overlaps page missing %s", want)
+		}
 	}
 }
 

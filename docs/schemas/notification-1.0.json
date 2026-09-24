@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://nimblegate.com/schema/1.0/notification.json",
   "title": "nimblegate notification payload v1.0",
-  "description": "Wire format for the auto-PR + webhook rail. See docs/notifications.md. Both channels (hidden HTML block in PR comment, webhook POST body) carry this payload.",
+  "description": "Wire format for the auto-PR + webhook rail. See docs/notifications.md. Both channels (hidden HTML block in PR comment, webhook POST body) carry this payload; push.overlap is sent to the webhook only.",
   "type": "object",
   "required": ["schema_version", "event", "event_id", "gateway", "repo", "push", "decision"],
   "properties": {
     "schema_version": { "type": "string", "const": "1.0" },
-    "event": { "type": "string", "enum": ["push.rejected", "push.observed"] },
+    "event": { "type": "string", "enum": ["push.rejected", "push.observed", "push.resolved", "push.overlap"] },
     "event_id": { "type": "string", "description": "Globally unique per notification. Webhook idempotency key." },
     "gateway": {
       "type": "object",
@@ -141,6 +141,21 @@
         "fix_and_repush": { "type": "string" },
         "request_recheck": { "type": "string" },
         "view_full_audit": { "type": "string", "format": "uri" }
+      }
+    },
+    "overlaps": {
+      "type": "array",
+      "description": "push.overlap only: other open branches that change files the pushed ref also changes, each measured from its merge-base with the default branch.",
+      "items": {
+        "type": "object",
+        "required": ["ref", "other_ref", "files"],
+        "properties": {
+          "ref": { "type": "string" },
+          "other_ref": { "type": "string" },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "sha": { "type": "string", "description": "ref's commit when the overlap was seen" },
+          "other_sha": { "type": "string", "description": "other_ref's commit at the same moment" }
+        }
       }
     }
   }

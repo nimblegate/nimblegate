@@ -502,7 +502,7 @@ The whitelist syntax allows `frame = "*"` (suppress every frame for matching pat
 
 ### Audit log
 
-Every push is logged at `/srv/gateway/cfg/<repo>/audit.log` with: timestamp, ref names, SSH key fingerprint, decision (accept / observe / reject), frames fired, frames suppressed by whitelist. Tail it or aggregate it elsewhere: that's your forensic record.
+Every push is logged at `/srv/gateway/cfg/<repo>/audit.log` with: timestamp, ref names, SSH key fingerprint, decision (accept / observe / reject), frames fired, frames suppressed by whitelist, and in enforce mode any other open branches that change the same files (overlaps). Tail it or aggregate it elsewhere: that's your forensic record.
 
 ### Dashboard `/events`
 

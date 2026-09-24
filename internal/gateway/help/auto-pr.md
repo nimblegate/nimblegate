@@ -51,6 +51,7 @@ Top-level toggles:
 Webhook section:
 
 - **Webhook URL**: your receiver endpoint.
+- **Also send overlap events**: opt-in. Besides rejections, the webhook also gets a `push.overlap` event whenever an accepted push in enforce mode changes files that another open branch also changes, so whatever runs your agents can react while the work is in progress. It goes to the webhook only (no PR comment) and needs a Webhook URL. See [Overlaps](/overlaps).
 - **Auth mode**: HMAC-SHA256 (recommended) / Bearer / None.
 - **Secret**: signing key or Bearer token. Click **Generate random** for a fresh 32-byte hex value. HMAC mode requires a non-empty secret or save will fail.
 - **Auth header**: optional override; defaults to `X-Hub-Signature-256` (HMAC) or `Authorization` (Bearer).
@@ -81,6 +82,7 @@ Mention section:
 ## Common gotchas
 
 - HMAC mode without a secret will refuse to save. Either Generate one or pick a different auth mode.
+- Overlap events arrive at the same URL with the same auth as rejections, so a receiver must check the payload's `event` field before acting: `push.overlap` is not a rejection. They are not listed in the Activity tab (the [Overlaps](/overlaps) page shows them), but one waiting to be delivered does count in the repo's queued / deadletter numbers, since it travels through the same queue.
 - Changing `webhook_url` doesn't replay queued records. They retry against the new URL automatically on the next drain.
 - Reset Loop deletes the per-PR state file; the next push starts attempt 1/N with the default bot. It does **not** clear notifications already sent to the upstream.
 

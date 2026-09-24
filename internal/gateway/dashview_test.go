@@ -370,3 +370,16 @@ func TestBuildView_carriesSuppressions(t *testing.T) {
 		t.Error("a whitelisted hit must not change the decision")
 	}
 }
+
+func TestBuildView_carriesOverlapsForThePill(t *testing.T) {
+	vm := BuildView([]AuditRecord{{
+		Time: time.Now(), Repo: "demo", Refs: []string{"refs/heads/mine"}, Accept: true,
+		Overlaps: []Overlap{{Ref: "refs/heads/mine", OtherRef: "refs/heads/other", Files: []string{"a.txt", "b.txt"}}},
+	}}, Filter{})
+	if len(vm.Rows) != 1 || len(vm.Rows[0].Overlaps) != 1 {
+		t.Fatalf("overlaps not carried to the row: %+v", vm.Rows)
+	}
+	if got, want := vm.Rows[0].OverlapTitle(), "mine shares 2 file(s) with other"; got != want {
+		t.Errorf("OverlapTitle = %q, want %q", got, want)
+	}
+}

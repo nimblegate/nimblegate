@@ -332,6 +332,7 @@ func TestFilePolicyStore_SaveLoad_NotificationRoundtrip(t *testing.T) {
 				Secret:     "shh",
 				HeaderName: "X-Webhook",
 			},
+			OverlapEvents: true,
 			Mention: MentionConfig{
 				Default:               "@nimblegate-bot",
 				IncludePRAssignees:    true,
@@ -375,6 +376,9 @@ func TestFilePolicyStore_SaveLoad_NotificationRoundtrip(t *testing.T) {
 	}
 	if gnc.WebhookURL != inc.WebhookURL || gnc.WebhookAuth != inc.WebhookAuth {
 		t.Errorf("webhook mismatch: got %+v want %+v", gnc.WebhookAuth, inc.WebhookAuth)
+	}
+	if !gnc.OverlapEvents {
+		t.Error("overlap-events lost in roundtrip")
 	}
 	if !reflect.DeepEqual(gnc.Mention, inc.Mention) {
 		t.Errorf("mention mismatch:\n got %+v\nwant %+v", gnc.Mention, inc.Mention)

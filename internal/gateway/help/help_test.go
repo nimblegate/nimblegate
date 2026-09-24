@@ -141,3 +141,10 @@ func TestHandler_MethodNotAllowed(t *testing.T) {
 		t.Errorf("POST should be 405, got %d", rec.Code)
 	}
 }
+
+func TestRenderPage_Overlaps(t *testing.T) {
+	title, _, ok := renderPage("overlaps")
+	if !ok || title != "Overlaps" {
+		t.Errorf("overlaps help page missing: ok=%v title=%q", ok, title)
+	}
+}

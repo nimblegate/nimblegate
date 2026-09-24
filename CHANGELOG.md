@@ -9,6 +9,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **Overlaps: see when open branches change the same files.** When parallel
+  agents push to one repo, an accepted push in enforce mode is compared with
+  the other open branches, and any files they both change are recorded. The
+  feed marks those pushes, a new Overlaps page lists current and recorded
+  overlaps, and an opt-in `push.overlap` webhook event tells the orchestrator
+  immediately. Advisory only: nothing is blocked and the pusher sees nothing.
 - **Commit SHAs open the commit on your git host.** Short SHAs on the Feed
   and Overlaps pages link to the upstream's commit page. `https://` upstreams
   and SSH upstreams on the big public hosts work without setup; a self-hosted

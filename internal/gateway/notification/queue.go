@@ -179,7 +179,8 @@ func UpdateQueueRecord(path string, rec QueueRecord) error {
 }
 
 // RemovePendingRejectsForRef drops queued records targeting `ref` that are NOT
-// resolutions (Event != "push.resolved"), atomically. Called when a clean push
+// resolutions or overlap reports (Event != "push.resolved" / "push.overlap"),
+// atomically. Called when a clean push
 // resolves a ref's loop: any reject records still pending for that ref are now
 // moot, and delivering one AFTER the resolution would flip the ✅ comment back to
 // ⛔ - the resolution clears the PR state, so a late reject starts a fresh
@@ -196,7 +197,7 @@ func RemovePendingRejectsForRef(path, ref string) (int, error) {
 	kept := make([]QueueRecord, 0, len(records))
 	removed := 0
 	for _, r := range records {
-		if r.Notification.Event != "push.resolved" && recordTargetsRef(r, ref) {
+		if r.Notification.Event != "push.resolved" && r.Notification.Event != "push.overlap" && recordTargetsRef(r, ref) {
 			removed++
 			continue
 		}

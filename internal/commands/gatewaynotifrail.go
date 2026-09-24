@@ -131,6 +131,7 @@ func renderNotificationRailSectionWith(w io.Writer, repo string, view notifRailV
 
 	// Webhook URL + auth-mode + secret
 	fmt.Fprintf(w, `<label>Webhook URL <input type="text" name="webhook_url" value="%s" placeholder="https://hooks.example.com/…"></label>`, html.EscapeString(view.WebhookURL))
+	fmt.Fprintf(w, `<label><input type="checkbox" name="overlap_events" value="1"%s> Also send overlap events <span class="sub">(needs a webhook URL; the receiver must check the <code>event</code> field, since these are not rejections)</span></label>`, checked(view.OverlapEvents))
 	fmt.Fprint(w, `<fieldset class="gw-notifrail-auth"><legend>Auth mode</legend>`)
 	for _, mode := range []struct{ value, label string }{
 		{"hmac", "HMAC (recommended)"},
@@ -213,6 +214,7 @@ type notifRailView struct {
 	AuthMode                string
 	HasSecret               bool // true if a secret is on file (don't echo it back)
 	AuthHeader              string
+	OverlapEvents           bool
 	MentionDefault          string
 	AutoTagAssignees        bool
 	RotationBots            []string
@@ -264,10 +266,11 @@ func loadNotifRailView(policyRoot, repo string) notifRailView {
 			Enabled           bool `toml:"enabled"`
 			ObservePRComments bool `toml:"observe-pr-comments"`
 			Webhook           *struct {
-				URL        string `toml:"url"`
-				AuthMode   string `toml:"auth-mode"`
-				Secret     string `toml:"secret"`
-				AuthHeader string `toml:"auth-header"`
+				URL           string `toml:"url"`
+				AuthMode      string `toml:"auth-mode"`
+				Secret        string `toml:"secret"`
+				AuthHeader    string `toml:"auth-header"`
+				OverlapEvents bool   `toml:"overlap-events"`
 			} `toml:"webhook"`
 			Mention *struct {
 				Default            string `toml:"default"`
@@ -304,6 +307,7 @@ func loadNotifRailView(policyRoot, repo string) notifRailView {
 		}
 		view.HasSecret = n.Webhook.Secret != ""
 		view.AuthHeader = n.Webhook.AuthHeader
+		view.OverlapEvents = n.Webhook.OverlapEvents
 	}
 	if n.Mention != nil {
 		if n.Mention.Default != "" {
@@ -452,6 +456,7 @@ func parseNotifRailForm(form map[string][]string) (notifRailView, string, string
 		view.AuthMode = m
 	}
 	view.AuthHeader = strings.TrimSpace(get("auth_header"))
+	view.OverlapEvents = get("overlap_events") == "1"
 	if d := get("mention_default"); d != "" {
 		view.MentionDefault = d
 	}
@@ -541,10 +546,11 @@ func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret stri
 	path := filepath.Join(policyRoot, repo, "gateway.toml")
 
 	type webhookT struct {
-		URL        string `toml:"url"`
-		AuthMode   string `toml:"auth-mode"`
-		Secret     string `toml:"secret"`
-		AuthHeader string `toml:"auth-header"`
+		URL           string `toml:"url"`
+		AuthMode      string `toml:"auth-mode"`
+		Secret        string `toml:"secret"`
+		AuthHeader    string `toml:"auth-header"`
+		OverlapEvents bool   `toml:"overlap-events,omitempty"`
 	}
 	type rotationT struct {
 		Bots                  []string `toml:"bots"`
@@ -600,10 +606,11 @@ func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret stri
 		Enabled:           view.Enabled,
 		ObservePRComments: view.ObservePRComments,
 		Webhook: &webhookT{
-			URL:        view.WebhookURL,
-			AuthMode:   view.AuthMode,
-			Secret:     secretToPersist,
-			AuthHeader: view.AuthHeader,
+			URL:           view.WebhookURL,
+			AuthMode:      view.AuthMode,
+			Secret:        secretToPersist,
+			AuthHeader:    view.AuthHeader,
+			OverlapEvents: view.OverlapEvents,
 		},
 		Mention: &mentionT{
 			Default:            view.MentionDefault,
