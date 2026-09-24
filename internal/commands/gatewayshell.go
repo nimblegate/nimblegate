@@ -616,9 +616,15 @@ var gwLayoutTmpl = func() *template.Template {
   function pagePath(){ return location.pathname; }
   function fetchHelp(){
     var url="/help?page="+encodeURIComponent(pagePath());
-    fetch(url,{credentials:"same-origin"}).then(function(r){return r.text();}).then(function(html){
+    fetch(url,{credentials:"same-origin"}).then(function(r){ if(!r.ok) throw new Error("help "+r.status); return r.text(); }).then(function(html){
       aside.innerHTML=html;
       bindClose();
+    }).catch(function(){
+      // Say so instead of leaving the panel empty, and allow the next open to
+      // retry (e.g. the dashboard was restarting when help was first opened).
+      aside.innerHTML='<header class="help-head"><h1>Help</h1><button class="help-close" aria-label="Close help">×</button></header><div class="help-body"><p>Could not load help. Close this panel and open it again to retry.</p></div>';
+      bindClose();
+      delete aside.dataset.loaded;
     });
   }
   function bindClose(){

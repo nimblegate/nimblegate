@@ -22,6 +22,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   repo using `gate-all-refs`, saving the form turned its catch-all gating off.
   Every other key is now kept, and the file is written 0640 instead of
   world-readable, since it can hold the webhook secret.
+- **The help panel shows real help on every page.** The Auto-PR setup page
+  showed "Help for this page hasn't been written yet"; it now shows the
+  Auto-PR help. That fallback is no longer cached, so it cannot linger after an
+  upgrade, and a help load that fails (for example during a restart) now says
+  so and retries on the next open instead of leaving the panel empty.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would

@@ -23,6 +23,9 @@ func TestPageOf(t *testing.T) {
 		{"/policy/../etc/passwd", ""},
 		{"/POLICY", ""},
 		{"/policy.md", ""},
+		{"/auto-pr/config", "auto-pr"},
+		{"/auto-pr/config?repo=x", "auto-pr"},
+		{"/auto-pr//config", ""},
 	}
 	for _, c := range cases {
 		if got := pageOf(c.in); got != c.want {
@@ -116,6 +119,17 @@ func TestHandler_UnknownPage_FallsBackTo200(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "hasn't been written yet") {
 		t.Errorf("fallback body missing expected text: %q", body)
+	}
+	if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("fallback must not be cached (a stale one outlives a deploy), got Cache-Control %q", cc)
+	}
+}
+
+func TestHandler_SubPageUsesSectionHelp(t *testing.T) {
+	rec := httptest.NewRecorder()
+	Handler()(rec, httptest.NewRequest("GET", "/help?page=/auto-pr/config", nil))
+	if body := rec.Body.String(); strings.Contains(body, "hasn't been written yet") || !strings.Contains(body, "<h1>Auto-PR</h1>") {
+		t.Errorf("/auto-pr/config should show the Auto-PR help, got %q", body[:min(len(body), 200)])
 	}
 }
 
