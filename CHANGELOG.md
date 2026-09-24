@@ -7,6 +7,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Commit SHAs open the commit on your git host.** Short SHAs on the Feed
+  and Overlaps pages link to the upstream's commit page. `https://` upstreams
+  and SSH upstreams on the big public hosts work without setup; a self-hosted
+  host reached over SSH gets one line under Settings → Commit links mapping it
+  to its web address. Where no link can be worked out, clicking copies the SHA.
+
 ### Changed
 
 - **Each GitHub release shows its changelog section.** The release notes are

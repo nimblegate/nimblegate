@@ -94,6 +94,8 @@ type NotifOffView struct {
 type RefDisplay struct {
 	Name     string // refs/heads/main
 	ShortSHA string // 7-char prefix of NewRev; empty if unavailable
+	SHA      string // full NewRev, for click-to-copy; empty when ShortSHA is
+	URL      string // upstream web page for the commit; set by the dashboard, empty when none can be worked out
 }
 
 // buildRefDisplays zips ref names with their short SHAs for the feed. Falls
@@ -105,6 +107,7 @@ func buildRefDisplays(refs []string, updates []RefUpdate) []RefDisplay {
 			rd := RefDisplay{Name: u.Name}
 			if !u.IsDelete() && len(u.NewRev) >= 7 {
 				rd.ShortSHA = u.NewRev[:7]
+				rd.SHA = u.NewRev
 			}
 			out = append(out, rd)
 		}

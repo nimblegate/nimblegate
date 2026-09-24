@@ -141,6 +141,12 @@ const gwShellStyle = `<style>
  .gw-content button.gw-ref:hover{color:var(--gw-accent)}
  .gw-content button.gw-ref[aria-expanded="true"]{color:var(--gw-accent)}
  .gw-content .gw-sha{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--gw-text-fainter);padding:1px 5px;border-radius:3px;background:var(--gw-bg-control);margin-left:4px}
+ .gw-content a.gw-sha{text-decoration:none}
+ .gw-content a.gw-sha:hover,.gw-content .gw-sha[data-copy]:hover{color:var(--gw-accent)}
+ .gw-content .gw-sha[data-copy]{cursor:copy}
+ .gw-content .gw-sha.gw-copied{color:var(--gw-accent)}
+ .gw-content button.gw-ref.gw-ref-inline{display:inline}
+ .gw-content .gw-refend{display:block}
  .gw-content .gw-rmsg{display:none;font-size:11px;white-space:normal;overflow-wrap:anywhere;max-width:340px}
  .gw-content .gw-msgcell button.gw-ref[aria-expanded="true"] ~ .gw-rmsg{display:block}
  .gw-content .gw-find .dmsg{display:none}
@@ -288,6 +294,9 @@ const gwShellStyle = `<style>
  .gw-content .gw-credform{display:flex;flex-direction:column;gap:10px;margin-top:8px;padding:12px 14px;background:var(--gw-bg-input);border:1px solid var(--gw-border);border-radius:6px}
  .gw-content .gw-credform label{display:flex;flex-direction:column;align-items:stretch;gap:4px;color:var(--gw-text-soft);font-size:13px;margin:0}
  .gw-content .gw-credform input[type=password]{width:100%;box-sizing:border-box}
+ .gw-content .gw-credform textarea{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;background:var(--gw-bg-control);color:var(--gw-text);border:1px solid var(--gw-border);border-radius:6px;padding:7px 9px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+ .gw-content .gw-credform textarea:focus{outline:none;border-color:var(--gw-accent)}
+ .gw-content #weblinks-preview code{overflow-wrap:anywhere;word-break:break-all}
  .gw-content .gw-credform .gw-credform-note{margin:4px 0 0;color:var(--gw-text-fainter);font-size:12px;line-height:1.5}
  .gw-content .gw-credform .gw-credform-note code{background:var(--gw-bg-control);padding:1px 5px;border-radius:3px;font-size:11px}
  .gw-content .gw-credform button[type=submit]{align-self:flex-start;background:var(--gw-accent);color:var(--gw-bg-input);border:1px solid var(--gw-accent);font-weight:500;padding:6px 16px}

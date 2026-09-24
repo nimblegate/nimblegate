@@ -133,6 +133,31 @@
     else { gwOpen.add(k); btn.setAttribute('aria-expanded', 'true'); }
   });
 
+  // Click-to-copy for SHAs that have no commit link. navigator.clipboard needs
+  // a secure context and a LAN dashboard is usually plain http, so fall back
+  // to a hidden textarea + execCommand.
+  document.body.addEventListener('click', function (e) {
+    var el = e.target.closest ? e.target.closest('[data-copy]') : null;
+    if (!el) return;
+    var text = el.getAttribute('data-copy');
+    var done = function () {
+      el.classList.add('gw-copied');
+      setTimeout(function () { el.classList.remove('gw-copied'); }, 1200);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done);
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { if (document.execCommand('copy')) done(); } catch (err) { /* copy unsupported: the SHA stays selectable */ }
+    document.body.removeChild(ta);
+  });
+
   gwApplyTz(document);
   gwFeedFilter();
   gwApplyExpand();
