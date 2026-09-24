@@ -55,6 +55,10 @@ type webhookTOML struct {
 	AuthMode   string `toml:"auth-mode"`
 	Secret     string `toml:"secret"`
 	AuthHeader string `toml:"auth-header"`
+	// OverlapEvents opts this webhook into "push.overlap" events. Off by
+	// default: receivers written before the event existed may treat every POST
+	// as a rejection.
+	OverlapEvents bool `toml:"overlap-events,omitempty"`
 }
 
 type mentionTOML struct {
@@ -246,6 +250,7 @@ func (t *notificationTOML) toConfig() (NotificationConfig, error) {
 			Secret:     t.Webhook.Secret,
 			HeaderName: t.Webhook.AuthHeader,
 		}
+		nc.OverlapEvents = t.Webhook.OverlapEvents
 	} else {
 		nc.WebhookAuth = notification.WebhookAuth{Mode: defaultWebhookAuthMode}
 	}
@@ -349,10 +354,11 @@ func notificationConfigToTOML(nc *NotificationConfig) *notificationTOML {
 		Enabled:           nc.Enabled,
 		ObservePRComments: nc.ObservePRComments,
 		Webhook: &webhookTOML{
-			URL:        nc.WebhookURL,
-			AuthMode:   nc.WebhookAuth.Mode,
-			Secret:     nc.WebhookAuth.Secret,
-			AuthHeader: nc.WebhookAuth.HeaderName,
+			URL:           nc.WebhookURL,
+			AuthMode:      nc.WebhookAuth.Mode,
+			Secret:        nc.WebhookAuth.Secret,
+			AuthHeader:    nc.WebhookAuth.HeaderName,
+			OverlapEvents: nc.OverlapEvents,
 		},
 		Mention: &mentionTOML{
 			Default:            nc.Mention.Default,

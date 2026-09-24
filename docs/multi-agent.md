@@ -120,6 +120,7 @@ Per-agent part files are small. A typical `nimblegate check` writes ~5KB of audi
 
 - **Distributed concurrency.** If your project is checked out on multiple machines (NFS, shared SMB), the part-file design assumes a single filesystem with consistent inode semantics. Distributed filesystems with eventual consistency are out of scope.
 - **CI parallelism with shared state.** If your CI runs `nimblegate check` on N parallel runners against the same repo (rare; usually each runner gets a fresh clone), the parts will be local to each runner. Aggregation across runners is a separate concern (artifact upload + post-job merge).
+- **Agents editing the same files on different branches.** That is a merge-time problem between branches, not an audit-log one; the gateway reports it as overlaps (see [Overlap events](notifications.md#overlap-events)).
 - **Hung writer recovery.** If a writer hangs (doesn't crash) and holds its part file open indefinitely, compaction will eventually consume the file after quiescence and the writer's subsequent writes are lost. There's no liveness check (intentional; adds complexity for a rare case).
 
 ## Verified by

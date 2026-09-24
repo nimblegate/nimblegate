@@ -146,6 +146,17 @@ or **human-in-the-loop** (you see "@cursor, your turn" and start it yourself).
 Configuring the agent list, attempts-per-agent, and fallback human is an admin
 job - see [Auto-PR / notifications](notifications.md).
 
+**When agents work in parallel** on separate branches, the usual trouble is two
+of them editing the same file. In enforce mode the gateway compares every
+accepted push with the other open branches and marks any shared files: an
+**overlap** pill on the feed row, and the dashboard's **Overlaps** page listing
+current and recorded overlaps with both commits. With the webhook's opt-in
+`overlap-events`, your orchestrator hears about it the moment it happens and can
+pause one agent or reorder the work. The pushing agent is told nothing, and
+nothing is blocked. Have agents push checkpoints rather than only finished work,
+or the overlap is found only at the end. See
+[Overlap events](notifications.md#overlap-events).
+
 ---
 
 ## Part B - Reaching the dashboard

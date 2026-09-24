@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -374,5 +375,86 @@ func TestEnqueueResolutions_purgesPendingRejects(t *testing.T) {
 	}
 	if !ids["resolution"] {
 		t.Error("the resolution record must remain in the queue")
+	}
+}
+
+// newOverlapPushHarness points the pre-receive harness at a repo where branch
+// "other" already changes a.txt, and returns the SHA of branch "mine", which
+// changes a.txt too - pushing it is an overlap.
+func newOverlapPushHarness(t *testing.T) (PreReceiveDeps, string, string, string) {
+	t.Helper()
+	deps, policyRoot, _, _ := newPreReceiveHarness(t, nil, nil)
+	f := newOverlapFixture(t)
+	otherSHA := f.branch("other", 0, "a.txt")
+	sha := f.branch("mine", 0, "a.txt")
+	deps.GitDir = f.bare
+	deps.Orchestrator = nil
+	return deps, policyRoot, sha, otherSHA
+}
+
+// Overlaps are operator-side: recorded on the audit line, never shown to the
+// pusher (pusher-output camouflage keeps the accept path silent).
+func TestRunPreReceive_Overlap_RecordedAndSilentToPusher(t *testing.T) {
+	deps, _, sha, otherSHA := newOverlapPushHarness(t)
+
+	var out bytes.Buffer
+	if code := RunPreReceive(deps, strings.NewReader(zeroRev+" "+sha+" refs/heads/mine\n"), &out); code != 0 {
+		t.Fatalf("an overlap is advisory and must not reject, got exit %d", code)
+	}
+	if out.Len() != 0 {
+		t.Errorf("accepted push must write NOTHING to the client, overlap included; got:\n%s", out.String())
+	}
+	recs := tailParse(deps.AuditPath, 10)
+	if len(recs) != 1 {
+		t.Fatalf("want 1 audit record, got %d", len(recs))
+	}
+	want := []Overlap{{Ref: "refs/heads/mine", OtherRef: "refs/heads/other", Files: []string{"a.txt"}, SHA: sha, OtherSHA: otherSHA}}
+	if !reflect.DeepEqual(recs[0].Overlaps, want) {
+		t.Errorf("audit Overlaps = %+v, want %+v", recs[0].Overlaps, want)
+	}
+}
+
+func TestRunPreReceive_Overlap_ObserveModeRecordsNothing(t *testing.T) {
+	deps, _, sha, _ := newOverlapPushHarness(t)
+	deps.Policy.Observe = true
+
+	if code := RunPreReceive(deps, strings.NewReader(zeroRev+" "+sha+" refs/heads/mine\n"), new(bytes.Buffer)); code != 0 {
+		t.Fatalf("observe mode must relay, got exit %d", code)
+	}
+	if recs := tailParse(deps.AuditPath, 10); len(recs) != 1 || len(recs[0].Overlaps) != 0 {
+		t.Errorf("observe mode must not record overlaps, got %+v", recs)
+	}
+}
+
+func TestRunPreReceive_Overlap_WebhookEventOnlyWhenOptedIn(t *testing.T) {
+	for _, optIn := range []bool{false, true} {
+		deps, policyRoot, sha, otherSHA := newOverlapPushHarness(t)
+		deps.NotificationConfig = &NotificationConfig{
+			Enabled:       true,
+			UpstreamKind:  "stub",
+			WebhookURL:    "https://hooks.test/nimblegate",
+			WebhookAuth:   notification.WebhookAuth{Mode: "none"},
+			OverlapEvents: optIn,
+		}
+		if code := RunPreReceive(deps, strings.NewReader(zeroRev+" "+sha+" refs/heads/mine\n"), new(bytes.Buffer)); code != 0 {
+			t.Fatalf("optIn=%v: expected accept, got exit %d", optIn, code)
+		}
+		records, _ := notification.ReadQueueRecords(filepath.Join(policyRoot, "demo", "pr-comment-queue.jsonl"))
+		if !optIn {
+			if len(records) != 0 {
+				t.Errorf("overlap events are opt-in; got %d queued records", len(records))
+			}
+			continue
+		}
+		if len(records) != 1 {
+			t.Fatalf("want 1 queued overlap record, got %d", len(records))
+		}
+		n := records[0].Notification
+		if n.Event != "push.overlap" || !n.Decision.Accepted {
+			t.Errorf("Event=%q Accepted=%v, want push.overlap on an accepted push", n.Event, n.Decision.Accepted)
+		}
+		if len(n.Overlaps) != 1 || n.Overlaps[0].OtherRef != "refs/heads/other" || n.Overlaps[0].SHA != sha || n.Overlaps[0].OtherSHA != otherSHA {
+			t.Errorf("payload overlaps = %+v", n.Overlaps)
+		}
 	}
 }

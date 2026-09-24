@@ -5,7 +5,21 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-09-25
+
+### Added
+
+- **Overlaps: see when open branches change the same files.** When parallel
+  agents push to one repo, an accepted push in enforce mode is compared with
+  the other open branches, and any files they both change are recorded. The
+  feed marks those pushes, a new Overlaps page lists current and recorded
+  overlaps, and an opt-in `push.overlap` webhook event tells the orchestrator
+  immediately. Advisory only: nothing is blocked and the pusher sees nothing.
+- **Commit SHAs open the commit on your git host.** Short SHAs on the Feed
+  and Overlaps pages link to the upstream's commit page. `https://` upstreams
+  and SSH upstreams on the big public hosts work without setup; a self-hosted
+  host reached over SSH gets one line under Settings → Commit links mapping it
+  to its web address. Where no link can be worked out, clicking copies the SHA.
 
 ### Changed
 
@@ -16,6 +30,43 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Saving the Notification rail no longer drops policy settings.** The save
+  rewrote `gateway.toml` with only five known keys, so `gate-all-refs`,
+  `delete-protected-refs` and `max-input-size` were silently removed - on a
+  repo using `gate-all-refs`, saving the form turned its catch-all gating off.
+  Every other key is now kept, and the file is written 0640 instead of
+  world-readable, since it can hold the webhook secret.
+- **The help panel shows real help on every page.** The Auto-PR setup page
+  showed "Help for this page hasn't been written yet"; it now shows the
+  Auto-PR help. That fallback is no longer cached, so it cannot linger after an
+  upgrade, and a help load that fails (for example during a restart) now says
+  so and retries on the next open instead of leaving the panel empty.
+- **The top-of-page import check only reads files inside the pushed tree.**
+  It resolved `import` paths from the scanned files without keeping them
+  inside the tree, so a pushed import such as `../../../some/file` made the
+  gate open that file on the gateway host. Imports that climb out of the tree
+  are now treated as unresolvable, as symlinks pointing outside already were.
+- **Health shows a whitelist that will not load.** Such a whitelist makes the
+  gate reject every push to the repo while the pusher sees only "rejected".
+  Health now names the repo, the reason and the file to fix, and `gateway
+  doctor` reports how many entries a working whitelist has.
+- **Stats shows the whitelist as a count, not a second copy.** Each repo's
+  header line now reads "whitelist: N entries" with a link to Policy →
+  Whitelist, where the entries are listed and edited; the full table at the
+  bottom of Stats was buried under long recurring-findings lists.
+- **The feed no longer jumps to the bottom on refresh.** Opening a finding
+  pill, a branch or a commit link left it focused, and the next auto-refresh
+  replaced that element, which made the browser scroll to the end of the page.
+  The feed now keeps your scroll position, and the opened pill keeps focus.
+- **Rows from "Load older" behave like the rest of the feed.** Their finding
+  pills and branches now open on click, the status chips and search box filter
+  them, day separators continue into them, and their columns line up with the
+  rows above.
+
+- **Long branch names and timestamps stay inside their feed columns.** Branch
+  names such as `agent/claude/checkout-tax` now wrap after a slash instead of
+  running under the status pills, and a timestamp that does not fit wraps
+  between date and time instead of overlapping the repo name.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would

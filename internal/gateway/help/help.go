@@ -28,7 +28,9 @@ var contentFS embed.FS
 
 // pageOf normalizes a request's `?page=` value to a help file basename.
 // `/policy?repo=foo` → `policy`. `/` → `index`. Leading slash stripped,
-// trailing slash + query string stripped, only [a-z0-9-] kept.
+// trailing slash + query string stripped, only [a-z0-9-] kept. A sub-page
+// (`/auto-pr/config`) uses its section's help (`auto-pr`); every segment must
+// still be valid, so `..` never gets through.
 func pageOf(raw string) string {
 	if raw == "" {
 		return ""
@@ -44,12 +46,16 @@ func pageOf(raw string) string {
 		switch {
 		case r >= 'a' && r <= 'z':
 		case r >= '0' && r <= '9':
-		case r == '-':
+		case r == '-', r == '/':
 		default:
 			return ""
 		}
 	}
-	return raw
+	section, _, _ := strings.Cut(raw, "/")
+	if strings.Contains(raw, "//") {
+		return ""
+	}
+	return section
 }
 
 var (
@@ -142,11 +148,14 @@ func Handler() http.HandlerFunc {
 		page := pageOf(r.URL.Query().Get("page"))
 		title, body, ok := renderPage(page)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Cache-Control", "private, max-age=300")
 		if !ok {
+			// Never cached: a browser that asked while an older binary was
+			// running must see the real help as soon as the new one is up.
+			w.Header().Set("Cache-Control", "no-store")
 			writeFallback(w)
 			return
 		}
+		w.Header().Set("Cache-Control", "private, max-age=300")
 		writeFragment(w, title, body)
 	}
 }

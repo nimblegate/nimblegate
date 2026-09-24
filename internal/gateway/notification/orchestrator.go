@@ -30,6 +30,11 @@ type Orchestrator struct {
 // error wrapping upstream.ErrTransient or ErrPermanent so the daemon can
 // classify it for retry vs deadletter routing.
 func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
+	// An overlap is advisory and has no PR side, so it skips the upstream
+	// entirely: the webhook is its only channel.
+	if rec.Notification.Event == "push.overlap" {
+		return o.deliverWebhook(ctx, rec)
+	}
 	adapter, err := o.Upstreams.LookupByURL(rec.Notification.Repo.UpstreamURL)
 	if err != nil {
 		return fmt.Errorf("%w: %v", upstream.ErrPermanent, err)
@@ -160,15 +165,22 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 	}
 
 	// 6. Webhook ALWAYS fires when configured, regardless of PR comment outcome
-	if rec.WebhookURL != "" {
-		payload, err := json.Marshal(rec.Notification)
-		if err != nil {
-			return fmt.Errorf("%w: marshal notification: %v", upstream.ErrPermanent, err)
-		}
-		auth := webhook.Auth{Mode: rec.WebhookAuth.Mode, Secret: rec.WebhookAuth.Secret, HeaderName: rec.WebhookAuth.HeaderName}
-		if err := o.Webhook.Deliver(ctx, rec.WebhookURL, payload, auth); err != nil {
-			return fmt.Errorf("webhook: %w", err)
-		}
+	return o.deliverWebhook(ctx, rec)
+}
+
+// deliverWebhook POSTs the notification to the record's webhook URL. No URL
+// configured is a successful no-op.
+func (o *Orchestrator) deliverWebhook(ctx context.Context, rec QueueRecord) error {
+	if rec.WebhookURL == "" {
+		return nil
+	}
+	payload, err := json.Marshal(rec.Notification)
+	if err != nil {
+		return fmt.Errorf("%w: marshal notification: %v", upstream.ErrPermanent, err)
+	}
+	auth := webhook.Auth{Mode: rec.WebhookAuth.Mode, Secret: rec.WebhookAuth.Secret, HeaderName: rec.WebhookAuth.HeaderName}
+	if err := o.Webhook.Deliver(ctx, rec.WebhookURL, payload, auth); err != nil {
+		return fmt.Errorf("webhook: %w", err)
 	}
 	return nil
 }

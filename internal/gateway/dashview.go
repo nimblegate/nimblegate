@@ -58,6 +58,19 @@ type DecisionRow struct {
 	// PR comment fired. Nil = notifications on, no upstream, or an active loop
 	// is already shown. Surfaces the silent default-off operator-side only.
 	NotifOff *NotifOffView
+	// Overlaps are the other open branches this push shares files with. Shown
+	// as a pill linking to the Overlaps page; empty on older audit lines.
+	Overlaps []Overlap
+}
+
+// OverlapTitle is the feed pill's tooltip: which branches share how many files.
+func (r DecisionRow) OverlapTitle() string {
+	parts := make([]string, 0, len(r.Overlaps))
+	for _, o := range r.Overlaps {
+		parts = append(parts, fmt.Sprintf("%s shares %d file(s) with %s",
+			strings.TrimPrefix(o.Ref, "refs/heads/"), len(o.Files), strings.TrimPrefix(o.OtherRef, "refs/heads/")))
+	}
+	return strings.Join(parts, "; ")
 }
 
 // NotificationStatusView is the row-level rendering data for the
@@ -94,6 +107,8 @@ type NotifOffView struct {
 type RefDisplay struct {
 	Name     string // refs/heads/main
 	ShortSHA string // 7-char prefix of NewRev; empty if unavailable
+	SHA      string // full NewRev, for click-to-copy; empty when ShortSHA is
+	URL      string // upstream web page for the commit; set by the dashboard, empty when none can be worked out
 }
 
 // buildRefDisplays zips ref names with their short SHAs for the feed. Falls
@@ -105,6 +120,7 @@ func buildRefDisplays(refs []string, updates []RefUpdate) []RefDisplay {
 			rd := RefDisplay{Name: u.Name}
 			if !u.IsDelete() && len(u.NewRev) >= 7 {
 				rd.ShortSHA = u.NewRev[:7]
+				rd.SHA = u.NewRev
 			}
 			out = append(out, rd)
 		}
@@ -259,6 +275,7 @@ func BuildView(records []AuditRecord, f Filter) ViewModel {
 			Findings:           r.Findings,
 			Suppressed:         r.Suppressed,
 			NotificationStatus: notifStatusView(r.Notification),
+			Overlaps:           r.Overlaps,
 		})
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Time.After(rows[j].Time) })

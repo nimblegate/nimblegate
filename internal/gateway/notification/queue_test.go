@@ -183,6 +183,7 @@ func TestRemovePendingRejectsForRef(t *testing.T) {
 	_ = AppendQueueRecord(q, mk("rej-x", "push.rejected", "refs/heads/x"))
 	_ = AppendQueueRecord(q, mk("res-x", "push.resolved", "refs/heads/x"))
 	_ = AppendQueueRecord(q, mk("rej-y", "push.rejected", "refs/heads/y"))
+	_ = AppendQueueRecord(q, mk("ovl-x", "push.overlap", "refs/heads/x"))
 
 	n, err := RemovePendingRejectsForRef(q, "refs/heads/x")
 	if err != nil {
@@ -204,6 +205,9 @@ func TestRemovePendingRejectsForRef(t *testing.T) {
 	}
 	if !ids["rej-y"] {
 		t.Error("a reject for a different ref (y) must be kept")
+	}
+	if !ids["ovl-x"] {
+		t.Error("an overlap report is not a reject; resolving ref x must not drop it")
 	}
 }
 

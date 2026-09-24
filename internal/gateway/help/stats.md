@@ -29,12 +29,12 @@ The Whitelist button opens an inline form:
 - **Path**: pre-filled from the finding's `file:line`. A scope hint warns if your pattern matches more than one file.
 - **Reason**: why this isn't a real finding. Required.
 
-Below the recurring table sits the **Whitelist** panel: every currently-silenced entry on this repo with frame + path + reason. **Remove** deletes the entry; the next push that hits the same line will re-fire the frame.
+On both tabs, each repo's header line also shows how many **whitelist** entries it has, with a link to [Policy → Whitelist](/policy?tab=whitelist). The entries themselves - frame, path, reason and **Remove** - live there, so a long recurring table never buries them.
 
 ## Common gotchas
 
 - Brand-new repos with few pushes show very small actual numbers; the metric only counts blocked-then-fixed pairs.
 - Per-frame hours-per-hit can be overridden per-repo; the per-frame breakdown's `source` column shows where the value came from.
-- The Whitelist panel here is the same data as [Policy → Whitelist](/policy?tab=whitelist); editing in either view shows up in both.
+- Whitelisting from a recurring row here and editing on [Policy → Whitelist](/policy?tab=whitelist) change the same file, so the count here updates either way.
 
 For depth: [docs/audit-analyzer.md](https://github.com/nimblegate/nimblegate/blob/main/docs/audit-analyzer.md).

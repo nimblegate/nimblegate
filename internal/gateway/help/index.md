@@ -8,6 +8,7 @@ nimblegate sits between your AI agent's `git push` and your real upstream repo. 
 - **Watching pushes live?** [Feed](/feed) shows every decision as it happens; [Events](/events) is the raw audit log.
 - **Picking rules?** [Policy](/policy) is where you tick frames on/off per repo. [Frames](/frames) is the read-only browse view of every rule that exists.
 - **Measuring impact?** [Stats](/stats) shows time-prevented per week + which rules pull their weight.
+- **Running agents in parallel?** [Overlaps](/overlaps) shows open branches that change the same files, before they collide at merge time.
 
 ## Common gotchas
 

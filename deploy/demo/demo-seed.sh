@@ -27,10 +27,18 @@ rec() {
     "$(ago "$mins")" "$repo" "$ref" "$ref" "$accept" "$observed" "$findings" "$supp" "$msgs" >> "$f"
 }
 
+# An accepted push that changes files another open agent branch also changes.
+# args: repo  minutes_ago  ref  sha  other_ref  other_sha  files_json
+rec_overlap() {
+  local repo="$1" mins="$2" ref="$3" sha="$4" other="$5" other_sha="$6" files="$7"
+  printf '{"time":"%s","repo":"%s","refs":["%s"],"ref_updates":[{"Name":"%s","OldRev":"0000000000000000000000000000000000000000","NewRev":"%s"}],"accept":true,"overlaps":[{"ref":"%s","other_ref":"%s","files":%s,"sha":"%s","other_sha":"%s"}]}\n' \
+    "$(ago "$mins")" "$repo" "$ref" "$ref" "$sha" "$ref" "$other" "$files" "$sha" "$other_sha" >> "$ROOT/$repo/audit.log"
+}
+
 seed_repo() {
   local repo="$1" upstream="$2" frames="$3"
   mkdir -p "$ROOT/$repo"
-  printf 'upstream-url = "%s"\n' "$upstream" > "$ROOT/$repo/gateway.toml"
+  printf 'upstream-url = "%s"\nenabled = true\n' "$upstream" > "$ROOT/$repo/gateway.toml"
   printf '[frames]\nenabled = [%s]\n' "$frames" > "$ROOT/$repo/appframes.toml"
   : > "$ROOT/$repo/audit.log"
 }
@@ -38,7 +46,7 @@ seed_repo() {
 NONE='[]'
 
 # ---- acme-storefront: e-commerce, the credential + force-push story ----
-seed_repo "acme-storefront" "https://github.com/acme/storefront.git" '"@tier-1", "@web", "@security-strict"'
+seed_repo "acme-storefront" "git@git.example.com:acme/storefront.git" '"@tier-1", "@web", "@security-strict"'
 rec acme-storefront 7   refs/heads/feat-checkout true false "$NONE" "$NONE" '[]'
 rec acme-storefront 34  refs/heads/main false false \
   '[{"id":"security/no-hardcoded-credentials","severity":"BLOCK","message":"config/payments.js:14 - Stripe secret key (live)"}]' \
@@ -49,9 +57,15 @@ rec acme-storefront 96  refs/heads/main false false \
 rec acme-storefront 210 refs/heads/feat-cart true false "$NONE" \
   '[{"frame":"documentation/dated-todo","file":"src/cart.js","label":"known backlog item","severity":"WARN"}]' '[]'
 rec acme-storefront 1490 refs/heads/feat-search true false "$NONE" "$NONE" '[]'
+# Two agents working in parallel end up in the same file.
+rec acme-storefront 26 refs/heads/agent/claude/checkout-tax true false "$NONE" "$NONE" '[]'
+rec_overlap acme-storefront 15 refs/heads/agent/cursor/checkout-coupons 7c1e9a4b2d8f3e6a0b5c9d1e4f7a2b8c3d6e9f01 \
+  refs/heads/agent/claude/checkout-tax 3f8b2c7d1e9a4f6b0c5d8e2a7b1f4c9d6e3a0b52 '["src/checkout/total.js"]'
+rec_overlap acme-storefront 4 refs/heads/agent/claude/checkout-tax 9d4a1f7c3e8b2d6a5f0c9e1b4d7a3f8c2e6b0d19 \
+  refs/heads/agent/cursor/checkout-coupons 7c1e9a4b2d8f3e6a0b5c9d1e4f7a2b8c3d6e9f01 '["src/checkout/total.js","src/checkout/total.test.js"]'
 
 # ---- payments-api: backend, the private-key + migration story ----
-seed_repo "payments-api" "https://github.com/acme/payments-api.git" '"@tier-1", "@migrations", "@security-strict"'
+seed_repo "payments-api" "git@git.example.com:acme/payments-api.git" '"@tier-1", "@migrations", "@security-strict"'
 cat >> "$ROOT/payments-api/appframes.toml" <<'LINTERS'
 
 [linters]
@@ -75,7 +89,8 @@ rec payments-api 880 refs/heads/main true false \
   "$NONE" '[]'
 
 # ---- marketing-site: static/web, observe-mode + rm-rf story ----
-seed_repo "marketing-site" "https://github.com/acme/marketing-site.git" '"@tier-1", "@web", "@cf-pages"'
+seed_repo "marketing-site" "git@git.example.com:acme/marketing-site.git" '"@tier-1", "@web", "@cf-pages"'
+echo 'observe = true' >> "$ROOT/marketing-site/gateway.toml"
 rec marketing-site 12  refs/heads/main true false "$NONE" "$NONE" '[]'
 rec marketing-site 58  refs/heads/redesign true true \
   '[{"id":"web/html-required-meta","severity":"WARN","message":"index.html - missing meta description"}]' \

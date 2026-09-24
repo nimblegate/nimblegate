@@ -3,6 +3,7 @@
 package gateway
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -67,12 +68,17 @@ func SeedFromUpstream(bareDir, upstreamURL, cred string) (SeedResult, error) {
 // dashboard runs as a different user). Same guard gitlog.go uses. ls-remote and
 // other remote-only calls don't need this and build their own command.
 func gitBare(bareDir string, args ...string) *exec.Cmd {
+	return gitBareContext(context.Background(), bareDir, args...)
+}
+
+// gitBareContext is gitBare bound to ctx, for callers with a time budget.
+func gitBareContext(ctx context.Context, bareDir string, args ...string) *exec.Cmd {
 	// Run git inside the bare repo via cmd.Dir, and pass safe.directory through
 	// the environment, so the (gateway-constructed) bareDir never appears as a
 	// command-line argument. Keeping user-derived data out of the argv is the
 	// robust mitigation for go/command-injection - there is no arg for git to
 	// misread as an option (see SECURITY.md).
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = bareDir
 	cmd.Env = append(os.Environ(),
 		"GIT_CONFIG_COUNT=1",

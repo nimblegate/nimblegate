@@ -16,9 +16,7 @@ import (
 
 	"nimblegate/internal/gateway/upstream"
 	"nimblegate/internal/linters"
-	"nimblegate/internal/stdlib"
 	"nimblegate/internal/version"
-	"nimblegate/internal/whitelist"
 )
 
 // DoctorStatus is a check outcome, ordered by ascending severity.
@@ -344,10 +342,8 @@ func RunDoctor(cfg DoctorConfig) DoctorReport {
 // which is the same rule the gate itself applies.
 func doctorKnownFrameIDs(policyRoot, repo string) map[string]bool {
 	known := map[string]bool{}
-	if all, err := stdlib.Load(); err == nil {
-		for _, f := range all {
-			known[f.ID()] = true
-		}
+	for id := range stdlibFrameIDs() {
+		known[id] = true
 	}
 	if lp, err := LoadLinterPolicy(policyRoot, repo); err == nil {
 		for _, id := range linters.EnabledIDs(lp.Linters) {
@@ -482,9 +478,8 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	// push with a bare "rejected" - the cause is withheld from the pusher by
 	// design, so without this line an operator has to find the events file.
 	{
-		known := doctorKnownFrameIDs(cfg.PolicyRoot, name)
-		wlPath := filepath.Join(cfg.PolicyRoot, name, ".appframes", "_canonical", "whitelist.toml")
-		wl, err := whitelist.Load(wlPath, known, time.Now().UTC())
+		wlPath := WhitelistPath(cfg.PolicyRoot, name)
+		present, entries, err := CheckWhitelist(cfg.PolicyRoot, name)
 		switch {
 		case err != nil:
 			add(DoctorCheck{
@@ -494,10 +489,10 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 				Reason: "will not load, so every push to this repo is rejected before any frame runs: " + err.Error(),
 				Fix:    "remove or correct the entry in " + wlPath + "; an id that names no frame usually means the frame or linter it suppressed was removed",
 			})
-		case wl == nil:
+		case !present:
 			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorInfo, Reason: "no whitelist; nothing is suppressed"})
 		default:
-			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorOK, Reason: "loads and every entry names a real frame"})
+			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorOK, Reason: fmt.Sprintf("loads, %d %s, every one naming a real frame", entries, plural(entries, "entry", "entries"))})
 		}
 	}
 

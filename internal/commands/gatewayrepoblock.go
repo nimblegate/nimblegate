@@ -23,7 +23,8 @@ type recurringRow struct {
 	Path     string
 }
 
-// whitelistRow is one active whitelist entry for the read-only "Whitelisted" panel.
+// whitelistRow is one active whitelist entry. Stats shows only their count;
+// the Policy page's Whitelist tab lists them.
 type whitelistRow struct {
 	Frame  string
 	Path   string

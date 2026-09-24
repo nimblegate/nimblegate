@@ -54,7 +54,7 @@
     var box = document.getElementById('feed-search');
     var q = (box ? box.value : '').trim().toLowerCase();
     var shown = 0;
-    feed.querySelectorAll('tr[data-feedsev]').forEach(function (tr) {
+    document.querySelectorAll('#feed tr[data-feedsev], #feed-older tr[data-feedsev]').forEach(function (tr) {
       var b = tr.getAttribute('data-feedsev');
       var sevOK = active[b] !== false;
       var textOK = q === '' || tr.textContent.toLowerCase().indexOf(q) !== -1;
@@ -71,12 +71,14 @@
   // mode). Client-side so it re-runs with the conversion (load, htmx swap, setting
   // change); the feed still renders fine without JS, just ungrouped.
   function pad(n) { return (n < 10 ? '0' : '') + n; }
+  // Rows from "Load older" sit in #feed-older, one table per page; the day key
+  // carries across tables so a page that starts on the same day adds no header.
   function gwDaySeparators() {
-    document.querySelectorAll('#feed tr.gw-daysep').forEach(function (el) { el.remove(); });
+    document.querySelectorAll('#feed tr.gw-daysep, #feed-older tr.gw-daysep').forEach(function (el) { el.remove(); });
     if (localStorage.getItem('gwday') === 'off') return;
     var utc = localStorage.getItem('gwtz') === 'utc';
-    document.querySelectorAll('#feed table.fr tbody').forEach(function (tbody) {
-      var prevKey = null;
+    var prevKey = null;
+    document.querySelectorAll('#feed table.fr tbody, #feed-older table.fr tbody').forEach(function (tbody) {
       Array.prototype.slice.call(tbody.children).forEach(function (tr) {
         if (tr.style.display === 'none') return;
         var t = tr.querySelector('time.gw-ts');
@@ -121,16 +123,41 @@
     return dt + '|' + btn.textContent;
   }
   function gwApplyExpand() {
-    document.querySelectorAll('#feed button.fnd, #feed button.gw-ref').forEach(function (btn) {
+    document.querySelectorAll('#feed button.fnd, #feed button.gw-ref, #feed-older button.fnd, #feed-older button.gw-ref').forEach(function (btn) {
       btn.setAttribute('aria-expanded', gwOpen.has(gwExpandKey(btn)) ? 'true' : 'false');
     });
   }
   document.body.addEventListener('click', function (e) {
     var btn = e.target.closest ? e.target.closest('button.fnd, button.gw-ref') : null;
-    if (!btn || !btn.closest('#feed')) return;
+    if (!btn || !btn.closest('#feed, #feed-older')) return;
     var k = gwExpandKey(btn);
     if (gwOpen.has(k)) { gwOpen.delete(k); btn.setAttribute('aria-expanded', 'false'); }
     else { gwOpen.add(k); btn.setAttribute('aria-expanded', 'true'); }
+  });
+
+  // Click-to-copy for SHAs that have no commit link. navigator.clipboard needs
+  // a secure context and a LAN dashboard is usually plain http, so fall back
+  // to a hidden textarea + execCommand.
+  document.body.addEventListener('click', function (e) {
+    var el = e.target.closest ? e.target.closest('[data-copy]') : null;
+    if (!el) return;
+    var text = el.getAttribute('data-copy');
+    var done = function () {
+      el.classList.add('gw-copied');
+      setTimeout(function () { el.classList.remove('gw-copied'); }, 1200);
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done);
+      return;
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { if (document.execCommand('copy')) done(); } catch (err) { /* copy unsupported: the SHA stays selectable */ }
+    document.body.removeChild(ta);
   });
 
   gwApplyTz(document);
@@ -138,8 +165,26 @@
   gwApplyExpand();
   gwDaySeparators();
   gwReportFilter();
+  // The feed's auto-refresh replaces every row, including a pill or link that
+  // still has focus from being clicked. htmx only restores focus to elements
+  // with an id, so the focused element just vanishes and the browser jumps to
+  // the bottom of the page. Take focus off before the swap, and give it back to
+  // the same pill afterwards without scrolling so keyboard use still works.
+  var gwRefocusKey = null;
+  document.body.addEventListener('htmx:beforeSwap', function (e) {
+    var a = document.activeElement;
+    if (!e.detail.target || e.detail.target.id !== 'feed' || !a || !a.closest || !a.closest('#feed')) return;
+    gwRefocusKey = a.matches('button.fnd, button.gw-ref') ? gwExpandKey(a) : null;
+    a.blur();
+  });
   document.body.addEventListener('htmx:afterSwap', function (e) {
     gwApplyTz(e.target); gwFeedFilter(); gwApplyExpand(); gwDaySeparators();
+    if (gwRefocusKey && e.target && e.target.id === 'feed') {
+      var key = gwRefocusKey;
+      gwRefocusKey = null;
+      var again = Array.prototype.find.call(document.querySelectorAll('#feed button.fnd, #feed button.gw-ref'), function (b) { return gwExpandKey(b) === key; });
+      if (again) again.focus({ preventScroll: true });
+    }
     // A freshly-run report replaces #report-out; clear any stale filter text so
     // the new rows aren't hidden by the previous query, then (re)apply.
     if (e.target && e.target.id === 'report-out') { var rb = document.getElementById('report-filter'); if (rb) rb.value = ''; }

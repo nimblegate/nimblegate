@@ -460,3 +460,36 @@ func equalSlices(a, b []string) bool {
 	}
 	return true
 }
+
+// An overlap has no PR side: it must reach the webhook without touching the
+// upstream at all, even when a PR is open on the ref and even when the upstream
+// host is not one the registry knows.
+func TestDeliverOne_Overlap_WebhookOnly(t *testing.T) {
+	stub := upstream.NewStub()
+	stub.AddPR("repo", "refs/heads/mine", &upstream.PullRequest{Number: 3, URL: "https://upstream.test/repo/pulls/3"})
+
+	var got captured
+	srv := newWebhookServer(t, 200, &got)
+	defer srv.Close()
+	_, o := buildOrchestrator(stub, "upstream.test", t.TempDir())
+
+	rec := baseRec("evt_overlap", "repo", "https://unregistered.test/repo", "refs/heads/mine")
+	rec.Notification.Event = "push.overlap"
+	rec.Notification.Overlaps = []OverlapInfo{{Ref: "refs/heads/mine", OtherRef: "refs/heads/other", Files: []string{"a.txt"}}}
+	rec.WebhookURL = srv.URL
+	rec.WebhookAuth = WebhookAuth{Mode: "none"}
+
+	if err := o.DeliverOne(context.Background(), rec); err != nil {
+		t.Fatalf("DeliverOne: %v", err)
+	}
+	if len(stub.Comments(3)) != 0 {
+		t.Error("an overlap must not post a PR comment")
+	}
+	var n Notification
+	if err := json.Unmarshal(got.body, &n); err != nil {
+		t.Fatalf("webhook body: %v (%q)", err, got.body)
+	}
+	if n.Event != "push.overlap" || len(n.Overlaps) != 1 || n.Overlaps[0].OtherRef != "refs/heads/other" {
+		t.Errorf("webhook payload = %+v", n)
+	}
+}

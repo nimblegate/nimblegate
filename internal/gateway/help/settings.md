@@ -1,6 +1,6 @@
 # Settings
 
-The tab strip splits Settings into three views. **System** (default) is read-only install info; **Display** is browser-only preferences; **About** is the license + project links. None of the tabs here change gate behavior or policy.
+The tab strip splits Settings into four views. **System** (default) is read-only install info; **Display** is browser-only preferences; **Commit links** decides where short commit SHAs link to; **About** is the license + project links. None of the tabs here change gate behavior or policy.
 
 ## System
 
@@ -11,6 +11,16 @@ Read-only snapshot of this install:
 - **Policy root / repos root / SSH keys file**: the paths the dashboard reads/writes. Useful when triaging permission errors.
 - **Auth mode**: `setup-token` (single-admin bcrypt sessions) or `off` (reverse-proxy fronts auth).
 - **Started / uptime**: process start time + how long it's been running.
+
+## Commit links
+
+Short commit SHAs on the [Feed](/feed) and [Overlaps](/overlaps) pages link to the commit on your git host when the dashboard can work out its web address:
+
+- An `https://` upstream links on its own address (GitHub, Gitea, Forgejo, GitLab, Bitbucket).
+- An SSH upstream links on its own only for github.com, gitlab.com, bitbucket.org and codeberg.org.
+- Anything else needs a **host mapping**, one line per git host: `<host> <web-url> [gitlab|bitbucket]`, for example `192.168.1.20 http://192.168.1.20:3000` for a LAN Gitea whose web UI runs on port 3000. Add `gitlab` or `bitbucket` when the host runs one of those, since their commit URLs differ.
+
+The **What each repo links to** table shows the link every repo produces, so you can check a mapping before relying on it. A repo with no link keeps click-to-copy: clicking its SHA copies the full commit ID. The dashboard never guesses a web address, because a wrong link is worse than none. Mappings are stored in `<policy-root>/weblinks.toml`, separate from the hand-edited `gateway.toml`.
 
 ## Display
 

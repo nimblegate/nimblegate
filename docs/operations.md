@@ -94,7 +94,8 @@ can fully reconstruct the gateway on a fresh host:
 - **`nimblegate-cfg`** → `/srv/gateway/cfg/`: **the irreplaceable one.** Per-repo
   `gateway.toml` (upstream credential + notification settings), `appframes.toml`
   (frame selection), the whitelist, `audit.log` (decision history), the
-  Auto-PR queue/deadletter/state, and `_auth.db` (admin login).
+  Auto-PR queue/deadletter/state, `_auth.db` (admin login), and the
+  dashboard's `weblinks.toml` (Settings → Commit links host mappings).
 - **`nimblegate-ssh`** → `/srv/gateway/ssh/`: sshd host keys (so dev machines
   don't re-warn after restore) + `authorized_keys`.
 

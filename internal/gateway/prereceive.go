@@ -51,6 +51,7 @@ type NotificationConfig struct {
 	UpstreamKind      string // "gitea" | "github" - derived from upstream URL by caller, not parsed
 	WebhookURL        string // empty = webhook disabled, comment-only
 	WebhookAuth       notification.WebhookAuth
+	OverlapEvents     bool                        // also send "push.overlap" to the webhook ([notification.webhook] overlap-events)
 	LoopCfg           notification.LoopConfig     // [notification.loop] + [notification.mention.rotation]
 	Cooldown          notification.CooldownConfig // [notification.loop] cooldown subset
 	Mention           MentionConfig               // [notification.mention]
@@ -133,6 +134,17 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 
 	dec := Decide(d.Policy, refs, resultsByRef)
 
+	// Overlaps are advisory and operator-side only: enforce-mode accepts get
+	// them recorded, nothing reaches the pusher, and a failed or slow check
+	// never delays or blocks the push beyond its own time budget.
+	var overlaps []Overlap
+	if dec.Accept && d.Policy.Enabled && !d.Policy.Observe {
+		var err error
+		if overlaps, err = PushOverlaps(d.GitDir, refs); err != nil && d.PolicyRoot != "" {
+			_ = AppendEvent(d.PolicyRoot, Event{Event: "overlap-check-failed", Repo: d.Policy.Repo, OK: false, Payload: map[string]any{"error": err.Error()}})
+		}
+	}
+
 	refNames := make([]string, 0, len(refs))
 	for _, r := range refs {
 		refNames = append(refNames, r.Name)
@@ -187,7 +199,7 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 	if len(dec.ScanFailures) > 0 {
 		auditMsgs = append(append([]string{}, dec.Messages...), dec.ScanFailures...)
 	}
-	_ = AppendAudit(d.AuditPath, AuditRecord{Repo: d.Policy.Repo, Refs: refNames, RefUpdates: refs, Accept: accept, Observed: observed, Messages: auditMsgs, Findings: dec.Findings, Suppressed: suppressed, Notification: notifStatus})
+	_ = AppendAudit(d.AuditPath, AuditRecord{Repo: d.Policy.Repo, Refs: refNames, RefUpdates: refs, Accept: accept, Observed: observed, Messages: auditMsgs, Findings: dec.Findings, Suppressed: suppressed, Notification: notifStatus, Overlaps: overlaps})
 	if dec.ScanFailed && d.PolicyRoot != "" {
 		// Second operator channel, independent of the rail being configured:
 		// /health reads these back, which is the only signal an observe-mode
@@ -208,6 +220,9 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 		}
 	case len(resRecs) > 0:
 		enqueueResolutions(d, resRecs, resPRs)
+	}
+	if len(overlaps) > 0 && notifEnabled && d.NotificationConfig.OverlapEvents && d.NotificationConfig.WebhookURL != "" {
+		enqueueOverlap(d, refs, overlaps)
 	}
 
 	// Every path that relays - clean accept, accept-with-suppressions, and
@@ -326,6 +341,33 @@ func enqueueNotification(d PreReceiveDeps, notif notification.Notification) erro
 		// Failure path: queue record stays for the daemon to drain.
 	}
 	return nil
+}
+
+// enqueueOverlap queues a webhook-only "push.overlap" record. No inline
+// delivery attempt: the push was accepted, and holding the pusher for a network
+// call to report something advisory is not worth it; the daemon drains it on
+// its next poll.
+func enqueueOverlap(d PreReceiveDeps, refs []RefUpdate, overlaps []Overlap) {
+	infos := make([]notification.OverlapInfo, 0, len(overlaps))
+	for _, o := range overlaps {
+		infos = append(infos, notification.OverlapInfo{Ref: o.Ref, OtherRef: o.OtherRef, Files: o.Files, SHA: o.SHA, OtherSHA: o.OtherSHA})
+	}
+	notif := notification.Build(notification.BuildInput{
+		Repo:        d.Policy.Repo,
+		UpstreamURL: d.Policy.UpstreamURL,
+		Refs:        toBuildRefs(refs),
+		Overlaps:    infos,
+	}, d.GatewayVersion, d.InstanceID)
+	queuePath := filepath.Join(d.PolicyRoot, d.Policy.Repo, "pr-comment-queue.jsonl")
+	if err := notification.AppendQueueRecord(queuePath, notification.QueueRecord{
+		ID:           notif.EventID,
+		Notification: notif,
+		UpstreamKind: d.NotificationConfig.UpstreamKind,
+		WebhookURL:   d.NotificationConfig.WebhookURL,
+		WebhookAuth:  d.NotificationConfig.WebhookAuth,
+	}); err != nil {
+		_ = AppendEvent(d.PolicyRoot, Event{Event: "notification-enqueue-failed", Repo: d.Policy.Repo, OK: false, Payload: map[string]any{"error": err.Error()}})
+	}
 }
 
 // buildResolutions returns a "push.resolved" queue record for each active loop

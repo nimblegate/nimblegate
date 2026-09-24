@@ -15,7 +15,7 @@ import (
 )
 
 // settingsTabStrip renders the Settings page tab header. activeTab is
-// "system" (default) | "display" | "about". Same CSS class as Auto-PR /
+// "system" (default) | "display" | "links" | "about". Same CSS class as Auto-PR /
 // Policy so all three tabbed pages share a consistent visual.
 func settingsTabStrip(activeTab string) string {
 	cls := func(t string) string {
@@ -33,6 +33,7 @@ func settingsTabStrip(activeTab string) string {
 <nav class="autopr-tabs">
 <a href="/settings?tab=system" class="` + cls("system") + `">System</a>
 <a href="/settings?tab=display" class="` + cls("display") + `">Display</a>
+<a href="/settings?tab=links" class="` + cls("links") + `">Commit links</a>
 <a href="/settings?tab=about" class="` + cls("about") + `">About</a>
 </nav>`
 }
@@ -111,18 +112,20 @@ func serveSettings(policyRoot, reposRoot, authMode string, allowEdits bool, csrf
 			repo = ""
 		}
 		tab := r.URL.Query().Get("tab")
-		if tab != "display" && tab != "about" {
+		if tab != "display" && tab != "links" && tab != "about" {
 			tab = "system"
 		}
 
 		var body bytes.Buffer
 		fmt.Fprint(&body, `<section><h2 class="gw-pagehead">Settings</h2>`)
-		fmt.Fprint(&body, `<p class="gw-pagedesc">System info about this install, display preferences for this browser, and license + project links. Display preferences are browser-only (localStorage); System and About are read-only.</p>`)
+		fmt.Fprint(&body, `<p class="gw-pagedesc">System info about this install, display preferences for this browser, where commit SHAs link to, and license + project links. Display preferences are browser-only (localStorage); System is read-only.</p>`)
 		body.WriteString(settingsTabStrip(tab))
 
 		switch tab {
 		case "display":
 			body.WriteString(displayPrefsHTML)
+		case "links":
+			body.WriteString(renderWebLinksTab(policyRoot, allowEdits, csrfToken, r.URL.Query().Get("weblinks_err"), r.URL.Query().Get("weblinks") == "saved"))
 		case "about":
 			// LoadLicense returns a zero License and nil when the file is absent,
 			// so a non-nil error here is a real fault (bad permissions, malformed

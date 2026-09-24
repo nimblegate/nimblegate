@@ -53,6 +53,7 @@ url = ""                                  # empty = webhook disabled, PR-comment
 auth-mode = "hmac"                        # "hmac" | "bearer" | "none"
 secret = ""                               # HMAC signing key OR Bearer token value
 auth-header = ""                          # optional override
+overlap-events = false                    # opt-in: also send push.overlap (see below)
 
 [notification.mention]
 default = "@nimblegate-bot"               # single-bot default (used when rotation disabled)
@@ -85,6 +86,21 @@ Or set via the dashboard at `/policy?repo=<name>` → expand "Notification rail"
 - No multi-bot rotation
 
 Multi-bot rotation, webhook integration, and observe-mode PR comments are all opt-ins.
+
+## Overlap events
+
+When an accepted push in an enforce-mode repo changes files that another open branch also changes, the gateway records it on the push's audit line and shows it on the dashboard's Overlaps page. With `overlap-events = true` it also POSTs a `push.overlap` event to the webhook, so the orchestrator running your agents hears about the collision while the work is in progress, not at merge time.
+
+The payload is the usual shape with `event: "push.overlap"`, `decision.accepted: true`, and an `overlaps` list:
+
+```json
+"overlaps": [
+  {"ref": "refs/heads/agent/b/task-9", "other_ref": "refs/heads/agent/a/task-7", "files": ["internal/gateway/doctor.go"],
+   "sha": "20848da534aba629c6509d67960d84326257ef92", "other_sha": "74f098983bca519f55c8696c69ed274f06650b0c"}
+]
+```
+
+It goes to the webhook only: no PR comment, and nothing reaches the agent that pushed. Each branch's changes are measured from its merge-base with the default branch; branches idle for 14 days are skipped and at most 50 are compared. It is off by default because a receiver written before the event existed may treat every POST as a rejection - check `event` before acting.
 
 ## Webhook receivers: examples
 

@@ -131,6 +131,7 @@ func renderNotificationRailSectionWith(w io.Writer, repo string, view notifRailV
 
 	// Webhook URL + auth-mode + secret
 	fmt.Fprintf(w, `<label>Webhook URL <input type="text" name="webhook_url" value="%s" placeholder="https://hooks.example.com/…"></label>`, html.EscapeString(view.WebhookURL))
+	fmt.Fprintf(w, `<label><input type="checkbox" name="overlap_events" value="1"%s> Also send overlap events <span class="sub">(needs a webhook URL; the receiver must check the <code>event</code> field, since these are not rejections)</span></label>`, checked(view.OverlapEvents))
 	fmt.Fprint(w, `<fieldset class="gw-notifrail-auth"><legend>Auth mode</legend>`)
 	for _, mode := range []struct{ value, label string }{
 		{"hmac", "HMAC (recommended)"},
@@ -213,6 +214,7 @@ type notifRailView struct {
 	AuthMode                string
 	HasSecret               bool // true if a secret is on file (don't echo it back)
 	AuthHeader              string
+	OverlapEvents           bool
 	MentionDefault          string
 	AutoTagAssignees        bool
 	RotationBots            []string
@@ -264,10 +266,11 @@ func loadNotifRailView(policyRoot, repo string) notifRailView {
 			Enabled           bool `toml:"enabled"`
 			ObservePRComments bool `toml:"observe-pr-comments"`
 			Webhook           *struct {
-				URL        string `toml:"url"`
-				AuthMode   string `toml:"auth-mode"`
-				Secret     string `toml:"secret"`
-				AuthHeader string `toml:"auth-header"`
+				URL           string `toml:"url"`
+				AuthMode      string `toml:"auth-mode"`
+				Secret        string `toml:"secret"`
+				AuthHeader    string `toml:"auth-header"`
+				OverlapEvents bool   `toml:"overlap-events"`
 			} `toml:"webhook"`
 			Mention *struct {
 				Default            string `toml:"default"`
@@ -304,6 +307,7 @@ func loadNotifRailView(policyRoot, repo string) notifRailView {
 		}
 		view.HasSecret = n.Webhook.Secret != ""
 		view.AuthHeader = n.Webhook.AuthHeader
+		view.OverlapEvents = n.Webhook.OverlapEvents
 	}
 	if n.Mention != nil {
 		if n.Mention.Default != "" {
@@ -452,6 +456,7 @@ func parseNotifRailForm(form map[string][]string) (notifRailView, string, string
 		view.AuthMode = m
 	}
 	view.AuthHeader = strings.TrimSpace(get("auth_header"))
+	view.OverlapEvents = get("overlap_events") == "1"
 	if d := get("mention_default"); d != "" {
 		view.MentionDefault = d
 	}
@@ -532,18 +537,20 @@ func httpURLEncode(s string) string {
 // section, preserving non-notification keys. Atomic: temp + rename. secret
 // is only written when non-empty so an unchanged input keeps the prior value.
 //
-// Note: we re-read the existing gateway.toml to preserve upstream-url /
-// protected-refs / enabled / observe. We do NOT round-trip through the
-// FilePolicyStore Load+Save path because that would surface hard-error
-// validation failures from the loader before the operator gets to fix them.
+// Note: every other key in the existing gateway.toml is carried over
+// untouched, via a generic map, so policy keys this form does not know about
+// survive a save. We do NOT round-trip through the FilePolicyStore Load+Save
+// path because that would surface hard-error validation failures from the
+// loader before the operator gets to fix them.
 func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret string) error {
 	path := filepath.Join(policyRoot, repo, "gateway.toml")
 
 	type webhookT struct {
-		URL        string `toml:"url"`
-		AuthMode   string `toml:"auth-mode"`
-		Secret     string `toml:"secret"`
-		AuthHeader string `toml:"auth-header"`
+		URL           string `toml:"url"`
+		AuthMode      string `toml:"auth-mode"`
+		Secret        string `toml:"secret"`
+		AuthHeader    string `toml:"auth-header"`
+		OverlapEvents bool   `toml:"overlap-events,omitempty"`
 	}
 	type rotationT struct {
 		Bots                  []string `toml:"bots"`
@@ -574,16 +581,8 @@ func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret stri
 		Loop              *loopT     `toml:"loop,omitempty"`
 		Delivery          *deliveryT `toml:"delivery,omitempty"`
 	}
-	type allT struct {
-		UpstreamURL   string         `toml:"upstream-url,omitempty"`
-		ProtectedRefs []string       `toml:"protected-refs,omitempty"`
-		Enabled       bool           `toml:"enabled"`
-		Observe       bool           `toml:"observe"`
-		Notification  *notificationT `toml:"notification,omitempty"`
-	}
 
-	// Load the existing non-notification keys so we don't drop them.
-	var prior allT
+	prior := map[string]any{}
 	if _, err := toml.DecodeFile(path, &prior); err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -603,40 +602,35 @@ func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret stri
 		}
 	}
 
-	out := allT{
-		UpstreamURL:   prior.UpstreamURL,
-		ProtectedRefs: prior.ProtectedRefs,
-		Enabled:       prior.Enabled,
-		Observe:       prior.Observe,
-		Notification: &notificationT{
-			Enabled:           view.Enabled,
-			ObservePRComments: view.ObservePRComments,
-			Webhook: &webhookT{
-				URL:        view.WebhookURL,
-				AuthMode:   view.AuthMode,
-				Secret:     secretToPersist,
-				AuthHeader: view.AuthHeader,
+	prior["notification"] = &notificationT{
+		Enabled:           view.Enabled,
+		ObservePRComments: view.ObservePRComments,
+		Webhook: &webhookT{
+			URL:           view.WebhookURL,
+			AuthMode:      view.AuthMode,
+			Secret:        secretToPersist,
+			AuthHeader:    view.AuthHeader,
+			OverlapEvents: view.OverlapEvents,
+		},
+		Mention: &mentionT{
+			Default:            view.MentionDefault,
+			IncludePRAssignees: view.AutoTagAssignees,
+			Rotation: &rotationT{
+				Bots:                  view.RotationBots,
+				AttemptsPerBot:        view.AttemptsPerBot,
+				RotateOnRepeatFinding: view.RotateOnRepeatFinding,
+				FallbackHuman:         view.FallbackHuman,
 			},
-			Mention: &mentionT{
-				Default:            view.MentionDefault,
-				IncludePRAssignees: view.AutoTagAssignees,
-				Rotation: &rotationT{
-					Bots:                  view.RotationBots,
-					AttemptsPerBot:        view.AttemptsPerBot,
-					RotateOnRepeatFinding: view.RotateOnRepeatFinding,
-					FallbackHuman:         view.FallbackHuman,
-				},
-			},
-			Loop: &loopT{
-				MaxAttempts:             view.LoopMaxAttempts,
-				CooldownThresholdCount:  view.CooldownThresholdCount,
-				CooldownThresholdWindow: view.CooldownThresholdWindow,
-				CooldownDuration:        view.CooldownDuration,
-			},
-			Delivery: &deliveryT{
-				MaxAttempts:     view.DeliveryMaxAttempts,
-				BackoffSchedule: view.BackoffSchedule,
-			},
+		},
+		Loop: &loopT{
+			MaxAttempts:             view.LoopMaxAttempts,
+			CooldownThresholdCount:  view.CooldownThresholdCount,
+			CooldownThresholdWindow: view.CooldownThresholdWindow,
+			CooldownDuration:        view.CooldownDuration,
+		},
+		Delivery: &deliveryT{
+			MaxAttempts:     view.DeliveryMaxAttempts,
+			BackoffSchedule: view.BackoffSchedule,
 		},
 	}
 
@@ -649,15 +643,21 @@ func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret stri
 
 	// Atomic write: temp + rename, so an interrupted write doesn't corrupt
 	// gateway.toml (which would brick the repo's pre-receive on next push).
+	// 0640 like writeGatewayTOML: the file can carry the webhook secret.
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	tmp := path + ".tmp"
-	f, err := os.Create(tmp)
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o640)
 	if err != nil {
 		return err
 	}
-	if err := toml.NewEncoder(f).Encode(out); err != nil {
+	if err := f.Chmod(0o640); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := toml.NewEncoder(f).Encode(prior); err != nil {
 		f.Close()
 		os.Remove(tmp)
 		return err

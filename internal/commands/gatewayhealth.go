@@ -72,6 +72,11 @@ type healthData struct {
 	// intended - a parse error, or a knob written somewhere inert. Empty when
 	// the config is fine, so the line only appears when it is not.
 	ConfigIssues []string
+
+	// Repos whose whitelist will not load. The gate then rejects every push to
+	// that repo before any frame runs, and the pusher sees only a bare
+	// "rejected", so this is the operator's one visible signal. Empty = fine.
+	WhitelistIssues []string
 }
 
 // maintenanceHealth is the /health view of the maintenance loop. nil when
@@ -221,6 +226,10 @@ func collectHealth(policyRoot, reposRoot string, startTime time.Time, now time.T
 	for _, repo := range repos {
 		hr := healthRepo{Name: repo, LastDrainAgo: "-"}
 
+		if _, _, err := gateway.CheckWhitelist(policyRoot, repo); err != nil {
+			d.WhitelistIssues = append(d.WhitelistIssues, repo+": will not load, so every push to it is rejected - "+err.Error()+". Fix or remove the entry in "+gateway.WhitelistPath(policyRoot, repo)+".")
+		}
+
 		// Queue depth: every parseable record in pr-comment-queue.jsonl.
 		// Reading the queue is fail-soft; a missing file = depth 0.
 		qrec, _ := notification.ReadQueueRecords(filepath.Join(policyRoot, repo, "pr-comment-queue.jsonl"))
@@ -354,6 +363,7 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 <dt>Daemon loop</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> running (last successful drain {{.LastPollAgo}})</dd>
 <dt>Disk free</dt><dd>{{icon .DiskFreeStatus}} {{.DiskFreeBytes}}</dd>
 {{if .ConfigIssues}}<dt>Gateway config</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{range .ConfigIssues}}{{.}}<br>{{end}}</dd>{{end}}
+{{if .WhitelistIssues}}<dt>Whitelist</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{range .WhitelistIssues}}{{.}}<br>{{end}}</dd>{{end}}
 {{if .StagingStatus}}<dt>Scan staging</dt><dd>{{if ne .StagingStatus "-"}}<span class="gw-health-status-{{.StagingStatus}}">{{icon .StagingStatus}}</span> {{end}}{{if .StagingDir}}<code>{{.StagingDir}}</code> - {{end}}{{.StagingDetail}}</dd>{{end}}
 {{if .MemPressureStatus}}<dt>Memory pressure</dt><dd>{{if eq .MemPressureStatus "-"}}{{.MemPressureDetail}}{{else}}<span class="gw-health-status-{{.MemPressureStatus}}">{{icon .MemPressureStatus}}</span> {{.MemPressureDetail}}{{end}}</dd>{{end}}
 {{if gt .ScanFailures24h 0}}<dt>Gate scans</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{.ScanFailures24h}} push(es) could not be scanned in 24h{{if .ScanFailureLast}} - {{.ScanFailureLast}}{{end}}</dd>{{end}}

@@ -118,7 +118,7 @@ filesLoop:
 				continue
 			}
 			path := m[1]
-			resolved := resolveLocalImport(page, path)
+			resolved := resolveLocalImport(ctx.ProjectRoot, page, path)
 			if resolved == "" {
 				continue
 			}
@@ -152,7 +152,11 @@ filesLoop:
 // "" if the import is external or unresolvable. Supports relative paths
 // (`./foo`, `../bar`) and SvelteKit's `$lib/` alias by checking common
 // project shapes.
-func resolveLocalImport(fromFile, importPath string) string {
+//
+// Only paths inside root resolve. The import is text in the scanned file,
+// which on the gateway is pushed content, so `../../../srv/...` must not make
+// the scan open a file outside the tree it was given.
+func resolveLocalImport(root, fromFile, importPath string) string {
 	if !strings.HasPrefix(importPath, ".") && !strings.HasPrefix(importPath, "$lib") {
 		return ""
 	}
@@ -170,7 +174,7 @@ func resolveLocalImport(fromFile, importPath string) string {
 			dir := base
 			for i := 0; i < 8; i++ {
 				cand := filepath.Join(dir, "src", "lib", tail)
-				if pathExistsAsFile(cand) {
+				if insideRoot(root, cand) && pathExistsAsFile(cand) {
 					return cand
 				}
 				parent := filepath.Dir(dir)
@@ -179,6 +183,9 @@ func resolveLocalImport(fromFile, importPath string) string {
 				}
 				dir = parent
 			}
+			return ""
+		}
+		if !insideRoot(root, full) {
 			return ""
 		}
 		return full
@@ -201,6 +208,22 @@ func resolveLocalImport(fromFile, importPath string) string {
 		}
 	}
 	return ""
+}
+
+// insideRoot reports whether p is root or below it. Both are made absolute
+// first: changed-file paths from a local hook can be relative to the working
+// directory while the project root is absolute.
+func insideRoot(root, p string) bool {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return false
+	}
+	absP, err := filepath.Abs(p)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absRoot, absP)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func pathExistsAsFile(p string) bool {

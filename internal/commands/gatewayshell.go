@@ -114,19 +114,18 @@ const gwShellStyle = `<style>
  .gw-content .gw-sevchip,.gw-content .gw-feedchip,.gw-content .gw-evchip{cursor:pointer;border:1px solid transparent;font:inherit}
  .gw-content .gw-sevchip[aria-pressed="false"],.gw-content .gw-feedchip[aria-pressed="false"],.gw-content .gw-evchip[aria-pressed="false"]{opacity:.4}
  .gw-content .gw-stat{display:inline-block;min-width:92px;white-space:nowrap}
- .gw-content table.fr td.loc{padding:6px 4px;white-space:nowrap;vertical-align:top}
+ .gw-content table.fr td.loc{padding:6px 4px;vertical-align:top;white-space:normal}
  .gw-content table.fr td.gw-statcell{vertical-align:top}
- .gw-content #feed table.fr{table-layout:fixed}
- .gw-content #feed table.fr col.col-loc{width:14%}
- .gw-content #feed table.fr col.col-msg{width:19%}
- .gw-content #feed table.fr col.col-stat{width:58%}
- .gw-content #feed table.fr col.col-reset{width:9%}
+ .gw-content #feed table.fr,.gw-content #feed-older table.fr{table-layout:fixed}
+ .gw-content #feed table.fr col.col-loc,.gw-content #feed-older table.fr col.col-loc{width:14%}
+ .gw-content #feed table.fr col.col-msg,.gw-content #feed-older table.fr col.col-msg{width:19%}
+ .gw-content #feed table.fr col.col-stat,.gw-content #feed-older table.fr col.col-stat{width:58%}
+ .gw-content #feed table.fr col.col-reset,.gw-content #feed-older table.fr col.col-reset{width:9%}
  @media(max-width:760px){
-   .gw-content #feed table.fr col.col-loc{width:20%}
-   .gw-content #feed table.fr col.col-msg{width:40%}
-   .gw-content #feed table.fr col.col-stat{width:30%}
-   .gw-content #feed table.fr col.col-reset{width:10%}
-   .gw-content table.fr td.loc{white-space:normal}
+   .gw-content #feed table.fr col.col-loc,.gw-content #feed-older table.fr col.col-loc{width:20%}
+   .gw-content #feed table.fr col.col-msg,.gw-content #feed-older table.fr col.col-msg{width:40%}
+   .gw-content #feed table.fr col.col-stat,.gw-content #feed-older table.fr col.col-stat{width:30%}
+   .gw-content #feed table.fr col.col-reset,.gw-content #feed-older table.fr col.col-reset{width:10%}
    .gw-content section{overflow-x:auto}
    .gw-content table.gw-repos-table td.gw-repos-url{overflow-wrap:anywhere}
  }
@@ -137,10 +136,16 @@ const gwShellStyle = `<style>
  .gw-content table.fr td.gw-msgcell{vertical-align:top}
  .gw-content .gw-repo,.gw-content .gw-ref{display:block}
  .gw-content .gw-ref,.gw-content .gw-rmsg{color:var(--gw-text-faint)}
- .gw-content button.gw-ref{border:0;background:transparent;font:inherit;cursor:pointer;padding:0;text-align:left}
+ .gw-content button.gw-ref{border:0;background:transparent;font:inherit;cursor:pointer;padding:0;text-align:left;overflow-wrap:anywhere}
  .gw-content button.gw-ref:hover{color:var(--gw-accent)}
  .gw-content button.gw-ref[aria-expanded="true"]{color:var(--gw-accent)}
  .gw-content .gw-sha{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--gw-text-fainter);padding:1px 5px;border-radius:3px;background:var(--gw-bg-control);margin-left:4px}
+ .gw-content a.gw-sha{text-decoration:none}
+ .gw-content a.gw-sha:hover,.gw-content .gw-sha[data-copy]:hover{color:var(--gw-accent)}
+ .gw-content .gw-sha[data-copy]{cursor:copy}
+ .gw-content .gw-sha.gw-copied{color:var(--gw-accent)}
+ .gw-content button.gw-ref.gw-ref-inline{display:inline}
+ .gw-content .gw-refend{display:block}
  .gw-content .gw-rmsg{display:none;font-size:11px;white-space:normal;overflow-wrap:anywhere;max-width:340px}
  .gw-content .gw-msgcell button.gw-ref[aria-expanded="true"] ~ .gw-rmsg{display:block}
  .gw-content .gw-find .dmsg{display:none}
@@ -288,6 +293,9 @@ const gwShellStyle = `<style>
  .gw-content .gw-credform{display:flex;flex-direction:column;gap:10px;margin-top:8px;padding:12px 14px;background:var(--gw-bg-input);border:1px solid var(--gw-border);border-radius:6px}
  .gw-content .gw-credform label{display:flex;flex-direction:column;align-items:stretch;gap:4px;color:var(--gw-text-soft);font-size:13px;margin:0}
  .gw-content .gw-credform input[type=password]{width:100%;box-sizing:border-box}
+ .gw-content .gw-credform textarea{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;background:var(--gw-bg-control);color:var(--gw-text);border:1px solid var(--gw-border);border-radius:6px;padding:7px 9px;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+ .gw-content .gw-credform textarea:focus{outline:none;border-color:var(--gw-accent)}
+ .gw-content #weblinks-preview code{overflow-wrap:anywhere;word-break:break-all}
  .gw-content .gw-credform .gw-credform-note{margin:4px 0 0;color:var(--gw-text-fainter);font-size:12px;line-height:1.5}
  .gw-content .gw-credform .gw-credform-note code{background:var(--gw-bg-control);padding:1px 5px;border-radius:3px;font-size:11px}
  .gw-content .gw-credform button[type=submit]{align-self:flex-start;background:var(--gw-accent);color:var(--gw-bg-input);border:1px solid var(--gw-accent);font-weight:500;padding:6px 16px}
@@ -598,6 +606,7 @@ var gwLayoutTmpl = func() *template.Template {
 <a href="/repos" class="gw-railitem{{if eq .ActiveSection "repos"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h18v4H3z"/><path d="M3 11h18v4H3z"/><path d="M3 19h18v4H3z"/><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="19" width="4" height="4" rx="1"/></svg></span><span class="label">Repos</span></a>
 <a href="/policy{{if .ActiveRepo}}?repo={{.ActiveRepo}}{{end}}" class="gw-railitem{{if eq .ActiveSection "policy"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></span><span class="label">Policy</span></a>
 <a href="/events" class="gw-railitem{{if eq .ActiveSection "events"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><span class="label">Events</span></a>
+<a href="/overlaps{{if .ActiveRepo}}?repo={{.ActiveRepo}}{{end}}" class="gw-railitem{{if eq .ActiveSection "overlaps"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg></span><span class="label">Overlaps</span></a>
 <!-- seam: New-check entry attaches here (P2 check-authoring editor) -->
 <a href="/health" class="gw-railitem{{if eq .ActiveSection "health"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><span class="label">Health</span></a>
 <a href="/settings" class="gw-railitem gw-bottom{{if eq .ActiveSection "settings"}} active{{end}}"><span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="label">Settings</span></a>
@@ -616,9 +625,15 @@ var gwLayoutTmpl = func() *template.Template {
   function pagePath(){ return location.pathname; }
   function fetchHelp(){
     var url="/help?page="+encodeURIComponent(pagePath());
-    fetch(url,{credentials:"same-origin"}).then(function(r){return r.text();}).then(function(html){
+    fetch(url,{credentials:"same-origin"}).then(function(r){ if(!r.ok) throw new Error("help "+r.status); return r.text(); }).then(function(html){
       aside.innerHTML=html;
       bindClose();
+    }).catch(function(){
+      // Say so instead of leaving the panel empty, and allow the next open to
+      // retry (e.g. the dashboard was restarting when help was first opened).
+      aside.innerHTML='<header class="help-head"><h1>Help</h1><button class="help-close" aria-label="Close help">×</button></header><div class="help-body"><p>Could not load help. Close this panel and open it again to retry.</p></div>';
+      bindClose();
+      delete aside.dataset.loaded;
     });
   }
   function bindClose(){
