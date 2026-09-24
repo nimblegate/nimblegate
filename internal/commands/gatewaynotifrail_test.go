@@ -13,6 +13,8 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
+
+	"nimblegate/internal/gateway"
 )
 
 // seedNotifRailRepo creates a registered repo under root with a minimal
@@ -234,6 +236,51 @@ func TestWriteNotifRailTOML_atomicAndPreservesNonNotificationKeys(t *testing.T) 
 	}
 	if raw.Notification.Webhook.Secret != "shhh" {
 		t.Errorf("secret not written: %q", raw.Notification.Webhook.Secret)
+	}
+}
+
+// Saving the notification form must not touch the rest of the policy. It used to
+// re-encode only five known top-level keys, so gate-all-refs,
+// delete-protected-refs and max-input-size vanished on every save.
+func TestWriteNotifRailTOML_preservesEveryPolicyKey(t *testing.T) {
+	root := t.TempDir()
+	dir := seedNotifRailRepo(t, root, "test")
+	body := `upstream-url = "https://example.test/test.git"
+protected-refs = ["refs/heads/*"]
+delete-protected-refs = ["refs/heads/release/*"]
+gate-all-refs = true
+enabled = true
+observe = true
+max-input-size = "50m"
+`
+	if err := os.WriteFile(filepath.Join(dir, "gateway.toml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	view := defaultNotifRailView()
+	view.AuthMode = "none"
+	if err := writeNotifRailTOML(root, "test", view, ""); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	pol, err := gateway.FilePolicyStore{Root: root}.Load("test")
+	if err != nil {
+		t.Fatalf("load after save: %v", err)
+	}
+	if !pol.GateAllRefs || !pol.Observe || !pol.Enabled || pol.MaxInputSize != "50m" ||
+		len(pol.DeleteProtectedRefs) != 1 || len(pol.ProtectedRefs) != 1 || pol.UpstreamURL != "https://example.test/test.git" {
+		t.Errorf("policy keys lost on save: %+v", pol)
+	}
+	if pol.Notification == nil || !pol.Notification.Enabled {
+		t.Errorf("notification section not written: %+v", pol.Notification)
+	}
+	// The file can hold a webhook secret: it must stay 0640 like every other
+	// gateway.toml writer, never world-readable.
+	fi, err := os.Stat(filepath.Join(dir, "gateway.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := fi.Mode().Perm(); mode != 0o640 {
+		t.Errorf("gateway.toml mode = %o, want 640", mode)
 	}
 }
 

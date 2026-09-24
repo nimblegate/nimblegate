@@ -16,6 +16,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **Saving the Notification rail no longer drops policy settings.** The save
+  rewrote `gateway.toml` with only five known keys, so `gate-all-refs`,
+  `delete-protected-refs` and `max-input-size` were silently removed - on a
+  repo using `gate-all-refs`, saving the form turned its catch-all gating off.
+  Every other key is now kept, and the file is written 0640 instead of
+  world-readable, since it can hold the webhook secret.
 - **A local-path upstream was reported as broken.** An absolute path or
   `file://` upstream relays with a plain `git push` and needs no credential,
   but doctor failed it as an unsupported scheme and warned the relay would
