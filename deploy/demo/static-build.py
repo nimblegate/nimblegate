@@ -15,7 +15,7 @@ from urllib.request import urlopen
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:7902").rstrip("/")
 OUT = sys.argv[2] if len(sys.argv) > 2 else "deploy/demo-static"
 SEEDS = ["/", "/feed", "/repos", "/frames", "/events", "/stats", "/health",
-         "/auto-pr", "/auto-pr/config", "/policy", "/settings", "/ssh-keys"]
+         "/auto-pr", "/auto-pr/config", "/policy", "/settings", "/ssh-keys", "/overlaps"]
 ASSETS = ["/static/gwshell.js", "/static/htmx.min.js", "/static/favicon.svg"]
 MAX_PAGES = 200
 
