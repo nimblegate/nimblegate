@@ -93,7 +93,11 @@ func (h repoLifecycleHandlers) add(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid name", http.StatusBadRequest)
 		return
 	}
-	upstream := r.FormValue("upstream")
+	upstream := strings.TrimSpace(r.FormValue("upstream"))
+	if upstream != "" && !gateway.ValidUpstreamURL(upstream) {
+		http.Error(w, "invalid upstream URL - use an https://, ssh://, git@host:path or local path URL", http.StatusBadRequest)
+		return
+	}
 	// C: this gateway relays over HTTPS; with no ssh client it cannot relay to an
 	// ssh:// upstream at all (it would fail silently after each push). Fail fast.
 	if gateway.IsSSHUpstream(upstream) {
@@ -106,7 +110,7 @@ func (h repoLifecycleHandlers) add(w http.ResponseWriter, r *http.Request) {
 	// always a mistake (two gateway repos relaying to the same real remote).
 	if upstream != "" {
 		for _, existing := range listGatewayRepos(h.policyRoot) {
-			if p, err := (gateway.FilePolicyStore{Root: h.policyRoot}).Load(existing); err == nil && p.UpstreamURL == upstream {
+			if p, err := (gateway.FilePolicyStore{Root: h.policyRoot}).Load(existing); err == nil && gateway.SameUpstream(p.UpstreamURL, upstream) {
 				http.Error(w, fmt.Sprintf("That upstream is already registered as %q - edit or remove that one instead of adding a second repo for the same remote.", existing), http.StatusConflict)
 				return
 			}
@@ -265,7 +269,11 @@ func (h repoLifecycleHandlers) settings(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "unknown repo", http.StatusBadRequest)
 		return
 	}
-	upstream := r.FormValue("upstream")
+	upstream := strings.TrimSpace(r.FormValue("upstream"))
+	if upstream != "" && !gateway.ValidUpstreamURL(upstream) {
+		http.Error(w, "invalid upstream URL - use an https://, ssh://, git@host:path or local path URL", http.StatusBadRequest)
+		return
+	}
 	// Same HTTPS-only guard as registration (C): no ssh client → no ssh:// relay.
 	if gateway.IsSSHUpstream(upstream) {
 		if _, err := exec.LookPath("ssh"); err != nil {
@@ -279,7 +287,7 @@ func (h repoLifecycleHandlers) settings(w http.ResponseWriter, r *http.Request) 
 			if existing == name {
 				continue
 			}
-			if ep, err := store.Load(existing); err == nil && ep.UpstreamURL == upstream {
+			if ep, err := store.Load(existing); err == nil && gateway.SameUpstream(ep.UpstreamURL, upstream) {
 				http.Error(w, fmt.Sprintf("That upstream is already registered as %q - edit or remove that one instead.", existing), http.StatusConflict)
 				return
 			}

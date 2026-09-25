@@ -2,7 +2,29 @@
 
 package gateway
 
-import "strings"
+import (
+	"net/url"
+	"path/filepath"
+	"strings"
+)
+
+// ValidUpstreamURL reports whether u is an upstream URL git can be handed
+// safely: non-empty, not option-shaped (leading "-"), and not the
+// "<helper>::<address>" remote-helper form (ext::, fd::, ...) that can run
+// commands. Control characters are rejected too. Local paths and file:// stay
+// valid - local upstreams are supported.
+func ValidUpstreamURL(u string) bool {
+	if u == "" || strings.HasPrefix(u, "-") {
+		return false
+	}
+	if strings.ContainsFunc(u, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return false
+	}
+	if i := strings.Index(u, "::"); i > 0 && !strings.ContainsAny(u[:i], "/:@[") {
+		return false
+	}
+	return true
+}
 
 // IsSSHUpstream reports whether url is an SSH-shaped git remote - either
 // the ssh:// scheme or the scp-style "<user>@<host>:<path>" form. Both
@@ -45,3 +67,35 @@ func IsLocalUpstream(url string) bool {
 
 // LocalUpstreamPath is the filesystem path a local upstream names.
 func LocalUpstreamPath(url string) string { return strings.TrimPrefix(url, "file://") }
+
+// SameUpstream reports whether a and b name the same upstream repository, so
+// the duplicate-upstream guard is not bypassed by spelling. Local upstreams
+// compare by cleaned filesystem path (file:// or bare, trailing slash, ..).
+// Remotes compare by lowercased host and path, ignoring scheme, port, userinfo
+// and a trailing "/" or ".git" - so git@h:o/r, ssh://git@h/o/r.git and
+// https://h/o/r all match.
+func SameUpstream(a, b string) bool {
+	ka, kb := upstreamKey(a), upstreamKey(b)
+	return ka != "" && ka == kb
+}
+
+func upstreamKey(u string) string {
+	u = strings.TrimSpace(u)
+	if u == "" {
+		return ""
+	}
+	if IsLocalUpstream(u) {
+		return "local:" + filepath.Clean(LocalUpstreamPath(u))
+	}
+	var host, path string
+	if pu, err := url.Parse(u); err == nil && pu.Scheme != "" && pu.Host != "" {
+		host, path = pu.Hostname(), pu.Path
+	} else if IsSSHUpstream(u) {
+		hostPart, p, _ := strings.Cut(u[strings.Index(u, "@")+1:], ":")
+		host, path = hostPart, p
+	} else {
+		return "raw:" + u
+	}
+	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
+	return "remote:" + strings.ToLower(host) + "/" + strings.Trim(path, "/")
+}

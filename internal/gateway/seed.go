@@ -41,11 +41,25 @@ func SeedFromUpstream(bareDir, upstreamURL, cred string) (SeedResult, error) {
 	if strings.TrimSpace(upstreamURL) == "" {
 		return SeedResult{}, nil
 	}
+	if !ValidUpstreamURL(upstreamURL) {
+		return SeedResult{}, fmt.Errorf("seed: invalid upstream URL %q", redactURLUserinfo(upstreamURL))
+	}
 	url := authedURL(upstreamURL, cred)
 	// Mirror heads + tags into the bare. Force (+) so a re-run converges on the
-	// upstream's commits rather than failing on non-fast-forward.
-	if out, err := gitBare(bareDir, "fetch", "--", url,
-		"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*").CombinedOutput(); err != nil {
+	// upstream's commits rather than failing on non-fast-forward. Built inline
+	// rather than via gitBare so the "--" terminator sits at the exec call with
+	// the URL; GIT_ALLOW_PROTOCOL restricts transports to ones that cannot run
+	// commands.
+	cmd := exec.Command("git", "fetch", "--", url,
+		"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*")
+	cmd.Dir = bareDir
+	cmd.Env = append(os.Environ(),
+		"GIT_ALLOW_PROTOCOL=file:git:http:https:ssh",
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=safe.directory",
+		"GIT_CONFIG_VALUE_0="+bareDir,
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
 		msg := redactURLUserinfo(redactCred(string(out), cred))
 		return SeedResult{}, fmt.Errorf("seed from %s failed: %w\n%s",
 			redactURLUserinfo(upstreamURL), err, msg)

@@ -58,8 +58,10 @@ than assuming it is intentional.
 
 For the security-relevant code paths, untrusted inputs are validated before use:
 repo names are checked at every HTTP entry and again with `safeRepoName` before
-any path construction; upstream URLs are validated and git invocations use the
-`--` option terminator; reflected dashboard output is HTML-escaped; and redirect
-targets are confined to local paths. CodeQL findings against these paths that
-persist after a rescan are barrier-not-recognized false positives and may be
-dismissed with that rationale.
+any path construction; upstream URLs are rejected when option-shaped (leading
+`-`) or in git's `<helper>::` remote-helper form, the seed fetch restricts
+transports via `GIT_ALLOW_PROTOCOL`, and git invocations use the `--` option
+terminator; reflected dashboard output is HTML-escaped; and redirect targets are
+confined to local paths. CodeQL findings against these paths that persist after
+a rescan are barrier-not-recognized false positives and may be dismissed with
+that rationale.
