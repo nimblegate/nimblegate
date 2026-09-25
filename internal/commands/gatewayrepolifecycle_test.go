@@ -1013,3 +1013,65 @@ func TestRepoLifecycle_addHandler_archivedNameGivesRestoreDeleteMessage(t *testi
 		t.Fatalf("expected archived-aware message, got: %s", w.Body.String())
 	}
 }
+
+func TestRepoLifecycle_rejectsUnsafeUpstreamURL(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedActiveRepo(t, policyRoot, reposRoot, "foo")
+	h := repoLifecycleHandlers{policyRoot: policyRoot, reposRoot: reposRoot, selfExe: "/bin/true", token: "tok"}
+	for _, u := range []string{"--upload-pack=touch /tmp/x", "ext::sh -c x"} {
+		w := httptest.NewRecorder()
+		h.add(w, rlPost(t, "/policy/repo/add", url.Values{"name": {"bad"}, "upstream": {u}, "enabled": {"1"}}, "tok"))
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("add upstream %q: got %d, want 400", u, w.Code)
+		}
+		w = httptest.NewRecorder()
+		h.settings(w, rlPost(t, "/policy/repo/settings", url.Values{"repo": {"foo"}, "upstream": {u}}, "tok"))
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("settings upstream %q: got %d, want 400", u, w.Code)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(policyRoot, "bad")); err == nil {
+		t.Error("rejected add must not register the repo")
+	}
+}
+
+func TestRepoLifecycle_settingsHandler_trimsUpstream(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedActiveRepo(t, policyRoot, reposRoot, "foo")
+	h := repoLifecycleHandlers{policyRoot: policyRoot, reposRoot: reposRoot, selfExe: "/bin/true", token: "tok"}
+	w := httptest.NewRecorder()
+	h.settings(w, rlPost(t, "/policy/repo/settings", url.Values{"repo": {"foo"}, "upstream": {"  https://example.test/foo2.git \n"}}, "tok"))
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("got %d body=%s", w.Code, w.Body.String())
+	}
+	p, err := (gateway.FilePolicyStore{Root: policyRoot}).Load("foo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.UpstreamURL != "https://example.test/foo2.git" {
+		t.Errorf("UpstreamURL = %q; want trimmed", p.UpstreamURL)
+	}
+}
+
+func TestRepoLifecycle_addHandler_dupUpstreamAcrossSpellings(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedActiveRepo(t, policyRoot, reposRoot, "foo") // upstream http://example.test/foo.git
+	h := repoLifecycleHandlers{policyRoot: policyRoot, reposRoot: reposRoot, selfExe: "/bin/true", token: "tok"}
+	w := httptest.NewRecorder()
+	h.add(w, rlPost(t, "/policy/repo/add", url.Values{"name": {"foo2"}, "upstream": {"https://Example.test/foo/"}, "enabled": {"1"}}, "tok"))
+	if w.Code != http.StatusConflict {
+		t.Fatalf("respelled dup upstream: got %d, want 409 body=%s", w.Code, w.Body.String())
+	}
+}

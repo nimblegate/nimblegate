@@ -228,3 +228,60 @@ func TestGitBareKeepsBareDirOutOfArgs(t *testing.T) {
 		t.Fatalf("cmd.Dir = %q, want the bare dir", cmd.Dir)
 	}
 }
+
+func TestValidUpstreamURL(t *testing.T) {
+	good := []string{"https://github.com/o/r.git", "ssh://git@h/r.git", "git@github.com:o/r.git",
+		"file:///srv/up/r.git", "/srv/up/r.git", "ssh://git@[::1]/r.git"}
+	bad := []string{"", "--upload-pack=touch /tmp/x", "-oProxyCommand=x", "ext::sh -c x", "fd::3",
+		"https://h/r.git\nx", "https://h/r\x00.git", "https://h/\x7fr.git"}
+	for _, g := range good {
+		if !ValidUpstreamURL(g) {
+			t.Errorf("ValidUpstreamURL(%q)=false want true", g)
+		}
+	}
+	for _, b := range bad {
+		if ValidUpstreamURL(b) {
+			t.Errorf("ValidUpstreamURL(%q)=true want false", b)
+		}
+	}
+}
+
+func TestSeedFromUpstream_rejectsUnsafeURL(t *testing.T) {
+	for _, u := range []string{"--upload-pack=touch /tmp/x", "ext::sh -c x"} {
+		if _, err := SeedFromUpstream(newBare(t), u, ""); err == nil {
+			t.Errorf("SeedFromUpstream(%q): want error", u)
+		}
+	}
+}
+
+func TestSameUpstream(t *testing.T) {
+	same := [][2]string{
+		{"/srv/up/r.git", "file:///srv/up/r.git"},
+		{"/srv/up/r.git", "/srv/up/r.git/"},
+		{"/srv/up/r.git", "/srv/up/../up/./r.git"},
+		{"https://github.com/o/r.git", "https://github.com/o/r"},
+		{"https://github.com/o/r", "https://GitHub.com/o/r/"},
+		{"https://github.com/o/r", "https://tok@github.com/o/r.git"},
+		{"git@github.com:o/r.git", "ssh://git@github.com/o/r"},
+		{"git@github.com:o/r.git", "https://github.com/o/r"},
+		{" https://h/o/r ", "https://h/o/r"},
+	}
+	diff := [][2]string{
+		{"/srv/up/r.git", "/srv/up/r"},
+		{"/srv/up/a.git", "/srv/up/b.git"},
+		{"https://github.com/o/a", "https://github.com/o/b"},
+		{"https://github.com/o/r", "https://gitlab.com/o/r"},
+		{"https://github.com/o/r", "https://github.com/O/r"},
+		{"", ""},
+	}
+	for _, c := range same {
+		if !SameUpstream(c[0], c[1]) {
+			t.Errorf("SameUpstream(%q, %q)=false want true", c[0], c[1])
+		}
+	}
+	for _, c := range diff {
+		if SameUpstream(c[0], c[1]) {
+			t.Errorf("SameUpstream(%q, %q)=true want false", c[0], c[1])
+		}
+	}
+}
