@@ -176,3 +176,15 @@ frames = [
     "encoding/no-non-printable",
     "encoding/no-zero-width-in-content",
 ]
+
+[agent-shortcuts]
+display = "Agent shortcuts"
+description = "Flag the ways a build is made to look green without being fixed: skipped or focused tests, tests that cannot fail, production code that detects test runs, test commands that run nothing, CI that ignores failures, linters switched off wholesale. WARN only. Stackable with any project kit."
+frames = [
+    "app-correctness/no-unmarked-test-skips",
+    "app-correctness/no-placeholder-tests",
+    "app-correctness/no-test-special-casing",
+    "app-correctness/no-noop-test-script",
+    "app-correctness/no-weakened-ci",
+    "app-correctness/no-blanket-lint-disable",
+]

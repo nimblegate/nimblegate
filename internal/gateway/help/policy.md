@@ -8,7 +8,7 @@ Per-repo rule selection. The **Editing:** dropdown picks the repo; the tab strip
 
 Tick which frames nimblegate runs against pushes to the active repo. A frame is on if and only if its ID appears in `[frames] enabled` in the repo's `appframes.toml`.
 
-- **Apply a kit**: `Core` / `Web app` / `CF Pages` / `CF Workers` / `Security strict` / `Encoding strict`. Kits are stackable; the chip row at the top shows live counts.
+- **Apply a kit**: `Core` / `Web app` / `CF Pages` / `CF Workers` / `Security strict` / `Encoding strict` / `Agent shortcuts`. Kits are stackable; the chip row at the top shows live counts.
 - **Tick individual frames**: every kit's frames are visible in the browse tree, grouped by the v2 axes: **Core / Domain / Framework / Platform**. Cloudflare nests Cf Pages and Cf D1 as children; HTML sits under Domain (not Framework, since HTML cross-cuts every web framework). Ticking the same frame anywhere updates every browse path that shows it.
 - **New custom kit**: save your own named selection for one-click reuse later. Custom kits appear at the top of the browse tree.
 - **Override severity**: per-frame BLOCK ↔ WARN ↔ INFO when the default doesn't fit your context.

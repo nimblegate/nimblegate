@@ -1,0 +1,3 @@
+xit('renders', () => {
+  render(<App />);
+});

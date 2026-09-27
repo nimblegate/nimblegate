@@ -145,7 +145,7 @@ func gatewayAdd(args []string) int {
 	gateAllRefs := fs.Bool("gate-all-refs", false, "gate EVERY ref (fail-closed on all branches), not just --protect; default off (protected refs only)")
 	observe := fs.Bool("observe", false, "advisory mode: check + record findings but never reject (relay anyway)")
 	noImport := fs.Bool("no-import", false, "skip mirroring the upstream's existing history at registration")
-	kit := fs.String("kit", "", "apply a starter kit at registration: core, web-app, cf-pages-project, cf-workers-project, security-strict, encoding-strict. Default (unset) leaves the frame allowlist empty, which runs EVERY stdlib frame; naming a kit narrows the repo to that kit's frames")
+	kit := fs.String("kit", "", "apply a starter kit at registration: core, web-app, cf-pages-project, cf-workers-project, security-strict, encoding-strict, agent-shortcuts. Default (unset) leaves the frame allowlist empty, which runs EVERY stdlib frame; naming a kit narrows the repo to that kit's frames")
 	relaySocket := fs.String("relay-socket", "", "if set, route relay through the privilege-separated relay service at this Unix socket (bakes NBG_RELAY_SOCKET into the post-receive hook); empty = legacy inline relay")
 	_ = fs.Parse(args)
 	if *name == "" || *upstream == "" {

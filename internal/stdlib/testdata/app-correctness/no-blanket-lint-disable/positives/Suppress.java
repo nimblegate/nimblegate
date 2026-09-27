@@ -1,0 +1,2 @@
+@SuppressWarnings("all")
+class Legacy {}

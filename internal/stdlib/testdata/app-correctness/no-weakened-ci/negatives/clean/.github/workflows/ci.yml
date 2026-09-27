@@ -1,0 +1,12 @@
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # continue-on-error: true was removed after the flake fix
+      - run: npm test

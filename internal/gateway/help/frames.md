@@ -9,7 +9,7 @@ Frames group by the v2 three-axis + core model:
 - **Core**: universal floor (git, commands). Applies to every repo.
 - **Framework**: what the project is built in (Astro / Go / Python / React / Svelte / Vue). The sub-buckets are shown empty by default; frames declaring a framework will populate them.
 - **Platform**: what the project deploys to. Cloudflare nests its sub-buckets (Cf Pages, Cf D1) as children rather than as flat siblings, so the hierarchy matches the v2 stdlib tree.
-- **Domain**: conceptual coverage you opt into (Database, Documentation, Encoding, Filesystem, HTML, Network, Security). Multi-select per project.
+- **Domain**: conceptual coverage you opt into (App Correctness, Database, Documentation, Encoding, Filesystem, HTML, Network, Security). App Correctness holds the agent-shortcut checks: skipped or placeholder tests, test-only code paths, no-op test commands, CI that ignores failures, blanket lint disables. Multi-select per project.
 
 Within each axis sub-buckets sort alphabetically by display name (HTML between Filesystem and Network), frames within a sub-bucket sort alphabetically by their short summary.
 

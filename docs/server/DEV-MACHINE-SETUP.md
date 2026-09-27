@@ -234,8 +234,8 @@ ssh -T nbg                        # should error with "Interactive git shell is 
 # Cache the passphrase once for a short window so scp/ssh don't prompt per command
 ssh-add -t 30m ~/.ssh/id_ed25519_nbg_admin
 
-# Then deploy
-scp build/nimblegate-linux-amd64 nbg-admin:/tmp/
+# Then deploy the SHA-labelled binary built into bin/
+scp bin/nimblegate nbg-admin:/tmp/nimblegate-linux-amd64
 ssh nbg-admin '
   install -m 0755 /tmp/nimblegate-linux-amd64 /usr/local/bin/nimblegate
   systemctl restart nimblegate-dashboard.service

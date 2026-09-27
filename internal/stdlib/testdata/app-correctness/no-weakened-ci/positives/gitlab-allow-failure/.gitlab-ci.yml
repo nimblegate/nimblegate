@@ -1,0 +1,4 @@
+test:
+  script:
+    - pytest
+  allow_failure: true
