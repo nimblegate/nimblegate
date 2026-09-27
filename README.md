@@ -74,7 +74,7 @@ Open **http://localhost:7900/setup**, paste the token, choose your admin passwor
 
   *(Auto-PR's fix-loop needs a little more - see [Getting Started](docs/getting-started.md#step-4-register-the-repo-to-guard).)*
 
-Click **Register**. If the upstream **already has commits**, the gateway mirrors its history down automatically at registration, so your existing clones push cleanly. If that seed couldn't run (a missing or wrong credential, say), the repo row shows a one-click **Sync from upstream** - fix the credential, click it, done. The **core** rule kit (18 of the 57 frames, the catastrophic-prevention set) applies automatically; widen or narrow it any time on the repo's Policy page. → [other git hosts, scoped access](docs/getting-started.md)
+Click **Register**. If the upstream **already has commits**, the gateway mirrors its history down automatically at registration, so your existing clones push cleanly. If that seed couldn't run (a missing or wrong credential, say), the repo row shows a one-click **Sync from upstream** - fix the credential, click it, done. The **core** rule kit (18 frames, the catastrophic-prevention set) applies automatically; widen or narrow it any time on the repo's Policy page. → [other git hosts, scoped access](docs/getting-started.md)
 
 **4. Authorize your push key.** On your dev machine, print your SSH **public** key:
 
@@ -218,7 +218,7 @@ a **Retry now** button. Full setup + receiver examples:
 
 ## What it catches and how it acts
 
-nimblegate ships **57 rules ("frames")** for the mistakes agents make most, grouped
+nimblegate ships **50+ rules ("frames")** for the mistakes agents make most, grouped
 into one-click **kits**:
 
 - **`core`** *(every repo)*: hardcoded credentials, committed private keys,
@@ -348,7 +348,7 @@ You get:
 - **One combined container** (sshd + dashboard, s6-supervised, auto-restart).
 - **Single-admin auth** built in (bcrypt, server-side sessions, setup-token bootstrap).
 - **Same-rules-every-time gate** across pre-commit / pre-receive / post-receive.
-- **57 built-in frames** + your own regex linters.
+- **50+ built-in frames** + your own regex linters.
 - **Auto-PR rail** (vendor-neutral): structured PR comment + webhook on every
   rejected push, `@bot` mention + multi-bot rotation, loop guardrails, fix-loop
   closure, exponential-backoff delivery with deadletter. Gitea + GitHub adapters.

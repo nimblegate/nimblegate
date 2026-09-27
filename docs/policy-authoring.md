@@ -81,7 +81,7 @@ shape lives at `appframes.toml` in your repo root, manipulated by
 
 ## Custom rules (linters)
 
-Beyond the 57 built-in frames, you can author your own regex-based rules from the
+Beyond the built-in frames, you can author your own regex-based rules from the
 dashboard: no Go code, no rebuild, no agent involvement. Useful when the patterns
 you want to catch are specific to your codebase or house style.
 
