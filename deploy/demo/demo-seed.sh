@@ -84,7 +84,7 @@ seed_repo() {
 NONE='[]'
 
 # ---- acme-storefront: e-commerce, the credential + force-push story ----
-seed_repo "acme-storefront" "git@git.example.com:acme/storefront.git" '"@tier-1", "@web", "@security-strict"'
+seed_repo "acme-storefront" "git@git.example.com:acme/storefront.git" '"@tier-1", "@web", "@security-strict", "app-correctness/no-unmarked-test-skips", "app-correctness/no-placeholder-tests", "app-correctness/no-test-special-casing", "app-correctness/no-noop-test-script", "app-correctness/no-weakened-ci", "app-correctness/no-blanket-lint-disable"'
 rec acme-storefront 7   refs/heads/feat-checkout true false "$NONE" "$NONE" '[]'
 rec acme-storefront 34  refs/heads/main false false \
   '[{"id":"security/no-hardcoded-credentials","severity":"BLOCK","message":"config/payments.js:14 - Stripe secret key (live)"}]' \
@@ -105,6 +105,10 @@ if [ -n "$REPOS" ]; then
   TAX2=$(agent_commit acme-storefront agent/claude/checkout-tax src/checkout/total.test.js)
 fi
 NEWREV=$TAX1 rec acme-storefront 26 refs/heads/agent/claude/checkout-tax true false "$NONE" "$NONE" '[]'
+# The same agent took shortcuts to get its branch green: accepted, with WARNs.
+NEWREV=$COUPONS rec acme-storefront 44 refs/heads/agent/cursor/checkout-coupons true false \
+  '[{"id":"app-correctness/no-unmarked-test-skips","severity":"WARN","message":"src/checkout/total.test.js:18 - skipped test (.skip)"},{"id":"app-correctness/no-weakened-ci","severity":"WARN","message":".github/workflows/ci.yml:22 - continue-on-error: true - a failing step no longer fails the job"}]' \
+  "$NONE" '[]'
 rec_overlap acme-storefront 15 refs/heads/agent/cursor/checkout-coupons "$COUPONS" \
   refs/heads/agent/claude/checkout-tax "$TAX1" '["src/checkout/total.js"]'
 rec_overlap acme-storefront 4 refs/heads/agent/claude/checkout-tax "$TAX2" \
