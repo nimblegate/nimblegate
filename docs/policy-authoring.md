@@ -16,7 +16,7 @@ each category catches, severity, tiers) see [`docs/frames.md`](frames.md).
 
 ## Selecting frames
 
-nimblegate ships **45 rules ("frames")** plus six starter **kits** that pre-tick a
+nimblegate ships **57 rules ("frames")** plus seven starter **kits** that pre-tick a
 curated set. You pick what runs per repo from the dashboard at
 `/policy?repo=<name>`, the **Frame selection** section at the bottom:
 
@@ -81,7 +81,7 @@ shape lives at `appframes.toml` in your repo root, manipulated by
 
 ## Custom rules (linters)
 
-Beyond the 45 built-in frames, you can author your own regex-based rules from the
+Beyond the 57 built-in frames, you can author your own regex-based rules from the
 dashboard: no Go code, no rebuild, no agent involvement. Useful when the patterns
 you want to catch are specific to your codebase or house style.
 

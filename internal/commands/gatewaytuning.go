@@ -242,7 +242,7 @@ func buildPolicyView(policyRoot, repo string, enabled []string) policyVM {
 	}
 
 	var builtins []policyKitInfo
-	for _, name := range []string{"core", "web-app", "cf-pages-project", "cf-workers-project", "security-strict", "agent-shortcuts"} {
+	for _, name := range []string{"core", "web-app", "cf-pages-project", "cf-workers-project", "security-strict", "encoding-strict", "agent-shortcuts"} {
 		k, ok := ks.Get(name)
 		if !ok {
 			continue

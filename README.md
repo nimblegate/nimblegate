@@ -218,7 +218,7 @@ a **Retry now** button. Full setup + receiver examples:
 
 ## What it catches and how it acts
 
-nimblegate ships **51 rules ("frames")** for the mistakes agents make most, grouped
+nimblegate ships **57 rules ("frames")** for the mistakes agents make most, grouped
 into one-click **kits**:
 
 - **`core`** *(every repo)*: hardcoded credentials, committed private keys,
