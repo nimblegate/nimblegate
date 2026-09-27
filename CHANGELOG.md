@@ -5,7 +5,7 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-09-28
 
 ### Added
 
@@ -32,6 +32,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   placeholder check no longer counts README, CHANGELOG and similar repository
   docs as shipping content, and the internal link check treats `/...` links in
   a Hugo site's `content/` as site addresses.
+- **The Policy page shows the Encoding strict quick-start button.** The docs
+  and help always listed it beside Security strict, but the page never
+  rendered it.
 - **The agent API checks the repo name before reading policy.** A `repo`
   parameter such as `../..` made the observe-mode lookup read a
   `gateway.toml` outside the policy root (it needed the API token and
