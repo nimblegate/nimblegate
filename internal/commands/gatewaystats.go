@@ -89,9 +89,10 @@ func statsTabStrip(activeTab, repo, window string) template.HTML {
 }
 
 func serveStats(w http.ResponseWriter, r *http.Request, policyRoot string, allowEdits bool, csrfToken string) {
-	repo := r.URL.Query().Get("repo")
-	if repo != "" && !validRepoName(repo) {
-		repo = ""
+	repo := ""
+	if q := r.URL.Query().Get("repo"); validRepoName(q) {
+		// Only a valid name reaches path joins; anything else means "no repo".
+		repo = q
 	}
 	window := r.URL.Query().Get("window")
 	tab := r.URL.Query().Get("tab")

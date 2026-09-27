@@ -120,9 +120,10 @@ var reportsTmpl = template.Must(template.New("reports").Parse(`<style>
 // serveReports renders the Reports page (controls + buttons + empty result
 // pane). Session-authed by the dashboard middleware; no token.
 func serveReports(w http.ResponseWriter, r *http.Request, policyRoot string) {
-	repo := r.URL.Query().Get("repo")
-	if repo != "" && !validRepoName(repo) {
-		repo = ""
+	repo := ""
+	if q := r.URL.Query().Get("repo"); validRepoName(q) {
+		// Only a valid name reaches path joins; anything else means "no repo".
+		repo = q
 	}
 	data := reportsPageData{
 		Repos:   listGatewayRepos(policyRoot),
@@ -150,9 +151,10 @@ func serveReports(w http.ResponseWriter, r *http.Request, policyRoot string) {
 // rate guard (those live in the HTTP/MCP handlers, not the methods).
 func serveReportRun(w http.ResponseWriter, r *http.Request, svc *agentapi.Service) {
 	report := r.URL.Query().Get("report")
-	repo := r.URL.Query().Get("repo")
-	if repo != "" && !validRepoName(repo) {
-		repo = ""
+	repo := ""
+	if q := r.URL.Query().Get("repo"); validRepoName(q) {
+		// Only a valid name reaches path joins; anything else means "no repo".
+		repo = q
 	}
 	days := 30
 	switch r.URL.Query().Get("window") {

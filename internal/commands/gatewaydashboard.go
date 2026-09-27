@@ -236,9 +236,10 @@ func gatewayDashboard(args []string) int {
 			http.NotFound(w, r)
 			return
 		}
-		repo := r.URL.Query().Get("repo")
-		if repo != "" && !validRepoName(repo) {
-			repo = ""
+		repo := ""
+		if q := r.URL.Query().Get("repo"); validRepoName(q) {
+			// Only a valid name reaches path joins; anything else means "no repo".
+			repo = q
 		}
 		renderGwPage(w, load(r), policyRootNotice(*policyRoot), buildChrome("feed", repo, *policyRoot))
 	})
@@ -334,10 +335,10 @@ func gatewayDashboard(args []string) int {
 	})
 	mux.HandleFunc("/policy", func(w http.ResponseWriter, r *http.Request) {
 		repos := listGatewayRepos(*policyRoot)
-		repo := r.URL.Query().Get("repo")
-		if repo != "" && !validRepoName(repo) {
-			// Reject traversal/invalid names at the HTTP layer; don't pass into path joins.
-			repo = ""
+		repo := ""
+		if q := r.URL.Query().Get("repo"); validRepoName(q) {
+			// Only a valid name reaches path joins; anything else means "no repo".
+			repo = q
 		}
 		if repo == "" && len(repos) > 0 {
 			repo = repos[0]

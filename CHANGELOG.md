@@ -32,6 +32,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   placeholder check no longer counts README, CHANGELOG and similar repository
   docs as shipping content, and the internal link check treats `/...` links in
   a Hugo site's `content/` as site addresses.
+- **The agent API checks the repo name before reading policy.** A `repo`
+  parameter such as `../..` made the observe-mode lookup read a
+  `gateway.toml` outside the policy root (it needed the API token and
+  revealed only one yes/no value). The name is now validated like the rest of
+  the API. Repo-name checks elsewhere were restructured so code scanning can
+  follow them, and setting the receive cap runs git inside the bare repo
+  instead of passing its path as an argument.
 - **Upstream URLs are validated and trimmed.** Adding or editing a repo
   rejects option-shaped (`-...`) and `<helper>::` URLs, trims whitespace and
   control characters, and spots the same upstream written differently (a path

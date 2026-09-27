@@ -72,3 +72,16 @@ func TestResolveRepoBare_refusesInactiveRepo(t *testing.T) {
 		t.Fatal("an inactive repo (no activation symlink) must be refused")
 	}
 }
+
+func TestSafeRepoNameRejectsDotDotAnywhere(t *testing.T) {
+	for _, name := range []string{"..", "a..b", "x..", "..y"} {
+		if safeRepoName(name) {
+			t.Errorf("safeRepoName(%q) = true; want false", name)
+		}
+	}
+	for _, name := range []string{"app", "my-app", "app.v2", "a.b.c"} {
+		if !safeRepoName(name) {
+			t.Errorf("safeRepoName(%q) = false; want true", name)
+		}
+	}
+}

@@ -14,8 +14,10 @@ import (
 // for every path built from a (user-provided) repo name. Mirrors the historic
 // guard inlined in resolveRepoBare.
 func safeRepoName(name string) bool {
-	if name == "" || name == "." || name == ".." ||
-		strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") ||
+	if strings.Contains(name, "..") {
+		return false
+	}
+	if name == "" || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") ||
 		strings.ContainsAny(name, `/\`) {
 		return false
 	}
