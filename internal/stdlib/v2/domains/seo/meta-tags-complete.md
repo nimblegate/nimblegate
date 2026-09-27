@@ -38,6 +38,15 @@ These are not technically required, but every one missing degrades how the page 
 
 Companion to `convention/html-required-meta`. That frame catches the indisputably-required tags (charset / viewport / title); this one catches the should-have tags.
 
+## Site generator templates
+
+Template fragments of a static site generator are skipped: files under
+Hugo's `layouts/` (next to `hugo.toml`, `config.toml` or another Hugo config)
+and Jekyll's `_layouts/` and `_includes/` (next to `_config.yml`). They are
+pieces of a page, not pages; the built output (for example `public/`) is
+checked instead. A `layouts/` folder without the generator's config beside it
+is checked as usual.
+
 ## Fix
 
 In SvelteKit, template the SEO meta in your root `+layout.svelte`:

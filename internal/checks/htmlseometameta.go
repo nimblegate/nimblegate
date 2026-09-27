@@ -85,6 +85,9 @@ func HTMLSEOMeta(ctx engine.CheckContext) engine.CheckResult {
 		if !htmlApplicableFile(file) {
 			continue
 		}
+		if htmlTemplateFragment(ctx, file) {
+			continue
+		}
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}

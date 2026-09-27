@@ -44,6 +44,12 @@ Surface a WARN when shipping HTML / Svelte / Astro / Markdown content contains p
 
 Tier 3 WARN - these aren't catastrophic but they consistently show up in production sites and damage credibility. The frame is opinionated about what counts as a "ship-blocker placeholder"; suppress per-line when you legitimately need one.
 
+## Repository docs
+
+README, CHANGELOG, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT and LICENSE files
+are skipped: a site build doesn't serve them, so a local-preview URL in a
+README is not shipping content.
+
 ## Fix
 
 Replace placeholder with real content, OR move the file outside the shipping path:

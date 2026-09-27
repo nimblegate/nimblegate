@@ -161,6 +161,7 @@ files:
 		}
 
 		dir := filepath.Dir(file)
+		siteContent := siteContentFile(ctx, file)
 		inFence := false
 		fenceMarker := ""
 		for lineNum, line := range strings.Split(content, "\n") {
@@ -185,6 +186,10 @@ files:
 				}
 				// External scheme - skip.
 				if externalSchemeRegex.MatchString(link) {
+					continue
+				}
+				// In a Hugo content file, "/..." is a site address, not a repo path.
+				if siteContent && strings.HasPrefix(link, "/") {
 					continue
 				}
 				// Pure anchor - skip.

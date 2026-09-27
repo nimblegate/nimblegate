@@ -5,6 +5,24 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **No more false warnings on Hugo and Jekyll sites.** The page checks
+  (required meta, SEO meta, markup validity) judged every template partial as
+  a whole page, so a static site warned on each push. Files under Hugo's
+  `layouts/` or Jekyll's `_layouts/` and `_includes/`, next to the
+  generator's config, are now skipped; the built pages are still checked. The
+  placeholder check no longer counts README, CHANGELOG and similar repository
+  docs as shipping content, and the internal link check treats `/...` links in
+  a Hugo site's `content/` as site addresses.
+- **Upstream URLs are validated and trimmed.** Adding or editing a repo
+  rejects option-shaped (`-...`) and `<helper>::` URLs, trims whitespace and
+  control characters, and spots the same upstream written differently (a path
+  and its `file://` form, a trailing slash or `.git`, SSH and HTTPS forms of
+  one remote). The seed fetch runs with a restricted set of git transports.
+
 ## [0.5.0] - 2026-09-25
 
 ### Added

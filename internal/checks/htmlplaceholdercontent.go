@@ -108,6 +108,9 @@ filesLoop:
 		if !htmlApplicableContentOrMarkdown(file) {
 			continue
 		}
+		if repoDocFile(file) {
+			continue
+		}
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}
