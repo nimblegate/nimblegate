@@ -1,0 +1,2 @@
+@SuppressWarnings("unchecked")
+class Casts {}

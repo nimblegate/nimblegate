@@ -80,7 +80,7 @@ declares `category: git`.
 | 3 | `filesystem` | Destructive paths, mount points, file ops | `destructive-paths` |
 | 4 | `git` | Branch discipline, history integrity, push-gate integrity, LFS redirection | `branch-discipline`, `history-integrity`, `gate-integrity`, `lfs-redirection` |
 | 5 | `commands` | Shell safety, trusted execution, package management | `trusted-execution`, `package-management` |
-| 6 | `app-correctness` | Env config, data fetching, module loading, routing | `env-config`, `data-fetching`, `module-loading`, `routing` |
+| 6 | `app-correctness` | Env config, data fetching, module loading, routing, build integrity (skipped tests, CI that ignores failures, linters switched off) | `env-config`, `data-fetching`, `module-loading`, `routing`, `build-integrity` |
 | 7 | `database` | Migrations, schema drift | `migrations`, `schema-drift` |
 | 8 | `web` | HTML, SEO, a11y, markup validity | `html`, `seo`, `a11y`, `markup-validity` |
 | 9 | `documentation` | Markdown, doc drift, TODO discipline, branch consistency | `markdown`, `doc-drift`, `todo-discipline`, `branch-consistency` |
@@ -178,7 +178,7 @@ different kit on setup, or `--kit none` to start with an empty `enabled` list.
 **An empty `enabled` list is not "no frames" - it means every stdlib frame runs.**
 The list is an allowlist, consulted only when it is non-empty, so writing entries
 into it *narrows* what is checked rather than adding to a baseline. Applying
-`core` to a repo with an empty list takes it from all 51 frames down to that
+`core` to a repo with an empty list takes it from all 54 frames down to that
 kit's 18. `nimblegate gateway add` leaves the list empty unless you pass
 `--kit`; the dashboard's Add form applies `core` for you.
 

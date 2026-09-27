@@ -1,0 +1,8 @@
+on: push
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./warm-cache.sh
+        # appframes:disable-next-line app-correctness/no-weakened-ci
+        continue-on-error: true

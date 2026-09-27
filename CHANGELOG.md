@@ -7,6 +7,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Three frames for agent shortcuts.** They flag the ways a build is made to
+  look green without being fixed: `app-correctness/no-unmarked-test-skips`
+  (skipped or focused tests - `it.skip`, `.only`, `@pytest.mark.skip`,
+  `t.Skip`, `#[ignore]`, `@Disabled` and more), `app-correctness/no-weakened-ci`
+  (`continue-on-error: true`, `allow_failure: true`, `|| true`, `set +e` in CI
+  files) and `app-correctness/no-blanket-lint-disable` (whole-file disables
+  such as `/* eslint-disable */`, `@ts-nocheck`, bare `//nolint`). All three
+  are WARN and in no starter kit, so a repo with its own frame list gets them
+  only when enabled; a repo whose `enabled` list is empty runs every frame and
+  sees them after upgrading. An intended case is exempted with a whitelist
+  entry or an `appframes:disable-next-line` marker.
+
 ### Fixed
 
 - **No more false warnings on Hugo and Jekyll sites.** The page checks
