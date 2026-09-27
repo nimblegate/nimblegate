@@ -46,7 +46,7 @@ func ValidateReceiveCap(size string) error {
 func ApplyReceiveCap(repoPath, size string) error {
 	if size == "" {
 		// Unset the config - explicit "no limit" state.
-		out, err := exec.Command("git", "-C", repoPath, "config", "--unset", "receive.maxInputSize").CombinedOutput()
+		out, err := gitBare(repoPath, "config", "--unset", "receive.maxInputSize").CombinedOutput()
 		if err != nil {
 			// git config --unset returns 5 if the key wasn't set; that's
 			// equivalent to "already unset," not an error.
@@ -60,7 +60,7 @@ func ApplyReceiveCap(repoPath, size string) error {
 	if err := ValidateReceiveCap(size); err != nil {
 		return err
 	}
-	out, err := exec.Command("git", "-C", repoPath, "config", "receive.maxInputSize", size).CombinedOutput()
+	out, err := gitBare(repoPath, "config", "receive.maxInputSize", size).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git config receive.maxInputSize=%s: %w\n%s", size, err, out)
 	}

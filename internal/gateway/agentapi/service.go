@@ -222,13 +222,14 @@ func observeBanner(repo string) string {
 // dependency on the gateway policy loader (no import cycle). Any read/parse
 // error is treated as not-observe - the banner is advisory, never load-bearing.
 func (s *Service) observeMode(repo string) bool {
-	if s.PolicyRoot == "" || repo == "" {
+	name, err := gitlog.SafeRepoName(repo)
+	if s.PolicyRoot == "" || err != nil {
 		return false
 	}
 	var cfg struct {
 		Observe bool `toml:"observe"`
 	}
-	if _, err := toml.DecodeFile(filepath.Join(s.PolicyRoot, repo, "gateway.toml"), &cfg); err != nil {
+	if _, err := toml.DecodeFile(filepath.Join(s.PolicyRoot, name, "gateway.toml"), &cfg); err != nil {
 		return false
 	}
 	return cfg.Observe

@@ -225,3 +225,20 @@ func TestTimeSaved(t *testing.T) {
 		t.Errorf("per-frame breakdown missing:\n%s", out.Text)
 	}
 }
+
+// A repo parameter that walks out of the policy root must not be read: an
+// observe = true gateway.toml one level up stays invisible.
+func TestObserveModeRejectsTraversal(t *testing.T) {
+	root := seedPolicyRoot(t)
+	svc := testService(t, root)
+	outside := filepath.Join(filepath.Dir(root), "gateway.toml")
+	if err := os.WriteFile(outside, []byte("observe = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(outside) })
+	for _, repo := range []string{"..", "../", "demo/../..", `..\x`} {
+		if svc.observeMode(repo) {
+			t.Errorf("observeMode(%q) read a file outside the policy root", repo)
+		}
+	}
+}

@@ -24,9 +24,10 @@ import (
 // catalog reference). Detail page reuses buildFrameDetail for full metadata.
 func serveGatewayFrames(policyRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		repo := r.URL.Query().Get("repo")
-		if repo != "" && !validRepoName(repo) {
-			repo = ""
+		repo := ""
+		if q := r.URL.Query().Get("repo"); validRepoName(q) {
+			// Only a valid name reaches path joins; anything else means "no repo".
+			repo = q
 		}
 		stdlibFrames, _ := stdlib.Load()
 		var projectFrames []frames.Frame
