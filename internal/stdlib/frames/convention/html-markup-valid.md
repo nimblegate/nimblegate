@@ -68,6 +68,15 @@ Each surfaces as a separate Hit with the line and a description.
 - **Invalid attribute combinations** (e.g. `<input type="checkbox" maxlength="10">`).
 - **Spec compliance.** This isn't a substitute for [Nu Html Checker](https://validator.w3.org/nu/) on production builds - call that from CI for a stricter pass.
 
+## Site generator templates
+
+Template fragments of a static site generator are skipped: files under
+Hugo's `layouts/` (next to `hugo.toml`, `config.toml` or another Hugo config)
+and Jekyll's `_layouts/` and `_includes/` (next to `_config.yml`). They are
+pieces of a page, not pages; the built output (for example `public/`) is
+checked instead. A `layouts/` folder without the generator's config beside it
+is checked as usual.
+
 ## Suppressing intentional cases
 
 Per-file for templates that deliberately leave tags open (rare but legitimate - e.g. partial fragments composed at runtime):

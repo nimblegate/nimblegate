@@ -34,6 +34,15 @@ Every shipping HTML page (plain `*.html`, SvelteKit `+page.svelte` / `+layout.sv
 
 In SvelteKit projects, the title is usually injected via `<svelte:head>` in a layout. This frame treats the presence of `<svelte:head>` as satisfying the title requirement on the assumption the layout (or this component) is filling it in.
 
+## Site generator templates
+
+Template fragments of a static site generator are skipped: files under
+Hugo's `layouts/` (next to `hugo.toml`, `config.toml` or another Hugo config)
+and Jekyll's `_layouts/` and `_includes/` (next to `_config.yml`). They are
+pieces of a page, not pages; the built output (for example `public/`) is
+checked instead. A `layouts/` folder without the generator's config beside it
+is checked as usual.
+
 ## Fix
 
 For a SvelteKit project, put the static meta in `src/routes/+layout.svelte`:

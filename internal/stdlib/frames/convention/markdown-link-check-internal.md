@@ -53,6 +53,10 @@ navigable as the project evolves.
    `.appframes/_canonical/markdown-link-ignore.toml` (optional).
 6. If the resolved file doesn't exist → hit.
 
+In a Hugo site's `content/` folder (next to a Hugo config), a link that
+starts with `/` is a site address, not a repository path, and is not checked.
+Relative links in those files still are.
+
 Hits are reported as `<file>:<line> → <link>` so the user can jump
 straight to the broken link.
 
