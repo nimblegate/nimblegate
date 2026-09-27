@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "scripts": {
+    "build": "vite build",
+    "test": "exit 0"
+  }
+}

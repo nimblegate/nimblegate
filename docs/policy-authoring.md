@@ -21,8 +21,9 @@ curated set. You pick what runs per repo from the dashboard at
 `/policy?repo=<name>`, the **Frame selection** section at the bottom:
 
 - **Quick start row**: one-click apply `core`, `web-app`, `cf-pages-project`,
-  `cf-workers-project`, `security-strict`, or `encoding-strict`. Stackable
-  (`security-strict` + `encoding-strict` layer on top of any project-shape kit).
+  `cf-workers-project`, `security-strict`, `encoding-strict`, or
+  `agent-shortcuts`. Stackable (`security-strict`, `encoding-strict` and
+  `agent-shortcuts` layer on top of any project-shape kit).
 - **+ New custom kit**: save your own named selection of frames for one-click
   reuse. Custom kits appear at the top of the browse tree with a Delete control.
 - **Browse tree**: every built-in frame organized **Category → Subcategory →
@@ -47,6 +48,11 @@ The kits at a glance:
 - **`encoding-strict`**: paste-corruption: UTF-8 BOM, curly quotes in config,
   tabs in YAML, mixed CRLF/LF, en-dash flag corruption, control bytes, zero-width
   Unicode in docs. Stackable.
+- **`agent-shortcuts`**: the ways a coding agent makes a build look green
+  without fixing it: skipped or focused tests, tests that cannot fail,
+  production code that detects test runs, a test command that runs nothing, CI
+  told to ignore failures, linters switched off for a whole file. All WARN.
+  Stackable.
 
 State persists as a per-repo TOML file on the gateway's policy disk. Note that
 an **empty** `enabled` list means every stdlib frame runs: the list is an

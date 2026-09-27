@@ -50,10 +50,13 @@
 | convention/markdown-link-check-internal | domains/documentation/markdown-link-check-internal | Documentation link integrity |
 | convention/doc-touches-with-code | domains/documentation/doc-touches-with-code | Docs-with-code policy, framework-agnostic |
 | convention/cross-branch-id-consistency | domains/documentation/cross-branch-id-consistency | Doc-style consistency across branches |
-| **domains/build-integrity (3 frames - added 2026-09-28)** | | |
+| **domains/build-integrity (6 frames - added 2026-09-28)** | | |
 | app-correctness/no-unmarked-test-skips | domains/build-integrity/no-unmarked-test-skips | Skipped/focused tests; framework-agnostic across JS, Python, Go, Rust, JVM, C#, Ruby |
 | app-correctness/no-weakened-ci | domains/build-integrity/no-weakened-ci | CI settings that let failures pass; CI-host-agnostic |
 | app-correctness/no-blanket-lint-disable | domains/build-integrity/no-blanket-lint-disable | Whole-file linter/type-checker disables; language-agnostic |
+| app-correctness/no-placeholder-tests | domains/build-integrity/no-placeholder-tests | Tests that cannot fail (empty bodies, constant assertions) |
+| app-correctness/no-test-special-casing | domains/build-integrity/no-test-special-casing | Production code branching on test detection |
+| app-correctness/no-noop-test-script | domains/build-integrity/no-noop-test-script | npm/Makefile test command that runs nothing |
 | **domains/encoding (8 frames - universal encoding correctness)** | | |
 | encoding/no-bom | domains/encoding/no-bom | Universal encoding hygiene |
 | encoding/no-smart-quotes-in-config | domains/encoding/no-smart-quotes-in-config | Universal config-file encoding |
@@ -122,7 +125,7 @@ The 9 v1 `convention/` frames split into 4 v2 buckets: 4 to `domains/html`, 1 to
 | domains/network/ | 2 | cidr-host-bits-zero, no-localhost-in-proxy-config |
 | domains/database/ | 4 | migration-script-explicit-env, migration-verification-step, sqlite-migration-idempotent-wrapper, schema-vs-code-drift |
 | domains/filesystem/ | 1 | apt-purge-preview |
-| domains/build-integrity/ | 3 | no-unmarked-test-skips, no-weakened-ci, no-blanket-lint-disable (added 2026-09-28, after this table's original total) |
+| domains/build-integrity/ | 6 | no-unmarked-test-skips, no-placeholder-tests, no-test-special-casing, no-noop-test-script, no-weakened-ci, no-blanket-lint-disable (added 2026-09-28, after this table's original total) |
 | **TOTAL** | **44** | |
 
 This matches the plan's working estimate (§A3 step 1): ~9 core, ~6 platform, ~3-5 framework (currently 0; framework axis grows later when Svelte/React-specific frames land), ~24-27 domains.

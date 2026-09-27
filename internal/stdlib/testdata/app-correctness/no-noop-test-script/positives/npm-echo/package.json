@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "test": "echo \"tests skipped\" && exit 0"
+  }
+}

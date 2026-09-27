@@ -80,3 +80,43 @@ func TestCIConfigFile(t *testing.T) {
 		}
 	}
 }
+
+func TestNoopMakeTest(t *testing.T) {
+	for name, tc := range map[string]struct {
+		mk   string
+		want bool
+	}{
+		"echo only":           {"test:\n\t@echo none\n", true},
+		"true":                {"test:\n\t-true\n", true},
+		"empty recipe":        {"test:\n\nbuild:\n\tgo build\n", true},
+		"comment then echo":   {"test: # run the suite\n\t# nothing yet\n\techo skip\n", true},
+		"real command":        {"test:\n\t@echo running\n\tgo test ./...\n", false},
+		"prerequisites":       {"test: unit\n", false},
+		"variable not target": {"test := go test ./...\n", false},
+		"no test target":      {"build:\n\techo hi\n", false},
+	} {
+		got := len(noopMakeTest(strings.Split(tc.mk, "\n"))) > 0
+		if got != tc.want {
+			t.Errorf("%s: flagged = %v; want %v", name, got, tc.want)
+		}
+	}
+}
+
+func TestProductionSourceKind(t *testing.T) {
+	for path, want := range map[string]string{
+		"src/pricing.ts":       "js",
+		"src/pricing.test.ts":  "",
+		"vitest.config.ts":     "",
+		"src/setupTests.ts":    "",
+		"app/export.py":        "py",
+		"tests/test_export.py": "",
+		"conftest.py":          "",
+		"store/save.go":        "go",
+		"store/save_test.go":   "",
+		"README.md":            "",
+	} {
+		if got := productionSourceKind(path); got != want {
+			t.Errorf("productionSourceKind(%q) = %q; want %q", path, got, want)
+		}
+	}
+}

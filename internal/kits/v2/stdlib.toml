@@ -91,3 +91,12 @@ description = "Add encoding + security domains. Designed to be applied on top of
 
   [kit.selections]
   domains = ["security", "encoding"]
+
+[[kit]]
+kit_id = "agent-shortcuts-overlay"
+display = "Agent shortcuts overlay"
+semver = "1.0"
+description = "Add the build-integrity domain: skipped or placeholder tests, test-only code paths, no-op test commands, CI that ignores failures, blanket lint disables. Stack on any project kit."
+
+  [kit.selections]
+  domains = ["build-integrity"]

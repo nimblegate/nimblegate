@@ -163,6 +163,7 @@ Stdlib ships six starter kits:
 | `cf-workers-project` | Cloudflare Workers + Tunnels + Access, no HTML. Includes `core`. | 23 |
 | `security-strict` | Adds every `security/*` frame on top of whatever else is applied (includes Trojan Source / tag-char / zero-width / homoglyph attack-class, plus PII detection). Stackable with any other kit. | 14 |
 | `encoding-strict` | Adds every `encoding/*` frame: BOM, smart quotes, YAML tabs, line endings, mixed indent, en-dash flags, non-printable controls, ZWSP in docs. Stackable with any other kit. | 8 |
+| `agent-shortcuts` | The ways a build is made to look green without being fixed: skipped or focused tests, tests that cannot fail, production code that detects test runs, test commands that run nothing, CI that ignores failures, linters switched off wholesale. All WARN. Stackable with any other kit. | 6 |
 
 Kit CLI:
 
@@ -178,7 +179,7 @@ different kit on setup, or `--kit none` to start with an empty `enabled` list.
 **An empty `enabled` list is not "no frames" - it means every stdlib frame runs.**
 The list is an allowlist, consulted only when it is non-empty, so writing entries
 into it *narrows* what is checked rather than adding to a baseline. Applying
-`core` to a repo with an empty list takes it from all 54 frames down to that
+`core` to a repo with an empty list takes it from all 57 frames down to that
 kit's 18. `nimblegate gateway add` leaves the list empty unless you pass
 `--kit`; the dashboard's Add form applies `core` for you.
 

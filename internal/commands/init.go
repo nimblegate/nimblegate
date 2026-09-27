@@ -52,7 +52,7 @@ func initAt(root string, args []string) int {
 func initAtWith(root string, args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int {
 	flags := flag.NewFlagSet("init", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	kitName := flags.String("kit", "core", "Starter kit to apply (v1 mode: core/web-app/cf-pages-project/cf-workers-project/security-strict/none)")
+	kitName := flags.String("kit", "core", "Starter kit to apply (v1 mode: core/web-app/cf-pages-project/cf-workers-project/security-strict/agent-shortcuts/none)")
 	useV2 := flags.Bool("v2", false, "Write a v2 schema config (axis-based: framework/platform/domains) instead of v1 kit-based")
 	flagFw := flags.String("framework", "", "v2 only: framework axis pick (svelte/astro/go/html); skips detection prompt")
 	flagPf := flags.String("platform", "", "v2 only: platform axis pick (cloudflare/static-host); skips detection prompt")

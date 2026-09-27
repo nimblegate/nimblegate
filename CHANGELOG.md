@@ -9,17 +9,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- **Three frames for agent shortcuts.** They flag the ways a build is made to
-  look green without being fixed: `app-correctness/no-unmarked-test-skips`
-  (skipped or focused tests - `it.skip`, `.only`, `@pytest.mark.skip`,
-  `t.Skip`, `#[ignore]`, `@Disabled` and more), `app-correctness/no-weakened-ci`
-  (`continue-on-error: true`, `allow_failure: true`, `|| true`, `set +e` in CI
-  files) and `app-correctness/no-blanket-lint-disable` (whole-file disables
-  such as `/* eslint-disable */`, `@ts-nocheck`, bare `//nolint`). All three
-  are WARN and in no starter kit, so a repo with its own frame list gets them
-  only when enabled; a repo whose `enabled` list is empty runs every frame and
-  sees them after upgrading. An intended case is exempted with a whitelist
-  entry or an `appframes:disable-next-line` marker.
+- **Agent shortcuts: six frames and a kit.** They flag the ways a build is
+  made to look green without being fixed: skipped or focused tests
+  (`no-unmarked-test-skips`), tests that cannot fail (`no-placeholder-tests`),
+  production code that detects test runs (`no-test-special-casing`), a test
+  command that runs nothing (`no-noop-test-script`), CI told to ignore
+  failures (`no-weakened-ci`) and linters switched off for a whole file
+  (`no-blanket-lint-disable`). All are WARN, in the `app-correctness`
+  category. The new `agent-shortcuts` kit applies all six in one click and
+  stacks on any project kit. They are in no other kit, so a repo with its own
+  frame list gets them only when enabled; a repo whose `enabled` list is empty
+  runs every frame and sees them after upgrading. An intended case is exempted
+  with a whitelist entry or an `appframes:disable-next-line` marker.
 
 ### Fixed
 

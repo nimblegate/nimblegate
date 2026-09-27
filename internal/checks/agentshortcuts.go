@@ -26,10 +26,18 @@ type lineRule struct {
 
 type lineScan struct {
 	frameID  string
-	rulesFor func(path string) []lineRule // nil or empty: file not scanned
+	rulesFor func(path string) []lineRule // nil or empty: no line rules for this file
 	comment  func(trimmed string) bool    // lines to ignore entirely
 	header   string
 	fix      string
+	// fileCheck, when set, inspects a whole file for patterns that span
+	// lines (a Makefile target and its recipe). fileCheckFor selects files.
+	fileCheck    func(lines []string) []engine.Hit
+	fileCheckFor func(path string) bool
+}
+
+func (s lineScan) wants(path string) bool {
+	return len(s.rulesFor(path)) > 0 || (s.fileCheckFor != nil && s.fileCheckFor(path))
 }
 
 func (s lineScan) run(ctx engine.CheckContext) engine.CheckResult {
@@ -46,7 +54,7 @@ func (s lineScan) run(ctx engine.CheckContext) engine.CheckResult {
 				}
 				return nil
 			}
-			if len(s.rulesFor(path)) > 0 {
+			if s.wants(path) {
 				files = append(files, path)
 			}
 			return nil
@@ -60,10 +68,10 @@ func (s lineScan) run(ctx engine.CheckContext) engine.CheckResult {
 	const hitCap = 20
 scan:
 	for _, file := range files {
-		rules := s.rulesFor(file)
-		if len(rules) == 0 || ShouldSkipPath(ctx, file) {
+		if !s.wants(file) || ShouldSkipPath(ctx, file) {
 			continue
 		}
+		rules := s.rulesFor(file)
 		data, ok := ReadFileBounded(file, DefaultMaxFileBytes)
 		if !ok {
 			continue
@@ -73,6 +81,18 @@ scan:
 			continue
 		}
 		lines := strings.Split(content, "\n")
+		if s.fileCheck != nil && s.fileCheckFor(file) {
+			for _, h := range s.fileCheck(lines) {
+				if h.Line > 1 && lineCarriesMarker(lines[h.Line-2], lineMarker) {
+					continue
+				}
+				hits = append(hits, fmt.Sprintf("%s:%d - %s", file, h.Line, h.Label))
+				hitsStruct = append(hitsStruct, engine.Hit{File: file, Line: h.Line, Label: h.Label})
+				if len(hits) >= hitCap {
+					break scan
+				}
+			}
+		}
 		for i, line := range lines {
 			if s.comment != nil && s.comment(strings.TrimSpace(line)) {
 				continue
@@ -271,5 +291,175 @@ func NoBlanketLintDisable(ctx engine.CheckContext) engine.CheckResult {
 		},
 		header: "linters switched off wholesale",
 		fix:    "fix the findings, or disable only the named rule on the line that needs it (`// eslint-disable-next-line no-console`, `# noqa: E501`, `//nolint:errcheck`); if the whole-file disable is intended, record why in a whitelist entry or with `appframes:disable-next-line app-correctness/no-blanket-lint-disable` above it",
+	}.run(ctx)
+}
+
+// --- no-placeholder-tests ---
+
+const jsTestName = `(?:'[^']*'|"[^"]*"|` + "`[^`]*`" + `)`
+
+var placeholderTestRules = map[string][]lineRule{
+	"js": {
+		{regexp.MustCompile(`\b(?:it|test|specify)\s*\(\s*` + jsTestName + `\s*,\s*(?:async\s+)?(?:\(\s*\)\s*=>|function\s*\(\s*\))\s*\{\s*\}\s*\)`), "empty test body - it passes without testing anything"},
+		{regexp.MustCompile(`expect\(\s*true\s*\)\s*\.\s*(?:toBe\(\s*true\s*\)|toEqual\(\s*true\s*\)|toBeTruthy\(\s*\))`), "expect(true) - an assertion that cannot fail"},
+		{regexp.MustCompile(`expect\(\s*false\s*\)\s*\.\s*(?:toBe\(\s*false\s*\)|toBeFalsy\(\s*\))`), "expect(false) - an assertion that cannot fail"},
+		{regexp.MustCompile(`expect\(\s*1\s*\)\s*\.\s*(?:toBe|toEqual)\(\s*1\s*\)`), "expect(1).toBe(1) - an assertion that cannot fail"},
+		{regexp.MustCompile(`\bassert(?:\.ok|\.isTrue)?\(\s*true\s*\)`), "assert(true) - an assertion that cannot fail"},
+	},
+	"py": {
+		{regexp.MustCompile(`^\s*def\s+test\w*\s*\([^)]*\)\s*(?:->\s*[\w\[\], .]+)?:\s*(?:pass|\.\.\.)\s*(?:#.*)?$`), "empty test body - it passes without testing anything"},
+		{regexp.MustCompile(`^\s*assert\s+(?:True|1|1\s*==\s*1|not\s+False)\s*(?:#.*)?$`), "assert True - an assertion that cannot fail"},
+		{regexp.MustCompile(`\bself\.assertTrue\(\s*True\s*\)`), "assertTrue(True) - an assertion that cannot fail"},
+	},
+	"go": {
+		{regexp.MustCompile(`^\s*func\s+Test\w*\s*\(\s*\w+\s+\*testing\.T\s*\)\s*\{\s*\}`), "empty test function - it passes without testing anything"},
+	},
+	"rs": {
+		{regexp.MustCompile(`\bassert!\(\s*true\s*\)`), "assert!(true) - an assertion that cannot fail"},
+		{regexp.MustCompile(`\bassert_eq!\(\s*1\s*,\s*1\s*\)`), "assert_eq!(1, 1) - an assertion that cannot fail"},
+	},
+	"jvm": {
+		{regexp.MustCompile(`\bassertTrue\(\s*true\s*\)`), "assertTrue(true) - an assertion that cannot fail"},
+		{regexp.MustCompile(`\bassertEquals\(\s*1\s*,\s*1\s*\)`), "assertEquals(1, 1) - an assertion that cannot fail"},
+	},
+	"cs": {
+		{regexp.MustCompile(`\bAssert\.(?:True|IsTrue)\(\s*true\s*\)`), "Assert.True(true) - an assertion that cannot fail"},
+	},
+	"rb": {
+		{regexp.MustCompile(`^\s*it\s*\(?\s*(?:'[^']*'|"[^"]*")\s*\)?\s*(?:do\s*;?\s*end|\{\s*\})\s*$`), "empty spec - it passes without testing anything"},
+		{regexp.MustCompile(`expect\(\s*true\s*\)\.to\s+(?:be\s+true|eq\(\s*true\s*\)|be_truthy)`), "expect(true) - an assertion that cannot fail"},
+	},
+}
+
+// NoPlaceholderTests flags tests that cannot fail: empty bodies and
+// assertions on constants. They make a suite look covered while testing
+// nothing.
+func NoPlaceholderTests(ctx engine.CheckContext) engine.CheckResult {
+	return lineScan{
+		frameID:  "app-correctness/no-placeholder-tests",
+		rulesFor: func(p string) []lineRule { return placeholderTestRules[testFileKind(p)] },
+		comment:  isLineComment,
+		header:   "tests that cannot fail",
+		fix:      "write the test's real assertion, or delete the placeholder; if it is intentional (a smoke test that only checks the file loads), record why: a whitelist entry with a reason, or `appframes:disable-next-line app-correctness/no-placeholder-tests` above it",
+	}.run(ctx)
+}
+
+// --- no-test-special-casing ---
+
+// jsQuote matches any JS string delimiter: ', " or a backtick.
+const jsQuote = `['"` + "`" + `]`
+
+var testCasingRules = map[string][]lineRule{
+	"js": {
+		{regexp.MustCompile(`process\.env\.NODE_ENV\s*[!=]==?\s*` + jsQuote + `test` + jsQuote), "branches on NODE_ENV === 'test'"},
+		{regexp.MustCompile(jsQuote + `test` + jsQuote + `\s*[!=]==?\s*process\.env\.NODE_ENV`), "branches on NODE_ENV === 'test'"},
+		{regexp.MustCompile(`process\.env\.(?:JEST_WORKER_ID|VITEST)\b`), "checks for the Jest/Vitest runner"},
+		{regexp.MustCompile(`import\.meta\.env\.(?:VITEST\b|MODE\s*[!=]==?\s*` + jsQuote + `test` + jsQuote + `)`), "checks for the Vitest runner"},
+		{regexp.MustCompile(`typeof\s+jest\s*[!=]==?\s*` + jsQuote + `undefined` + jsQuote), "checks for the Jest runner"},
+	},
+	"py": {
+		{regexp.MustCompile(`['"]pytest['"]\s+(?:not\s+)?in\s+sys\.modules`), "checks whether pytest is loaded"},
+		{regexp.MustCompile(`\bPYTEST_CURRENT_TEST\b`), "checks PYTEST_CURRENT_TEST"},
+	},
+	"go": {
+		{regexp.MustCompile(`\btesting\.Testing\(\)`), "checks testing.Testing()"},
+		{regexp.MustCompile(`flag\.Lookup\(\s*"test\.v"\s*\)`), "checks for the test.v flag"},
+		{regexp.MustCompile(`strings\.HasSuffix\(\s*os\.Args\[0\]\s*,\s*"\.test"\s*\)`), "checks whether the binary is a test binary"},
+	},
+}
+
+// productionSourceKind returns the language family of a non-test source
+// file, or "" for test files, config files and other languages.
+func productionSourceKind(path string) string {
+	if testFileKind(path) != "" {
+		return ""
+	}
+	base := filepath.Base(path)
+	if strings.Contains(base, ".config.") || strings.HasPrefix(base, "setupTests") || base == "conftest.py" {
+		return ""
+	}
+	switch strings.ToLower(filepath.Ext(base)) {
+	case ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte":
+		return "js"
+	case ".py":
+		return "py"
+	case ".go":
+		return "go"
+	}
+	return ""
+}
+
+// NoTestSpecialCasing flags production code that behaves differently when
+// it detects a test run - the way to make a test pass without fixing the
+// code under test.
+func NoTestSpecialCasing(ctx engine.CheckContext) engine.CheckResult {
+	return lineScan{
+		frameID:  "app-correctness/no-test-special-casing",
+		rulesFor: func(p string) []lineRule { return testCasingRules[productionSourceKind(p)] },
+		comment:  isLineComment,
+		header:   "production code that detects a test run",
+		fix:      "make the code correct in both cases and inject the difference (a parameter, a fake, a config value) from the test instead; if the branch is intended (quieter logging under test), record why: a whitelist entry with a reason, or `appframes:disable-next-line app-correctness/no-test-special-casing` above it",
+	}.run(ctx)
+}
+
+// --- no-noop-test-script ---
+
+var noopNpmTest = regexp.MustCompile(`"test"\s*:\s*"\s*(?:exit\s+0|true|:|echo(?:[^"\\&;|]|\\.)*(?:&&\s*(?:exit\s+0|true))?)\s*"`)
+
+func makefileName(path string) bool {
+	switch filepath.Base(path) {
+	case "Makefile", "makefile", "GNUmakefile":
+		return true
+	}
+	return false
+}
+
+var makeTestTarget = regexp.MustCompile(`^test\s*:(?:[^=]|$)`)
+
+// noopMakeTest finds a `test:` target with no prerequisites whose recipe
+// only echoes or exits 0.
+func noopMakeTest(lines []string) []engine.Hit {
+	for i, line := range lines {
+		if !makeTestTarget.MatchString(line) {
+			continue
+		}
+		prereqs := strings.TrimSpace(strings.SplitN(strings.SplitN(line, ":", 2)[1], "#", 2)[0])
+		if prereqs != "" {
+			return nil
+		}
+		for _, r := range lines[i+1:] {
+			if !strings.HasPrefix(r, "\t") {
+				if strings.TrimSpace(r) == "" {
+					continue
+				}
+				break
+			}
+			cmd := strings.TrimLeft(strings.TrimSpace(r), "@-+")
+			cmd = strings.TrimSpace(cmd)
+			if !(cmd == "" || cmd == "true" || cmd == ":" || cmd == "exit 0" || strings.HasPrefix(cmd, "echo ") || cmd == "echo" || strings.HasPrefix(cmd, "#")) {
+				return nil
+			}
+		}
+		return []engine.Hit{{Line: i + 1, Label: "make test runs nothing - its recipe only echoes or exits 0"}}
+	}
+	return nil
+}
+
+// NoNoopTestScript flags a test command that runs no tests: an npm `test`
+// script of `exit 0` / `true` / only `echo`, or a Makefile `test:` target
+// whose recipe does nothing. CI calling it then passes with nothing tested.
+func NoNoopTestScript(ctx engine.CheckContext) engine.CheckResult {
+	return lineScan{
+		frameID: "app-correctness/no-noop-test-script",
+		rulesFor: func(p string) []lineRule {
+			if filepath.Base(p) == "package.json" {
+				return []lineRule{{noopNpmTest, "npm test runs nothing - the script only echoes or exits 0"}}
+			}
+			return nil
+		},
+		fileCheck:    noopMakeTest,
+		fileCheckFor: makefileName,
+		header:       "test commands that run no tests",
+		fix:          "point the test command at the real test runner; a project with no tests yet should let `test` fail (npm's default `exit 1`) rather than pass; if it is intended, record why in a whitelist entry",
 	}.run(ctx)
 }
