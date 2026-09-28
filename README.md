@@ -7,7 +7,9 @@
 nimblegate sits **between your AI agent and your real git host**. Every push your
 agent makes is checked against the rules you turned on; clean pushes forward to
 your upstream in under a second, unsafe ones are held with a clear report. Same
-input, same answer, every time.
+input, same answer, every time. It catches leaked keys and force-pushes, and the
+shortcuts agents take to look finished: skipped or empty tests, CI told to ignore
+failures, linters switched off for a whole file.
 
 **→ Try the [live demo](https://demo.nimblegate.com): click through a real dashboard over sample data, nothing to install.**
 
@@ -392,8 +394,6 @@ today and for good. **Commercial use requires a [commercial license](COMMERCIAL.
 
 ## Contributing · Security
 
-- **Donations:** [GitHub Sponsors](https://github.com/sponsors/nimblegate) keep
-  the [demo gateway](https://demo.nimblegate.com) hosted and the project alive.
 - **Contributing:** PRs welcome for rules, docs, and fixes; see
   [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Security:** don't open a public issue. Email `security@nimblegate.com`. See
