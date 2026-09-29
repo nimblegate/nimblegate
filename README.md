@@ -95,7 +95,9 @@ git remote set-url origin ssh://git@<gateway-host>:2222/~/my-app.git   # my-app 
 git push
 ```
 
-> **Note the `~/` in the URL** - it's required, not a typo. On the gateway the SSH user is locked to **git-shell** (it can run git push/clone and *nothing* else - no shell, no commands), which resolves repo paths relative to its home. So the path is `~/<repo>.git`, not a bare `/<repo>.git`. This restriction is a security feature: a key can only move git data through the gate, never run commands or read the gateway's upstream token - so a compromised dev key can't bypass the gate or steal your credential.
+> **Note the `~/` in the URL** - on the Docker image it's required, not a typo. On the gateway the SSH user is locked to **git-shell** (it can run git push/clone and *nothing* else - no shell, no commands), which resolves `~/` to its home, and the image makes that home the repos folder. So the path is `~/<repo>.git`, not a bare `/<repo>.git`. This restriction is a security feature: a key can only move git data through the gate, never run commands or read the gateway's upstream token - so a compromised dev key can't bypass the gate or steal your credential.
+
+Installed on **bare metal** instead of Docker? Then it's sshd's port 22 and the repo's full path, no `~/`: `ssh://git@<gateway-host>:22/srv/gateway/repos/my-app.git`. Either way, **Health → Diagnostics** in the dashboard prints the exact URL for each repo.
 
 **6. See it work.** A clean push is accepted and forwarded to your upstream; a push that trips a rule is blocked and never reaches the real host. Watch it live on the dashboard **Feed**.
 
