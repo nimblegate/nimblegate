@@ -813,3 +813,44 @@ func TestRunDoctorRelayDivergedUpstream(t *testing.T) {
 		t.Errorf("auth failure should keep the credential advice, got %+v ok=%v", c, ok)
 	}
 }
+
+func TestRunDoctorUpstreamCheck(t *testing.T) {
+	policyRoot, reposRoot := doctorRoots(t)
+	doctorSeed(t, policyRoot, reposRoot, "web", AddOptions{UpstreamURL: "https://tok123@github.com/x/web.git", GateAllRefs: true})
+	doctorSeed(t, policyRoot, reposRoot, "ssh", AddOptions{UpstreamURL: "git@github.com:x/ssh.git", GateAllRefs: true})
+	doctorSeed(t, policyRoot, reposRoot, "none", AddOptions{GateAllRefs: true})
+
+	conn := func(rep DoctorReport, name string) DoctorRepoConn {
+		t.Helper()
+		for _, r := range rep.Repos {
+			if r.Name == name {
+				return r
+			}
+		}
+		t.Fatalf("no connect entry for %s", name)
+		return DoctorRepoConn{}
+	}
+
+	bare := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileBareMetal})
+	web := conn(bare, "web")
+	if !strings.HasPrefix(web.UpstreamCheck, "sudo -u git git ls-remote ") || !strings.HasSuffix(web.UpstreamCheck, "github.com/x/web.git HEAD") {
+		t.Errorf("bare metal: got %q", web.UpstreamCheck)
+	}
+	if strings.Contains(web.UpstreamCheck, "tok123") {
+		t.Errorf("credential leaked into the printed command: %q", web.UpstreamCheck)
+	}
+	if !web.UpstreamAsksCred {
+		t.Error("an https upstream should carry the credential note")
+	}
+	if s := conn(bare, "ssh"); s.UpstreamCheck != "sudo -u git git ls-remote git@github.com:x/ssh.git HEAD" || s.UpstreamAsksCred {
+		t.Errorf("ssh upstream: got %+v", s)
+	}
+	if n := conn(bare, "none"); n.UpstreamCheck != "" {
+		t.Errorf("no upstream should print no command, got %q", n.UpstreamCheck)
+	}
+
+	ctr := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileContainer})
+	if s := conn(ctr, "ssh"); s.UpstreamCheck != "git ls-remote git@github.com:x/ssh.git HEAD" {
+		t.Errorf("container: got %q", s.UpstreamCheck)
+	}
+}

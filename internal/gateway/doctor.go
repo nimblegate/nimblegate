@@ -70,6 +70,12 @@ type DoctorKey struct {
 type DoctorRepoConn struct {
 	Name    string
 	PushURL string // ssh://git@<host>:<push port>/<repos root>/<name>.git
+	// UpstreamCheck prints the upstream's HEAD, run on the gateway, so its SHA
+	// can be compared with the gateway's; empty when no upstream is configured.
+	UpstreamCheck string
+	// UpstreamAsksCred marks an http(s) upstream, where git prompts for the
+	// repo's credential when running UpstreamCheck.
+	UpstreamAsksCred bool
 }
 
 // DoctorReport is the full read-only preflight result.
@@ -354,6 +360,7 @@ func doctorKnownFrameIDs(policyRoot, repo string) map[string]bool {
 }
 
 func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig, name, host string, pushPort int, lastPush map[string]PushRelay) {
+	connIdx := -1
 	if barePath, err := resolveRepoBare(cfg.ReposRoot, name); err != nil {
 		add(DoctorCheck{
 			Repo:   name,
@@ -364,6 +371,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	} else {
 		add(DoctorCheck{Repo: name, Name: "Bare repo", Status: DoctorOK, Reason: barePath})
 		doctorCheckRelayAccess(add, cfg, name, barePath)
+		connIdx = len(rep.Repos)
 		rep.Repos = append(rep.Repos, DoctorRepoConn{
 			Name: name,
 			// Absolute, and the activation path rather than barePath: `~/` resolves
@@ -378,6 +386,11 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	if err != nil {
 		add(DoctorCheck{Repo: name, Name: "Policy", Status: DoctorFail, Reason: fmt.Sprintf("load policy: %v", err)})
 		return
+	}
+	if connIdx >= 0 && pol.UpstreamURL != "" {
+		up := redactURLUserinfo(pol.UpstreamURL)
+		rep.Repos[connIdx].UpstreamCheck = doctorGit(cfg) + " ls-remote " + up + " HEAD"
+		rep.Repos[connIdx].UpstreamAsksCred = strings.HasPrefix(up, "http")
 	}
 
 	switch {
@@ -663,6 +676,15 @@ func localRepoExists(dir string) bool {
 	return false
 }
 
+// doctorGit is how doctor's gateway-side git commands start: on bare metal
+// they run as the git user, whose SSH identity and safe.directory the relay uses.
+func doctorGit(cfg DoctorConfig) string {
+	if cfg.Profile.Name == ProfileBareMetal.Name {
+		return "sudo -u git git"
+	}
+	return "git"
+}
+
 // relayFailCheck is doctor's Relay FAIL line for a recorded relay error. An
 // upstream that refused the push as non-fast-forward holds commits the gateway
 // does not - the credential worked - so it gets its own reason and the
@@ -672,10 +694,7 @@ func relayFailCheck(cfg DoctorConfig, repo, upstream, errText, reason, fix strin
 	if !diverged {
 		return DoctorCheck{Repo: repo, Name: "Relay", Status: DoctorFail, Reason: reason, Fix: fix}
 	}
-	git := "git"
-	if cfg.Profile.Name == ProfileBareMetal.Name {
-		git = "sudo -u git git" // the relay's SSH identity belongs to the git user
-	}
+	git := doctorGit(cfg)
 	bare := filepath.Join(cfg.ReposRoot, repo+".git")
 	fix = fmt.Sprintf("compare the two sides: %s -C %s log --oneline -3 %s and %s ls-remote %s %s. If the upstream's extra commits are unwanted, overwrite them from the gateway: %s -C %s push --force-with-lease=%s:<upstream sha> %s %s. If they are wanted, merge them into your clone and push through the gateway",
 		git, bare, branch, git, upstream, branch, git, bare, branch, upstream, branch)

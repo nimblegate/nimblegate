@@ -64,3 +64,29 @@ func TestPointOriginNote(t *testing.T) {
 		t.Errorf("a resolved URL needs no substitution and no dashboard reference: %q", known)
 	}
 }
+
+func TestDoctorConnectStepsUpstream(t *testing.T) {
+	base := gateway.DoctorRepoConn{Name: "alpha", PushURL: "ssh://git@gw:22/srv/gateway/repos/alpha.git"}
+	if n := len(doctorConnectSteps(base)); n != 4 {
+		t.Fatalf("without an upstream: %d steps, want 4", n)
+	}
+	withUp := base
+	withUp.UpstreamCheck = "sudo -u git git ls-remote https://github.com/x/alpha.git HEAD"
+	withUp.UpstreamAsksCred = true
+	steps := doctorConnectSteps(withUp)
+	if len(steps) != 5 {
+		t.Fatalf("with an upstream: %d steps, want 5", len(steps))
+	}
+	last := steps[4]
+	if len(last.Cmds) != 1 || last.Cmds[0] != withUp.UpstreamCheck {
+		t.Errorf("last step command: %+v", last.Cmds)
+	}
+	if !strings.Contains(last.Note, "on the gateway") || !strings.Contains(last.Note, "credential") {
+		t.Errorf("last step note: %q", last.Note)
+	}
+	var buf bytes.Buffer
+	renderDoctorText(&buf, gateway.DoctorReport{Host: "gw", Repos: []gateway.DoctorRepoConn{withUp}})
+	if !strings.Contains(buf.String(), "5. Compare with the upstream") {
+		t.Errorf("CLI text lacks the upstream step:\n%s", buf.String())
+	}
+}
