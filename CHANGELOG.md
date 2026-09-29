@@ -5,6 +5,16 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Doctor shows how to compare with the upstream.** Each repo's connect steps
+  (`gateway doctor` and Health -> Diagnostics) end with the command that prints
+  the upstream's HEAD, run on the gateway, so its SHA can be compared with the
+  gateway's. Bare metal runs it as the git user; credentials in the upstream URL
+  are never printed.
+
 ## [0.6.0] - 2026-09-28
 
 ### Added

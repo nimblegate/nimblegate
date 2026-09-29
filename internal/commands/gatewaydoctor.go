@@ -114,7 +114,7 @@ func renderDoctorText(w io.Writer, rep gateway.DoctorReport) {
 	}
 	for _, rc := range rep.Repos {
 		fmt.Fprintf(w, "\nConnect a dev machine / agent - %s\n", rc.Name)
-		for i, step := range doctorConnectSteps(rc.PushURL) {
+		for i, step := range doctorConnectSteps(rc) {
 			fmt.Fprintf(w, "  %d. %s\n", i+1, step.Note)
 			for _, cmd := range step.Cmds {
 				fmt.Fprintf(w, "       %s\n", cmd)
@@ -160,11 +160,12 @@ func pointOriginNote(pushURL string) string {
 	return "Point origin at the gateway:"
 }
 
-// doctorConnectSteps builds the onboarding steps around pushURL, which the
+// doctorConnectSteps builds the onboarding steps around the push URL the
 // doctor engine resolved from the declared or probed gate port. Taking the URL
 // rather than rebuilding it keeps one source for the port.
-func doctorConnectSteps(pushURL string) []doctorConnectStep {
-	return []doctorConnectStep{
+func doctorConnectSteps(rc gateway.DoctorRepoConn) []doctorConnectStep {
+	pushURL := rc.PushURL
+	steps := []doctorConnectStep{
 		{
 			Note: "On your dev machine, print your key + fingerprint (your key may not be the default; `ls ~/.ssh/*.pub` to find it, or `ssh-keygen -t ed25519` to create one):",
 			Cmds: []string{"cat ~/.ssh/id_ed25519.pub", "ssh-keygen -lf ~/.ssh/id_ed25519.pub"},
@@ -181,6 +182,14 @@ func doctorConnectSteps(pushURL string) []doctorConnectStep {
 			Cmds: []string{"git ls-remote " + pushURL},
 		},
 	}
+	if rc.UpstreamCheck != "" {
+		note := "Compare with the upstream, on the gateway - its HEAD line should show the same SHA as the one above:"
+		if rc.UpstreamAsksCred {
+			note += " (git asks for the repo's credential for this http(s) upstream)"
+		}
+		steps = append(steps, doctorConnectStep{Note: note, Cmds: []string{rc.UpstreamCheck}})
+	}
+	return steps
 }
 
 // healthTabStrip renders the Status / Diagnostics sub-tab strip for /health,
@@ -265,9 +274,9 @@ func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string,
 		cl, ic := doctorStatusClassIcon(c.Status)
 		vm.Global = append(vm.Global, doctorCheckVM{Class: cl, Icon: ic, Name: c.Name, Reason: c.Reason, Fix: c.Fix})
 	}
-	conn := map[string]string{}
+	conn := map[string]gateway.DoctorRepoConn{}
 	for _, rc := range rep.Repos {
-		conn[rc.Name] = rc.PushURL
+		conn[rc.Name] = rc
 	}
 	for _, name := range doctorRepoOrder(rep) {
 		rv := doctorRepoVM{Name: name}
@@ -278,9 +287,9 @@ func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string,
 			cl, ic := doctorStatusClassIcon(c.Status)
 			rv.Checks = append(rv.Checks, doctorCheckVM{Class: cl, Icon: ic, Name: c.Name, Reason: c.Reason, Fix: c.Fix})
 		}
-		if pushURL := conn[name]; pushURL != "" {
+		if rc, ok := conn[name]; ok && rc.PushURL != "" {
 			rv.Conn = true
-			rv.Steps = doctorConnectSteps(pushURL)
+			rv.Steps = doctorConnectSteps(rc)
 		}
 		vm.Repos = append(vm.Repos, rv)
 	}
