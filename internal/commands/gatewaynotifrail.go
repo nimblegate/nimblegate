@@ -5,6 +5,7 @@ package commands
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -653,12 +654,12 @@ func writeNotifRailTOML(policyRoot, repo string, view notifRailView, secret stri
 		return err
 	}
 	if err := f.Chmod(0o640); err != nil {
-		f.Close()
+		err = errors.Join(err, f.Close())
 		os.Remove(tmp)
 		return err
 	}
 	if err := toml.NewEncoder(f).Encode(prior); err != nil {
-		f.Close()
+		err = errors.Join(err, f.Close())
 		os.Remove(tmp)
 		return err
 	}

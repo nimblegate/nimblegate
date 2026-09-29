@@ -1,2 +1,2 @@
 # ruff: noqa
-import os, sys
+TOTAL = 1
