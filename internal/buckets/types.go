@@ -93,14 +93,13 @@ func ParsePath(path string) (Bucket, error) {
 		return Bucket{Axis: AxisCore, FrameID: parts[1]}, nil
 
 	case "framework":
-		switch len(parts) {
-		case 3:
+		if len(parts) == 3 {
 			return Bucket{Axis: AxisFramework, Lang: parts[1], FrameID: parts[2]}, nil
-		case 4:
-			return Bucket{Axis: AxisFramework, Lang: parts[1], SubBucket: parts[2], FrameID: parts[3]}, nil
-		default:
-			return Bucket{}, fmt.Errorf("invalid framework path %q: must be 3 or 4 segments", path)
 		}
+		if len(parts) == 4 {
+			return Bucket{Axis: AxisFramework, Lang: parts[1], SubBucket: parts[2], FrameID: parts[3]}, nil
+		}
+		return Bucket{}, fmt.Errorf("invalid framework path %q: must be 3 or 4 segments", path)
 
 	case "platform":
 		if len(parts) != 4 {
