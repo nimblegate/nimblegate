@@ -55,8 +55,12 @@ Or clone fresh:
 git clone ssh://git@<gateway-host>:2222/~/<repo-name>.git
 ```
 
-The `~/` in the URL is required, not a typo (the gateway's SSH user is locked
-to git-shell, which resolves paths relative to its home). A clean push forwards
+On the **Docker image** the `~/` in the URL is required, not a typo: the
+gateway's SSH user is locked to git-shell, which resolves `~/` to its home, and
+the image makes that home the repos folder. On a **bare-metal** install the home
+stays at `/home/git`, so use the repo's full path and sshd's port instead:
+`ssh://git@<gateway-host>:22/srv/gateway/repos/<repo-name>.git` (the dashboard's
+Health -> Diagnostics prints the exact URL for each repo). A clean push forwards
 to your real git host in about a second; a push that trips a rule is rejected
 with a report and never reaches your host.
 
@@ -75,7 +79,8 @@ Host mygateway
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
 ```
-Then the remote can be `ssh://mygateway/~/<repo-name>.git`, and SSH always
+Then the remote can be `ssh://mygateway/~/<repo-name>.git` (bare metal: `Port 22`
+and `ssh://mygateway/srv/gateway/repos/<repo-name>.git`), and SSH always
 offers the right key - which fixes most "Permission denied" surprises.
 
 ### A5. Day-to-day: how you and your AI agent use it
@@ -213,9 +218,9 @@ which is the point: the gateway has no public attack surface.
 |---|---|---|
 | `Permission denied (publickey)` on push | Key not registered, or SSH offered the wrong key | Confirm your **public** key is added in the dashboard (A2). With several keys, use the A4 config, or push with `GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" git push`. |
 | Dashboard shows an empty page over the tunnel | Used `localhost` instead of `127.0.0.1` in `-L` (IPv6 vs IPv4) | Re-run the tunnel with `127.0.0.1` exactly (Part B). |
-| `repository does not exist` / `not a git repository` | Missing `~/` in the URL, or wrong repo name | URL must be `ssh://git@<gateway-host>:2222/~/<repo-name>.git` - keep the `~/`. |
+| `repository does not exist` / `not a git repository` | Wrong path form for the install, or wrong repo name | Docker image: `ssh://git@<gateway-host>:2222/~/<repo-name>.git` - keep the `~/`. Bare metal: `ssh://git@<gateway-host>:22/srv/gateway/repos/<repo-name>.git` - no `~/`. Health -> Diagnostics prints the exact URL. |
 | `ssh: command not found` (Windows) | OpenSSH client not enabled | Settings -> Apps -> Optional features -> add "OpenSSH Client", or use Git Bash. |
-| Push hangs or times out | Wrong port, or a firewall in the way | Use port **2222** (not 22) for pushing; on a VPN, confirm you're connected to the tailnet. |
+| Push hangs or times out | Wrong port, or a firewall in the way | Docker image: port **2222**; bare metal: port **22**. On a VPN, confirm you're connected to the tailnet. |
 | Push rejected with a findings report | Working as intended - the gate caught something | Read the report, fix the flagged file(s), push again. If Auto-PR is on, the finding is also a PR comment. |
 | Passphrase prompt on every push | Key has a passphrase and isn't cached | Add it once: `ssh-add ~/.ssh/id_ed25519` (Windows: `Start-Service ssh-agent` first). |
 

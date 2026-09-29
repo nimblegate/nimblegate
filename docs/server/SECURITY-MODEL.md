@@ -55,7 +55,7 @@ This is a soft property, not a boundary, but it is what makes **observe mode** w
   origin = git@<neutral-host>:<repo>.git
   ```
 
-  - **No `/srv/gateway/repos/` path** - the short URL works because the `git` user's home *is* the activation root, so the prefix never appears in what the agent sees.
+  - **No `/srv/gateway/repos/` path** - the short URL works because the `git` user's home *is* the activation root, so the prefix never appears in what the agent sees. That holds on the Docker image, which links the home there. A bare-metal install keeps the home at `/home/git`, where the short form does not resolve; to hand agents the neutral form there, link each repo into that home (`sudo -u git ln -s /srv/gateway/repos/<repo>.git /home/git/<repo>.git`), otherwise they need the full-path URL. Don't move the home itself: it holds the relay's SSH key and `known_hosts`.
   - **No "gate" / "nimblegate" / "nbg" in the hostname or SSH alias** - pick a name a plain git host would have (`git.internal`, etc.). The alias `nbg:` or a host called `gateway.lan` is itself the tell.
   - The agent's `To …` line then reads `To git@git.internal:repo.git` - nothing that names a gate.
 

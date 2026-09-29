@@ -478,7 +478,7 @@ paths, flags) is in [`docs/server/README.md`](server/README.md).
 
 | Symptom | What it means / fix |
 |---|---|
-| **`git@…'s password:`** prompt | You're **not** reaching the gateway. Almost always the wrong **port** or **address**. The `git@host:2222/path` form treats `2222` as a path, not a port; use `ssh://git@host:2222/~/path.git` (note the `~/`) or the `~/.ssh/config` shortcut. Double-check you used the **gateway's** IP, not the upstream's. The gateway never has a password; a prompt = wrong door. |
+| **`git@…'s password:`** prompt | You're **not** reaching the gateway. Almost always the wrong **port** or **address**. The `git@host:2222/path` form treats `2222` as a path, not a port; use the `ssh://` form - `ssh://git@host:2222/~/path.git` on the Docker image, `ssh://git@host:22/srv/gateway/repos/path.git` on bare metal - or the `~/.ssh/config` shortcut. Double-check you used the **gateway's** IP, not the upstream's. The gateway never has a password; a prompt = wrong door. |
 | **`Permission denied (publickey)`** | The gateway got your connection but doesn't recognize your key. Confirm you authorized the **public** key in `/ssh-keys`, and that SSH is offering the right key: `ssh -p 2222 -i ~/.ssh/nimblegate git@<gateway>`. With multiple keys, add `IdentityFile` + `IdentitiesOnly yes` to `~/.ssh/config`. |
 | **`does not appear to be a git repository`** | The repo path is wrong. Paths are **flat** on the gateway: it's `myapp.git`, not `owner/myapp.git`. Use the exact **Name** from the `/repos` page. |
 | **`git clone` gives an empty repo** | The gateway wasn't seeded from the upstream. On `/repos`, click **Sync from upstream** for that repo (set the credential first if it's an HTTP upstream). |
