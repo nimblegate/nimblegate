@@ -49,7 +49,7 @@ In the dashboard: **Repos → Add a repo**.
 
 - **Name:** what you'll push to, e.g. `my-app`
 - **Upstream URL:** your real repo over HTTPS, e.g. `https://github.com/you/my-app.git`
-- **Upstream credential:** the access token (GitHub fine-grained: Contents read and write)
+- **Upstream credential:** an access token that can push to the repo ([which scopes](quick-tokens.md))
 
 Click **Register**. Existing history is mirrored down, and the **core** rule
 kit is applied.
@@ -80,7 +80,7 @@ The push is rejected, and nothing reaches your real repo:
 
 ```
 remote:   refs/heads/main: BLOCK [security/no-hardcoded-credentials] credentials detected (raw bytes redacted): leak-test.env:1 - AWS access key
- ! [remote rejected] main → main (pre-receive hook declined)
+ ! [remote rejected] main -> main (pre-receive hook declined)
 ```
 
 Undo the test commit with `git reset --hard HEAD~1`. Open **Feed** in the
