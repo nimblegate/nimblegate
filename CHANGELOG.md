@@ -5,7 +5,7 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.1] - 2026-10-04
 
 ### Added
 
@@ -14,6 +14,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the upstream's HEAD, run on the gateway, so its SHA can be compared with the
   gateway's. Bare metal runs it as the git user; credentials in the upstream URL
   are never printed.
+
+### Changed
+
+- **Docs moved to [nimblegate.com/docs](https://nimblegate.com/docs/).** The
+  guides now live on the site, with short quick-start guides, an FAQ and a
+  page for every frame. The dashboard's help panels, CLI hints, the cloud-init
+  banner and the bare-metal deploy files link there. The old `docs/*.md` paths
+  stay as short pointers, so older links keep working.
+- **Readable titles for 19 frames** whose title was just their ID, for example
+  "Commits must not skip hooks with --no-verify".
+- **README** is shorter, with a how-it-works diagram that has a vertical
+  version for phones.
 
 ## [0.6.0] - 2026-09-28
 
