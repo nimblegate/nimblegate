@@ -153,3 +153,57 @@ Scope boundaries (deliberate):
 - **No auto-actioning.** Outputs suggestions, never edits `appframes.toml` or the whitelist.
 - **No external data.** Doesn't touch git log, shell history, or CI. Only the audit log.
 - **No co-occurring-block detection / time-decay weighting**: V2 candidates that need more audit data to be useful.
+
+## Compare agents on the same tasks
+
+`nimblegate gateway benchmark score` compares AI agents using pushes the gate
+has already recorded. For each agent and language stack it reports:
+
+| Column | Meaning |
+|---|---|
+| `clean/push` | scored findings per push (lower is cleaner) |
+| `converged` | share of runs that reached a clean push |
+| `conv@` | pushes needed to reach the first clean push |
+| `recurrence` | share of findings that came back after the agent had seen them |
+
+It only reads the audit logs; it never runs an agent.
+
+1. **Register one repo per run** on the gateway: one agent, one task, one
+   repetition, e.g. `bench-claude-blog-1` and `bench-cursor-blog-1`. Keep the
+   repos in **enforce** mode: agents only see a rejection, and fix it, when the
+   gate blocks. (In observe mode nothing is rejected, so `converged` and `conv@`
+   say nothing.)
+2. **Give each agent the same task** and let it push through the gateway until
+   it's done. Repeat a few times per agent; a single run is mostly noise.
+3. **Write a config** that names the frames to score and maps each repo to its
+   run. A starting point is
+   [`examples/benchmark.toml`](../examples/benchmark.toml):
+
+   ```toml
+   [scored]
+   frames = ["security/no-hardcoded-credentials", "commands/curl-pipe-shell"]
+
+   [[run]]
+   repo  = "bench-claude-blog-1"
+   agent = "claude-code"
+   task  = "blog-crud"
+   stack = "go"
+   rep   = 1
+   ```
+
+   Use frame IDs as they appear in findings (`commands/curl-pipe-shell`, not
+   the folder name `command-safety/...`); an unknown ID stops the command with
+   an error. Optional `[[whitelist]]` entries (`frame`, `contains`, `reason`)
+   drop known false positives.
+4. **Run it** on the gateway:
+
+   ```bash
+   docker cp benchmark.toml nimblegate:/tmp/benchmark.toml
+   docker exec -u git nimblegate nimblegate gateway benchmark score --config /tmp/benchmark.toml
+   ```
+
+   Bare metal: `nimblegate gateway benchmark score --config benchmark.toml`.
+   Add `--json` for per-frame counts.
+
+Compare agents within one stack only; findings in Go and in JavaScript aren't
+comparable. A repo with no recorded pushes is left out of the table.

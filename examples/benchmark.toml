@@ -1,6 +1,6 @@
 # Agent Cleanliness Benchmark - example config.
 # Scored frames: the unimpeachable core only (would fail review anywhere).
-# Presence/placement, never content quality. See docs/benchmark.md.
+# See "Compare agents on the same tasks" in docs/audit-analyzer.md.
 
 [scored]
 frames = [
