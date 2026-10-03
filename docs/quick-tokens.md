@@ -19,17 +19,17 @@ permission.
 
 ## 2. Create the token on your git host
 
-- **GitHub fine-grained:** Settings -> Developer settings -> Personal access
-  tokens -> Fine-grained tokens -> **Generate new token**
+- **GitHub fine-grained:** Settings → Developer settings → Personal access
+  tokens → Fine-grained tokens → **Generate new token**
   (`github.com/settings/personal-access-tokens/new`). Under **Repository
   access** pick the repo, then set the permissions above. For an organization's
   repo, set **Resource owner** to the organization; it may need an admin's
   approval.
-- **GitHub classic:** Settings -> Developer settings -> Personal access tokens
-  -> Tokens (classic) -> **Generate new token** (`github.com/settings/tokens/new`).
-- **Gitea:** avatar -> Settings -> Applications -> **Generate New Token**
+- **GitHub classic:** Settings → Developer settings → Personal access tokens
+  → Tokens (classic) → **Generate new token** (`github.com/settings/tokens/new`).
+- **Gitea:** avatar → Settings → Applications → **Generate New Token**
   (`<your-gitea>/user/settings/applications`).
-- **GitLab:** avatar -> Edit profile -> Access tokens -> **Add new token**
+- **GitLab:** avatar → Edit profile → Access tokens → **Add new token**
   (`gitlab.com/-/user_settings/personal_access_tokens`).
 
 Copy the token when it's shown; most hosts show it only once. Note the expiry
@@ -37,7 +37,7 @@ date: when it passes, pushes stop reaching your real repo.
 
 ## 3. Give it to the gateway
 
-- **New repo:** paste it into **Upstream credential** in **Repos -> Add a
+- **New repo:** paste it into **Upstream credential** in **Repos → Add a
   repo**, with the repo's **HTTPS** URL as the upstream.
 - **Existing repo, or a new token after expiry:** on the **Repos** page, use
   **Add or rotate upstream credential** for that repo.
@@ -53,7 +53,7 @@ never arrives, the **Repos** page shows a red **relay failing** badge, which
 almost always means a wrong scope or an expired token. Fix the token, rotate
 it, and use **Sync from upstream** if the repo's history is missing.
 
-Using Auto-PR? If comments don't appear, open **Auto-PR -> Repos**: an HTTP 403
+Using Auto-PR? If comments don't appear, open **Auto-PR → Repos**: an HTTP 403
 there means the token lacks the comment permission from step 1.
 
 ## Next

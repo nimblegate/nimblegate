@@ -40,12 +40,12 @@ On your dev machine, print your public key:
 cat ~/.ssh/id_ed25519.pub
 ```
 
-In the dashboard: **Keys -> Add a key**, paste the line, save.
+In the dashboard: **Keys → Add a key**, paste the line, save.
 No key yet? Run `ssh-keygen -t ed25519` first.
 
 ## 4. Register your repo
 
-In the dashboard: **Repos -> Add a repo**.
+In the dashboard: **Repos → Add a repo**.
 
 - **Name:** what you'll push to, e.g. `my-app`
 - **Upstream URL:** your real repo over HTTPS, e.g. `https://github.com/you/my-app.git`
@@ -80,7 +80,7 @@ The push is rejected, and nothing reaches your real repo:
 
 ```
 remote:   refs/heads/main: BLOCK [security/no-hardcoded-credentials] credentials detected (raw bytes redacted): leak-test.env:1 - AWS access key
- ! [remote rejected] main -> main (pre-receive hook declined)
+ ! [remote rejected] main → main (pre-receive hook declined)
 ```
 
 Undo the test commit with `git reset --hard HEAD~1`. Open **Feed** in the
