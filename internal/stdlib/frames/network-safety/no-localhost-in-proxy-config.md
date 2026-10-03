@@ -31,7 +31,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# network-safety/no-localhost-in-proxy-config
+# Reverse proxies must not point at localhost
 
 Reject reverse-proxy config files that name `localhost` as the upstream target. Modern Go-based proxies (cloudflared, anything using the Go net resolver) try IPv6 (`[::1]`) before IPv4 (`127.0.0.1`) on Linux. If the destination service binds only `0.0.0.0:<port>` and not `[::]:<port>`, every request fails with `connection refused` on the host side and an opaque error on the client side.
 

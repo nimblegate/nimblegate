@@ -25,7 +25,7 @@ selection-stats:
   last-run: 2026-05-20T11:45:47Z
 ---
 
-# convention/html-img-alt
+# Every image needs an alt attribute
 
 Every `<img>` tag must have an `alt` attribute. The empty form `alt=""` is intentional in HTML5 and explicitly satisfies this check - it signals "decorative image, screen readers should skip."
 

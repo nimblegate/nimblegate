@@ -136,7 +136,7 @@ Rules for the `enabled` list:
 - **Flat IDs only.** Each entry is `<dir>/<name>` exactly as shown in the
   frame catalog.
 - **No `@`-prefixes.** The `@group-name` syntax was removed in v0.1.0. See
-  the [migration section](#migration-from-prefixed-group-configs) below.
+  the [migration section](#migration-from--prefixed-group-configs) below.
 - **No wildcards.** `security/*` is not valid. Tick frames individually or
   apply a kit.
 

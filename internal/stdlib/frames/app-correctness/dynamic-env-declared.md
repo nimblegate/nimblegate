@@ -23,7 +23,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# app-correctness/dynamic-env-declared
+# SvelteKit dynamic public env vars must be declared
 
 Reject SvelteKit components / TypeScript / JavaScript that read `env.PUBLIC_X` via `$env/dynamic/public` when `PUBLIC_X` isn't declared in `wrangler.toml` `[vars]` or `.env.example`. The local `.env` doesn't count - that's the "works on my machine" trap.
 

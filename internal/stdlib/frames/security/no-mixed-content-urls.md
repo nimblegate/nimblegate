@@ -25,7 +25,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# security/no-mixed-content-urls
+# No http:// resources on HTTPS pages
 
 Reject HTML / Svelte / Astro pages that reference `http://` resources via `src=` or `href=` attributes. On HTTPS pages, browsers block these as mixed content - images don't load, scripts don't execute, analytics doesn't fire, and the console errors are too vague for non-devtools users to make sense of.
 

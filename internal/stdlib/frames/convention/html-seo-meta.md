@@ -24,7 +24,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# convention/html-seo-meta
+# HTML pages should carry SEO and social meta tags
 
 Surface a WARN when HTML pages are missing the standard SEO + social meta set:
 

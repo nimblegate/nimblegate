@@ -277,6 +277,9 @@ dashboard **Reports** page. Reference: **[agent-api.md](docs/agent-api.md)**.
 
 ## Guides
 
+All guides, plus a reference page for every frame, are also at
+**[nimblegate.com/docs](https://nimblegate.com/docs/)**.
+
 | Guide | What's in it |
 |---|---|
 | **[Getting started](docs/getting-started.md)** | Install → first guarded push, step by step, with a troubleshooting quick-check. Start here. |

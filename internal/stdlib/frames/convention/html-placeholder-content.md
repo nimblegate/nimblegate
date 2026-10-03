@@ -28,7 +28,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# convention/html-placeholder-content
+# No placeholder text in shipped pages
 
 Surface a WARN when shipping HTML / Svelte / Astro / Markdown content contains placeholder patterns that escape into production embarrassingly often:
 

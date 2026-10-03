@@ -25,7 +25,7 @@ selection-stats:
   last-run: 2026-05-24T00:00:00Z
 ---
 
-# command-safety/migration-script-explicit-env
+# Migration scripts must name the target environment
 
 Reject bash scripts that invoke a multi-env CLI (wrangler, gcloud, kubectl, vercel, flyctl, supabase, firebase, heroku) without an explicit env-scope flag - when the script also has a defaulted `${1:-...}` env variable that resolves to empty.
 

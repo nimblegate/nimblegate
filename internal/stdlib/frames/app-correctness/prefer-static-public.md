@@ -23,7 +23,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# app-correctness/prefer-static-public
+# Prefer static over dynamic public env vars in SvelteKit
 
 Surface INFO-level findings on any `$env/dynamic/public` import. For build-time-known values, `$env/static/public` is safer: inlined at build, undefined imports return undefined cleanly, no runtime crash on missing env.
 

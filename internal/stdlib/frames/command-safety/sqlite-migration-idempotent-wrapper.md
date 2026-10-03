@@ -22,7 +22,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# command-safety/sqlite-migration-idempotent-wrapper
+# Destructive SQLite migrations need an idempotent wrapper
 
 Reject `.sql` migration files containing destructive / non-idempotent DDL (`ALTER TABLE ADD/DROP/RENAME COLUMN`, `RENAME TABLE`) unless either:
 

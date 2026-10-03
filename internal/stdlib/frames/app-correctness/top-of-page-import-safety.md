@@ -22,7 +22,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# app-correctness/top-of-page-import-safety
+# Env-reading components imported at the top of a SvelteKit page
 
 Surface an INFO-level finding when a SvelteKit `+page.svelte` or `+layout.svelte` imports a component whose module body uses `$env/dynamic/public`. Components imported at the top of a route-root page execute at module-load time - if their script block touches env before runtime initialization completes (e.g. SSR cold start, network glitch on the dynamic-public fetch), the whole route fails with no upstream error boundary.
 

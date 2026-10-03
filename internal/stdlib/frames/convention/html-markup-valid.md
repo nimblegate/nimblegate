@@ -25,7 +25,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# convention/html-markup-valid
+# HTML markup must be valid
 
 HTML markup validation pass - the class of problems Vite, the HTML5 spec, and downstream tooling (RSS readers, AMP validators, social-card scrapers) complain about:
 
