@@ -33,7 +33,7 @@ When a row has an active loop, the rightmost column shows a small **Reset** butt
 - The Reset button is only useful when a loop is wedged; most loops drain on their own as the agent fixes and re-pushes.
 - Notification chip absence ≠ the rail is off. Pushes that landed before the rail was enabled won't have it; only newly-rejected pushes get the chip.
 
-For depth: [README](https://github.com/nimblegate/nimblegate/blob/main/README.md#how-it-works) · [docs/notifications.md](https://github.com/nimblegate/nimblegate/blob/main/docs/notifications.md).
+For depth: [How it works](https://nimblegate.com/docs/getting-started#the-mental-model) · [Notifications and Auto-PR](https://nimblegate.com/docs/notifications).
 
 ## History: paging, retention, and export
 

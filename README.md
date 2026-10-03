@@ -80,8 +80,7 @@ Plus your own regex rules from the dashboard. Every rule:
 
 ## Docs
 
-Everything lives at **[nimblegate.com/docs](https://nimblegate.com/docs/)**
-(source: [`docs/`](docs/)):
+Everything lives at **[nimblegate.com/docs](https://nimblegate.com/docs/)**:
 
 - **Start:** [quick start](https://nimblegate.com/docs/quick-start),
   [access tokens](https://nimblegate.com/docs/quick-tokens),
@@ -102,8 +101,8 @@ Everything lives at **[nimblegate.com/docs](https://nimblegate.com/docs/)**
 ## License, privacy, contributing
 
 - **Free for non-commercial use** under [PolyForm Noncommercial 1.0.0](LICENSE):
-  the whole app, no time limit. **Commercial use** needs a licence, $10/month or
-  $99/year per company: [commercial licence](COMMERCIAL.md).
+  the whole app, no time limit. **Commercial use** needs a licence per company:
+  [pricing](https://nimblegate.com/#pricing) and [terms](COMMERCIAL.md).
 - **No telemetry.** It sends nothing anywhere except your own upstream:
   [privacy](PRIVACY.md).
 - **Contributing:** PRs welcome for rules, docs and fixes:

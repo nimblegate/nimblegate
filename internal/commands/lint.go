@@ -367,6 +367,6 @@ The v0.1.0 frame model is flat frame IDs only. Apply a kit instead:
   @security-strict → nimblegate kits apply security-strict
   security/*       → tick frames individually in dashboard
 
-See docs/frames.md for the full v0.1.0 model. After migration, re-run.
+See https://nimblegate.com/docs/frames-guide for the full v0.1.0 model. After migration, re-run.
 `
 }

@@ -12,7 +12,7 @@
 #   * A first-login banner showing your setup token and next steps.
 #
 # After the server is up, log in over SSH and follow the banner, or continue
-# at Step 2 of docs/getting-started.md. Adding your provider's cloud firewall
+# at Step 2 of https://nimblegate.com/docs/getting-started. Adding your provider's cloud firewall
 # (same rules: 22 + 2222) on top gives you a second, independent layer.
 #
 # IMPORTANT: select/add your SSH key in the provider's create-server form.
@@ -73,7 +73,7 @@ write_files:
       echo "  dashboard: from YOUR computer   ssh -L 7900:127.0.0.1:7900 <user>@<this-host>"
       echo "             then open http://localhost:7900/setup   (use 127.0.0.1, not localhost, in -L)"
       echo "  push URL:  ssh://git@<this-host>:2222/~/<repo>.git"
-      echo "  walkthrough: https://github.com/nimblegate/nimblegate/blob/main/docs/getting-started.md"
+      echo "  walkthrough: https://nimblegate.com/docs/quick-start"
       echo ""
 
 runcmd:

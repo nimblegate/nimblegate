@@ -1,6 +1,6 @@
 # Agent Cleanliness Benchmark - example config.
 # Scored frames: the unimpeachable core only (would fail review anywhere).
-# See "Compare agents on the same tasks" in docs/audit-analyzer.md.
+# See https://nimblegate.com/docs/audit-analyzer#compare-agents-on-the-same-tasks
 
 [scored]
 frames = [

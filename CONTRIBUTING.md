@@ -4,7 +4,7 @@ Thanks for considering a contribution.
 
 ## What's welcome
 
-- **New stdlib frames:** markdown + Go check function + positives/negatives testdata. See `docs/frame-catalog.md` and existing frames under `internal/stdlib/frames/` for the pattern.
+- **New stdlib frames:** markdown + Go check function + positives/negatives testdata. See [writing your own frames](https://nimblegate.com/docs/frame-authoring) and the existing frames under `internal/stdlib/frames/` for the pattern.
 - **Doc improvements:** especially the quickstart, frame catalog, and onboarding.
 - **Bug fixes** with a reproducing test.
 - **Performance improvements** with a before/after benchmark.

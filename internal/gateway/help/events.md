@@ -19,4 +19,4 @@ Raw audit-log stream: every event the gateway has logged, including the ones tha
 - Credential-update events have no payload, just the fact and the timestamp.
 - **Process restarts** (crashes, manual restart, container recreates) don't appear here. For the container install they go to `docker logs nimblegate`; for bare-metal they go to the systemd journal (`journalctl -u nimblegate-dashboard.service`, the unit name kept the v0.1.0 codename). The dashboard does emit a **`build-update`** event when the running binary's SHA differs from the prior start (formatted `build abc1234 → build d9fe903`, with `(dirty)` appended when the binary was built from a working tree with uncommitted changes), so a real version change always shows up here. A restart that loads the *same* binary is silent in events; the process log is the right place to see it.
 
-For depth: [README: Operator visibility](https://github.com/nimblegate/nimblegate/blob/main/README.md#operator-visibility).
+For depth: [Operations: operator visibility](https://nimblegate.com/docs/operations#operator-visibility).

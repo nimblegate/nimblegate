@@ -15,4 +15,4 @@ nimblegate sits between your AI agent's `git push` and your real upstream repo. 
 - The left rail collapses on narrow screens; tap the hamburger to expand.
 - Repo-scoped pages (Policy, Feed, Stats) honor the repo dropdown at the top right.
 
-For depth: [README](https://github.com/nimblegate/nimblegate/blob/main/README.md).
+For depth: [Docs](https://nimblegate.com/docs/).
