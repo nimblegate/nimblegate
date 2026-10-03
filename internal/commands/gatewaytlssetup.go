@@ -115,7 +115,7 @@ func gatewayTLSSetupWith(args []string, stdin io.Reader, stdout, stderr io.Write
 	// recipe yet.
 	if _, err := os.Stat(*unit); err != nil {
 		fmt.Fprintf(stderr, "nimblegate gateway tls-setup: dashboard unit not found at %s\n", *unit)
-		fmt.Fprintln(stderr, "  Run the LAN install steps in docs/server/SETUP-proxmox-trixie.md first.")
+		fmt.Fprintln(stderr, "  Run the LAN install steps in https://nimblegate.com/docs/server-setup-proxmox first.")
 		return 1
 	}
 

@@ -29,4 +29,4 @@ The first time a key pushes to a repo, the gateway records it as "seen". Subsequ
 - ed25519 is recommended; RSA ≥ 3072 also fine. ECDSA accepted but not recommended.
 - Set the remote URL on the agent side: `ssh://git@<host>:2222/<repo>.git`.
 
-For depth: [README: Setup](https://github.com/nimblegate/nimblegate/blob/main/README.md#setup--three-pages-one-each).
+For depth: [Quick start](https://nimblegate.com/docs/quick-start).

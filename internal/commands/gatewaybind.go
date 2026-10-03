@@ -53,7 +53,7 @@ func gatewayBindWith(args []string, stdin io.Reader, stdout, stderr io.Writer, s
 
 	if _, err := os.Stat(*unit); err != nil {
 		fmt.Fprintf(stderr, "nimblegate gateway bind: unit file not found at %s\n", *unit)
-		fmt.Fprintln(stderr, "  → if this is a fresh install, follow docs/server/SETUP-proxmox-trixie.md")
+		fmt.Fprintln(stderr, "  → if this is a fresh install, follow https://nimblegate.com/docs/server-setup-proxmox")
 		fmt.Fprintln(stderr, "  → or pass --unit with the actual path")
 		return 1
 	}

@@ -86,4 +86,4 @@ Mention section:
 - Changing `webhook_url` doesn't replay queued records. They retry against the new URL automatically on the next drain.
 - Reset Loop deletes the per-PR state file; the next push starts attempt 1/N with the default bot. It does **not** clear notifications already sent to the upstream.
 
-For depth: [docs/notifications.md](https://github.com/nimblegate/nimblegate/blob/main/docs/notifications.md) (operator guide) · [docs/adapters.md](https://github.com/nimblegate/nimblegate/blob/main/docs/adapters.md) (adapter-author guide).
+For depth: [Notifications and Auto-PR](https://nimblegate.com/docs/notifications) (operator guide) · [Upstream adapters](https://nimblegate.com/docs/adapters) (adapter-author guide).

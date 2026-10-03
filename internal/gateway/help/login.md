@@ -12,4 +12,4 @@ The gateway uses a single-admin model: one username + password protects the dash
 - Sessions live for ~12 hours; you'll be re-prompted after that.
 - The push side of the gate (SSH on port 2222) is independent of dashboard auth; agents push using SSH keys, not the admin password.
 
-For depth: [README: Install](https://github.com/nimblegate/nimblegate/blob/main/README.md#install).
+For depth: [Quick start](https://nimblegate.com/docs/quick-start).

@@ -31,7 +31,7 @@ After=network.target
 #   nimblegate gateway bind <gateway-ip>   # listen on a specific IP
 #   nimblegate gateway bind localhost      # back to loopback
 # The command rewrites this file's ExecStart, runs daemon-reload, prints
-# the restart command. See `docs/server/SECURITY-MODEL.md` for the
+# the restart command. See https://nimblegate.com/docs/server-hardening for the
 # trade-offs of each binding.
 User=git
 # The port dev boxes push to. Doctor cannot infer it - it can only see what

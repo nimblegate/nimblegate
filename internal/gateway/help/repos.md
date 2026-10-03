@@ -78,4 +78,4 @@ The CLI `gateway add` imports by default too; pass `--no-import` to register wit
 - The push path is **flat**: `<name>.git`, no `owner/` namespace. An upstream like `git@host:owner/repo.git` is just `<name>.git` on the gateway; the `owner/` prefix exists only on the upstream side.
 - First push triggers an auto-scan that recommends additional kits on [Policy](/policy).
 
-For depth: [README: Quick install](https://github.com/nimblegate/nimblegate/blob/main/README.md#quick-install).
+For depth: [Quick start](https://nimblegate.com/docs/quick-start).

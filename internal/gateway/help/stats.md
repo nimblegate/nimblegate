@@ -37,4 +37,4 @@ On both tabs, each repo's header line also shows how many **whitelist** entries 
 - Per-frame hours-per-hit can be overridden per-repo; the per-frame breakdown's `source` column shows where the value came from.
 - Whitelisting from a recurring row here and editing on [Policy → Whitelist](/policy?tab=whitelist) change the same file, so the count here updates either way.
 
-For depth: [docs/audit-analyzer.md](https://github.com/nimblegate/nimblegate/blob/main/docs/audit-analyzer.md).
+For depth: [Audit log analyzer](https://nimblegate.com/docs/audit-analyzer).

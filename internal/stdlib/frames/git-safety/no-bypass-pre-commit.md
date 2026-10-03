@@ -20,7 +20,7 @@ selection-stats:
   last-run: 2026-05-20T14:56:32Z
 ---
 
-# git-safety/no-bypass-pre-commit
+# Commits must not skip hooks with --no-verify
 
 Reject `git commit --no-verify` (and the short form `-n`). `--no-verify` is git's built-in mechanism to skip the pre-commit hook - which is exactly how nimblegate runs its pre-commit-trigger frames. Allowing silent bypass defeats the load-bearing guarantee.
 

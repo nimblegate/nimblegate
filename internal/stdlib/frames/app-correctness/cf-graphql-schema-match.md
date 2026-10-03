@@ -25,7 +25,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# app-correctness/cf-graphql-schema-match
+# Cloudflare GraphQL queries must select fields the dataset exposes
 
 Reject CF GraphQL queries that select fields the dataset doesn't expose. The two failure modes are symmetric:
 

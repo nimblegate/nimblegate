@@ -72,4 +72,4 @@ Per-tier hours-per-hit values that weight the [Stats](/stats) "time saved" estim
 - Disabling a frame doesn't remove its whitelist entries; they sit dormant until you re-enable it.
 - Custom linter names must be unique per repo; duplicate names rejected.
 
-For depth: [docs/frames.md](https://github.com/nimblegate/nimblegate/blob/main/docs/frames.md).
+For depth: [Frames and kits](https://nimblegate.com/docs/frames-guide) · [Frame reference](https://nimblegate.com/docs/frames/).

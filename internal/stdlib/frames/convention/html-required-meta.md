@@ -24,7 +24,7 @@ selection-stats:
   last-run: 2026-05-20T11:45:47Z
 ---
 
-# convention/html-required-meta
+# Every HTML page needs the required meta tags
 
 Every shipping HTML page (plain `*.html`, SvelteKit `+page.svelte` / `+layout.svelte`, Astro `*.astro`) must declare:
 

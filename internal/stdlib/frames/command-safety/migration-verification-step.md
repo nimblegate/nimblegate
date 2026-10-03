@@ -22,7 +22,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# command-safety/migration-verification-step
+# Migration scripts must verify the change after applying it
 
 Reject `apply-*-migration*` wrapper scripts that DDL-apply but never query the target afterwards to confirm the change is visible. Silent failures on the apply call (network, auth, quota, wrong env, partial batch) go undetected - the classic failure mode of a migration that "succeeded" against the local D1, prod schema never changed, every API request 500's after deploy.
 

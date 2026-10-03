@@ -34,4 +34,4 @@ For why frames vs linters exist as separate categories: see the comparison table
 - A frame's default severity (BLOCK / WARN / INFO) ships from the frame's frontmatter but can be overridden per-repo on [Policy](/policy).
 - Empty axis sub-buckets (most of Framework today) stay visible by design so the v2 axis shape is discoverable: operators see what could populate them when a frame is authored.
 
-For depth: [docs/frames.md](https://github.com/nimblegate/nimblegate/blob/main/docs/frames.md).
+For depth: [Frames and kits](https://nimblegate.com/docs/frames-guide) · [Frame reference](https://nimblegate.com/docs/frames/).

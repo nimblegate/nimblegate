@@ -38,7 +38,6 @@ func TestCurrentVersionAppearsOnlyInThePin(t *testing.T) {
 
 	for _, rel := range []string{
 		"README.md",
-		"docs/getting-started.md",
 		"docs/PUBLISHING.md",
 		".github/ISSUE_TEMPLATE/bug.yml",
 	} {

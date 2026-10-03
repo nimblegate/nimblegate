@@ -17,7 +17,7 @@ import (
 // a mistake; instances bind it to specific platforms or check logic.
 //
 // Added 2026-05-20 with the Phase 1 architecture (see
-// docs/frame-patterns.md). Patterns do not fire as gates - they're the
+// internal/stdlib/frames/patterns/). Patterns do not fire as gates - they're the
 // abstraction layer. Only instance frames have check logic.
 type PatternFrontmatter struct {
 	ID                  string   `yaml:"id"`

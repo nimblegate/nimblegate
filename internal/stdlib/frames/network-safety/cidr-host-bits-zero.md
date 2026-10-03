@@ -32,7 +32,7 @@ selection-stats:
   last-run: 2026-05-20T11:45:47Z
 ---
 
-# network-safety/cidr-host-bits-zero
+# CIDR ranges must not have host bits set
 
 Reject IPv4 CIDR strings with host bits set (e.g. `142.132.208.101/24`). Cloudflare, AWS Security Groups, GCP firewall, UFW, and Kubernetes NetworkPolicy all require the network form - Cloudflare even rejects with error code 9109 silently if the input is wrong.
 

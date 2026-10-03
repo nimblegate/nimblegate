@@ -47,4 +47,4 @@ License + project pointers:
 - Auth + password are managed via [Login](/login) / [Setup](/setup), not on the Settings page.
 - The Build SHA shown here is the running binary's, not the latest on disk. Restart the service after a swap.
 
-For depth: [README: Operator visibility](https://github.com/nimblegate/nimblegate/blob/main/README.md#operator-visibility).
+For depth: [Operations: operator visibility](https://nimblegate.com/docs/operations#operator-visibility).

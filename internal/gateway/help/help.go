@@ -172,6 +172,6 @@ func writeFragment(w http.ResponseWriter, title, body string) {
 
 func writeFallback(w http.ResponseWriter) {
 	w.Write([]byte(
-		`<header class="help-head"><h1>Help</h1><button class="help-close" aria-label="Close help">×</button></header><div class="help-body"><p>Help for this page hasn't been written yet. See <a href="https://github.com/nimblegate/nimblegate/tree/main/docs">the docs directory</a> for now.</p></div>`,
+		`<header class="help-head"><h1>Help</h1><button class="help-close" aria-label="Close help">×</button></header><div class="help-body"><p>Help for this page hasn't been written yet. See <a href="https://nimblegate.com/docs/">the docs</a> for now.</p></div>`,
 	))
 }

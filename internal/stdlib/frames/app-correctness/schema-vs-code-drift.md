@@ -26,7 +26,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# database/schema-vs-code-drift
+# Column names in code must exist in the schema
 
 Reject code that references a column name in an `UPPER_SNAKE_CASE_COLS` array when that column doesn't exist in any committed `schema.sql` or `migrations/*.sql`. Catches the wrong-migration footgun **before** the migration runs - independent of which apply script was or wasn't executed.
 

@@ -20,7 +20,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# security/cf-pages-headers-baseline
+# Cloudflare Pages _headers must set the baseline security headers
 
 When a CF Pages `_headers` file is present, surface a WARN for each missing baseline security header:
 

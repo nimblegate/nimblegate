@@ -1,6 +1,6 @@
 # Reports
 
-One-click reports built from the gate's own decision log: no agent, no API token, no query language. Pick a repo and a window, click a report, read the result. These are the same numbers an AI agent gets from the [agent stats API](https://github.com/nimblegate/nimblegate/blob/main/docs/agent-api.md), here behind your dashboard login.
+One-click reports built from the gate's own decision log: no agent, no API token, no query language. Pick a repo and a window, click a report, read the result. These are the same numbers an AI agent gets from the [agent stats API](https://nimblegate.com/docs/agent-api), here behind your dashboard login.
 
 ## Controls
 
@@ -31,4 +31,4 @@ The **filter rows** box live-filters the rows of the report currently shown: typ
 
 Reports is window-based (7 / 30 / 90 / 365 days) over the full decision log. **[Stats](/stats)** is a focused per-repo view of time-saved + recurring findings with its own windows (all-time / 24h / 7d / 30d). They overlap on "time saved" and "recurring findings"; reach for **Stats** for at-a-glance repo health, and **Reports** for ad-hoc questions across any window or across all repos.
 
-For the same data over MCP/REST: [docs/agent-api.md](https://github.com/nimblegate/nimblegate/blob/main/docs/agent-api.md).
+For the same data over MCP/REST: [Agent stats API](https://nimblegate.com/docs/agent-api).

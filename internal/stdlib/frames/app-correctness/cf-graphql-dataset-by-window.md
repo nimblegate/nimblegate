@@ -24,7 +24,7 @@ selection-stats:
   last-run: 2026-05-20T14:37:33Z
 ---
 
-# app-correctness/cf-graphql-dataset-by-window
+# Cloudflare GraphQL date ranges must fit the dataset's retention
 
 Catch Cloudflare Analytics GraphQL queries whose `datetime_geq` / `date_geq` range exceeds the queried dataset's Free-tier retention cap. CF rejects these silently - with an error that doesn't point at the dataset choice as the cause - so the first sign is usually a workflow that "just stopped working" after a date range was bumped. The typical failure mode is multiple edit + redeploy cycles to find the right dataset, because each rejection produces a different generic error that doesn't name the dataset cap as the cause.
 

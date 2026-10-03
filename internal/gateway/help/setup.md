@@ -20,4 +20,4 @@ The very first time the gateway starts with no admin user, it generates a **setu
 - The token **persists across container restarts** until consumed; log lines marked `still-pending` mean the same unclaimed token from a prior boot. A fresh token only gets generated when there are zero users AND no token file yet.
 - If you lose the password, the recovery path is to delete the auth DB so the gateway re-enters the no-users state, which generates a fresh token on next start. See [Login](/login)'s help.
 
-For depth: [README: Install](https://github.com/nimblegate/nimblegate/blob/main/README.md#install).
+For depth: [Quick start](https://nimblegate.com/docs/quick-start).
