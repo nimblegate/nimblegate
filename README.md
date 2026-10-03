@@ -43,14 +43,12 @@ TLS or a fresh VPS: **[full setup guide](https://nimblegate.com/docs/getting-sta
 
 ## How it works
 
-```
-   YOUR COMPUTER                THE GATEWAY                   THE UPSTREAM
-   (you / your agent            (nimblegate)                  (GitHub / Gitea / GitLab:
-    write + git push)                                          your real repo)
-
-   git push ──────────────────► checks your rules ─forwards─► stores the code
-   git clone ◄───────────────── serves the code
-```
+<picture>
+  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="docs/brand/how-it-works-dark-narrow.svg">
+  <source media="(max-width: 600px)" srcset="docs/brand/how-it-works-light-narrow.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/how-it-works-dark.svg">
+  <img alt="Your computer pushes over SSH to the nimblegate gateway, which checks every push against your rules. Clean pushes are forwarded byte for byte to your git host; pushes that break a rule are rejected with the rule, file and line." src="docs/brand/how-it-works-light.svg" width="100%">
+</picture>
 
 - **Your computer only talks to the gateway.** You push to it and clone from it,
   never the upstream directly.

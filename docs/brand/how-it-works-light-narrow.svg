@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 612" width="420" height="612" role="img" aria-labelledby="t d">
+<title id="t">How nimblegate works</title>
+<desc id="d">Your computer, where you and your AI agent write code, pushes over SSH to the nimblegate gateway. The gateway checks every push against your rules. Clean pushes are forwarded byte for byte over HTTPS to your real git host (GitHub, Gitea or GitLab). Pushes that break a rule are rejected with the rule, file and line, and never reach the git host. Your computer clones and fetches from the gateway.</desc>
+<rect width="420" height="612" rx="16" fill="#ffffff"/>
+<rect x="40" y="24" width="270" height="112" rx="14" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="175" y="50" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#59636e" text-anchor="middle">YOUR COMPUTER</text>
+<text x="175" y="76" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="17" font-weight="650" fill="#1f2328" text-anchor="middle">You + your AI agent</text>
+<text x="175" y="98" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#59636e" text-anchor="middle">Claude Code, Cursor, Copilot...</text>
+<text x="175" y="122" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="14" font-weight="600" fill="#0969da" text-anchor="middle">git push</text>
+<line x1="135" y1="140" x2="135" y2="214" stroke="#0969da" stroke-width="2.4"/><path d="M135,214 l-6,-10 h12 z" fill="#0969da"/>
+<text x="125" y="182" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="#0969da" text-anchor="end">push (SSH)</text>
+<line x1="215" y1="214" x2="215" y2="140" stroke="#59636e" stroke-width="2.4" stroke-dasharray="6 5"/><path d="M215,140 l-6,10 h12 z" fill="#59636e"/>
+<text x="225" y="182" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#59636e" text-anchor="start">clone, fetch</text>
+<rect x="34" y="218" width="282" height="136" rx="14" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+<text x="175" y="246" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#0969da" text-anchor="middle">THE GATEWAY</text>
+<text x="175" y="276" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="22" font-weight="700" fill="#1f2328" text-anchor="middle">nimblegate</text>
+<text x="175" y="300" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#59636e" text-anchor="middle">checks every push against your rules</text>
+<rect x="83" y="316" width="184" height="26" rx="13" fill="#eef1f4" stroke="#d0d7de" stroke-width="1"/>
+<text x="175" y="334" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="500" fill="#1f2328" text-anchor="middle">same answer, every time</text>
+<line x1="175" y1="358" x2="175" y2="440" stroke="#1a7f37" stroke-width="2.4"/><path d="M175,440 l-6,-10 h12 z" fill="#1a7f37"/>
+<text x="187" y="392" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="start">clean: forwarded</text>
+<text x="187" y="410" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#59636e" text-anchor="start">byte for byte (HTTPS)</text>
+<rect x="40" y="444" width="270" height="116" rx="14" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="175" y="470" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#59636e" text-anchor="middle">YOUR GIT HOST</text>
+<text x="175" y="496" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="17" font-weight="650" fill="#1f2328" text-anchor="middle">Your real repo</text>
+<text x="175" y="518" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#59636e" text-anchor="middle">GitHub, Gitea, GitLab...</text>
+<text x="175" y="544" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="14" font-weight="600" fill="#1a7f37" text-anchor="middle">only clean code</text>
+<text x="175" y="586" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="400" fill="#59636e" text-anchor="middle">never sees a rejected push</text>
+<path d="M316,286 H356 V80 H322" fill="none" stroke="#cf222e" stroke-width="2.4"/>
+<path d="M314,80 l10,-6 v12 z" fill="#cf222e"/>
+<text x="372" y="183" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="#cf222e" text-anchor="middle" transform="rotate(90 372 183)">rejected: rule, file, line</text>
+</svg>
