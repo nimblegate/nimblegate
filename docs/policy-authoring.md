@@ -8,6 +8,7 @@ each category catches, severity, tiers) see [`docs/frames.md`](frames.md).
 ## Contents
 
 - [Selecting frames](#selecting-frames)
+- [Observe or enforce](#observe-or-enforce)
 - [Custom rules (linters)](#custom-rules-linters)
 - [How this differs from your normal linters](#how-this-differs-from-your-normal-linters)
 - [Tests: how nimblegate fits with your test suite](#tests-how-nimblegate-fits-with-your-test-suite)
@@ -76,6 +77,26 @@ You don't edit this file directly; the dashboard does. (If you run the
 `nimblegate` CLI locally against your own repo *without* the gateway, the same
 shape lives at `appframes.toml` in your repo root, manipulated by
 `nimblegate kits apply <name>` / `nimblegate frames enable <id>`.)
+
+---
+
+## Observe or enforce
+
+Frames decide *what* is checked. The repo's mode decides what happens to a
+BLOCK finding. Switch it with **Switch to observe** / **Switch to enforce** on
+the repo's row on the **Repos** page; it takes effect on the next push.
+
+| | Enforce (default) | Observe |
+|---|---|---|
+| **BLOCK finding** | push **rejected** | recorded, push **relayed** |
+| **Pusher / agent sees** | the findings and `push rejected` | **nothing**, the output is silent |
+| **Operator sees** | dashboard and audit log | dashboard and audit log (with a banner) |
+| **Acts as a guardrail?** | **yes** | **no**, advisory only |
+| **Use it for** | day-to-day protection | trying new frames, measuring an agent |
+
+Observe mode is silent on purpose, so an agent can't adapt to the gate while
+you measure it. It is not a safety net: a leaked credential or a `curl | sh` is
+logged and let through.
 
 ---
 

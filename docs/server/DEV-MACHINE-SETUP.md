@@ -20,7 +20,7 @@ The threat is mundane: a credential left in `~/.git-credentials` from before nim
 
 ## From-scratch setup
 
-Assumes nimblegate is already running on a separate host (see [`README.md`](../../README.md) "Quick start").
+Assumes nimblegate is already running on a separate host (see the [Quick start](../quick-start.md)).
 
 ### 1. Generate one SSH keypair, never to be registered upstream
 
@@ -279,4 +279,4 @@ If keys default to bare `<user>@<host>` (no role suffix), the same `sed` will ma
 ## Related
 
 - [`SECURITY-MODEL.md`](SECURITY-MODEL.md): gateway-side hardening, threat model, quarterly verification.
-- [`../../README.md`](../../README.md): the short version of dev-machine setup is in "Quick start".
+- [Quick start](../quick-start.md): the short version of the whole setup.

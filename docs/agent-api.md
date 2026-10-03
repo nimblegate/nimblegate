@@ -171,7 +171,7 @@ Observe mode is silent to the pushing client by design, so this report-side
 banner is the operator's signal that the gate is advisory-only for that repo.
 A BLOCK-severity finding was recorded but the push was relayed, not
 rejected. The flag is read fresh from the repo's `gateway.toml` per request.
-See [What it catches and how it acts](../README.md#what-it-catches-and-how-it-acts).
+See [Observe or enforce](policy-authoring.md#observe-or-enforce).
 
 **Rate limiting.** The agent API enforces 60 requests per minute per token.
 Requests over the limit receive a `429 Too Many Requests` response with a

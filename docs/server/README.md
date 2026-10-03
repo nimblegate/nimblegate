@@ -373,7 +373,7 @@ journalctl -u nimblegate-dashboard.service -n 50 | grep nbg-setup
 
 Open `http://<gateway>:7900/setup`, paste the token, pick a fresh username + password (8+ characters). The token is single-use: once you claim it, `/setup` 404s.
 
-The container variant has the same recovery with `docker exec` in front; see the top-level [`README.md`](../../README.md) "Forgot your password?" block. Email-based password reset is on the commercial roadmap for the multi-user tier.
+The container variant has the same recovery with `docker exec` in front; see [Forgot the admin password](../operations.md#forgot-the-admin-password). Email-based password reset is on the commercial roadmap for the multi-user tier.
 
 ---
 

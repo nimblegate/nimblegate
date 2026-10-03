@@ -11,7 +11,7 @@ post findings as pull request comments. Give it nothing wider.
 | GitHub, fine-grained token | Contents: Read and write | add Pull requests: Read, Issues: Read and write |
 | GitHub, classic token | `repo` | `repo` (covers both) |
 | Gitea | `write:repository` | add `read:repository`, `write:issue` |
-| GitLab | `write_repository` | `api` (no narrower scope allows MR comments) |
+| GitLab | `write_repository` | Auto-PR comments are GitHub and Gitea only for now |
 
 A GitHub fine-grained token is limited to the repos you pick, so it's the
 tightest choice. PR comments use GitHub's Issues API, hence the Issues

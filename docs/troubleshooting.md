@@ -102,6 +102,6 @@ runuser -u git -- git -C <repos-root>/<repo>.git symbolic-ref HEAD refs/heads/ma
 Not a bug: the repo is in **observe mode** (`observe = true`). It records
 findings, including BLOCK-severity ones, but relays every push and stays silent
 to the client by design. See
-[What it catches and how it acts](../README.md#what-it-catches-and-how-it-acts). Any per-repo
+[Observe or enforce](policy-authoring.md#observe-or-enforce). Any per-repo
 report leads with an `⚠ OBSERVE MODE` banner so the state is visible to the
 operator; flip `observe = false` to enforce.
