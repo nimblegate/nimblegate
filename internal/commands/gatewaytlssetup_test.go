@@ -118,7 +118,7 @@ func TestGatewayTLSSetup_unitMissingStops(t *testing.T) {
 	if rc != 1 {
 		t.Errorf("rc = %d; want 1 (dashboard unit missing)", rc)
 	}
-	if !strings.Contains(stderr.String(), "SETUP-proxmox-trixie") {
+	if !strings.Contains(stderr.String(), "server-setup-proxmox") {
 		t.Errorf("expected LAN-install hint; got: %s", stderr.String())
 	}
 }

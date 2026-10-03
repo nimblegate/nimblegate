@@ -36,7 +36,7 @@ type InstallProfile struct {
 	// HasRelayBackstop says whether this shape ships a reconcile backstop at
 	// all. False suppresses the check rather than reporting a service that does
 	// not exist here. No remediation travels with it: starting the backstop
-	// needs the relay user provisioned first (docs/server/README.md), so a
+	// needs the relay user provisioned first (https://nimblegate.com/docs/server), so a
 	// one-line command would be advice that does not work.
 	HasRelayBackstop bool
 
@@ -80,7 +80,7 @@ var ProfileContainer = InstallProfile{
 	DefaultPushPort: 2222,
 }
 
-// ProfileBareMetal is the systemd install from docs/server/README.md: the host
+// ProfileBareMetal is the systemd install from https://nimblegate.com/docs/server: the host
 // sshd reads /home/git/.ssh/authorized_keys, and nimblegate-relay.service is
 // the privilege-separated relay plus reconcile backstop.
 var ProfileBareMetal = InstallProfile{

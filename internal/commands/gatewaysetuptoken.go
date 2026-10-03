@@ -33,7 +33,7 @@ func gatewaySetupToken(args []string) int {
 	if !present {
 		fmt.Fprintln(os.Stderr, "No pending setup token. Either the admin login is already claimed,")
 		fmt.Fprintln(os.Stderr, "or the dashboard hasn't started yet (it writes the token on first start).")
-		fmt.Fprintln(os.Stderr, "To reset a lost admin login, see docs/server/README.md § Recover.")
+		fmt.Fprintln(os.Stderr, "To reset a lost admin login, see https://nimblegate.com/docs/operations#forgot-the-admin-password")
 		return 1
 	}
 	fmt.Println(tok)

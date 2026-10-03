@@ -9,7 +9,7 @@ After=network.target
 # be able to read it. The git-side post-receive hook hands a credential-free job
 # to this service over the Unix socket below; this service performs the push.
 #
-# Prerequisites (see docs/server/SECURITY-MODEL.md "Privilege-separated relay"):
+# Prerequisites (see https://nimblegate.com/docs/server-hardening#privilege-separated-upstream-relay):
 #   * Users: `nbg-relay` (this service) and `git` (receives pushes), plus a
 #     shared group both belong to - passed as --socket-group so git may connect.
 #   * Per-repo credential at <policy-root>/<repo>/credential owned nbg-relay:0600

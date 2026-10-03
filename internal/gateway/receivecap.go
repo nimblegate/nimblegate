@@ -19,7 +19,7 @@ import (
 // rather than raise this cap; LFS bypasses git's pack mechanism so the
 // gateway only receives small pointer files regardless of binary size.
 // (Note that LFS uploads bypass the gateway entirely - see
-// docs/server/SECURITY-MODEL.md "Git LFS interaction" for the trade-off.)
+// https://nimblegate.com/docs/server-hardening#git-lfs-interaction for the trade-off.)
 const DefaultReceiveMaxInputSize = "500m"
 
 // receiveCapPattern validates the size string format git's config parser

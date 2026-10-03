@@ -13,10 +13,10 @@ What's here:
   loopback, sshd on 2222 all-interfaces).
 - `nimblegate-dashboard.service` - systemd unit for **bare-metal** deploys
   (no Docker). Pairs with the install-on-Debian guide in
-  [`docs/server/README.md`](../../docs/server/README.md).
+  the [server guide](https://nimblegate.com/docs/server).
 
-The full server guide - deploy, update, operate, and the security model - lives
-in [`docs/server/README.md`](../../docs/server/README.md). Read that first.
+The full server guide - deploy, update, operate, and the security model - is at
+[nimblegate.com/docs/server](https://nimblegate.com/docs/server). Read that first.
 
 Quick start:
 
