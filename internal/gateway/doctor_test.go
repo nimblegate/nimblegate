@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -852,5 +853,28 @@ func TestRunDoctorUpstreamCheck(t *testing.T) {
 	ctr := RunDoctor(DoctorConfig{PolicyRoot: policyRoot, ReposRoot: reposRoot, Host: "gw", Offline: true, Profile: ProfileContainer})
 	if s := conn(ctr, "ssh"); s.UpstreamCheck != "git ls-remote git@github.com:x/ssh.git HEAD" {
 		t.Errorf("container: got %q", s.UpstreamCheck)
+	}
+}
+
+func TestDoctorCheckObjectValidation(t *testing.T) {
+	bare := filepath.Join(t.TempDir(), "x.git")
+	if out, err := exec.Command("git", "init", "-q", "--bare", bare).CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	var got []DoctorCheck
+	add := func(c DoctorCheck) { got = append(got, c) }
+
+	doctorCheckObjectValidation(add, "x", bare)
+	if len(got) != 1 || got[0].Status != DoctorWarn || !strings.Contains(got[0].Fix, "receive.fsckObjects true") {
+		t.Fatalf("validation off: want a WARN with the fix, got %+v", got)
+	}
+
+	if out, err := exec.Command("git", "-C", bare, "config", "receive.fsckObjects", "true").CombinedOutput(); err != nil {
+		t.Fatalf("git config: %v\n%s", err, out)
+	}
+	got = nil
+	doctorCheckObjectValidation(add, "x", bare)
+	if len(got) != 1 || got[0].Status != DoctorOK {
+		t.Fatalf("validation on: want OK, got %+v", got)
 	}
 }

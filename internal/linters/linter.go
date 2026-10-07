@@ -53,11 +53,40 @@ func resolveOutcome(severity string) engine.CheckOutcome {
 	}
 }
 
+// repoCodeLinters run code that ships with the project they scan: eslint
+// loads its JavaScript config from the tree and prefers the tree's own
+// node_modules/.bin/eslint; go vet can download the toolchain the tree's go.mod
+// names and runs the C compiler on cgo files.
+var repoCodeLinters = map[string]bool{"eslint": true, "go-vet": true}
+
+// ExecutesRepoCode reports whether the named built-in linter runs code that
+// comes from the project it scans.
+func ExecutesRepoCode(name string) bool { return repoCodeLinters[name] }
+
+// IsBuiltin reports whether name is a built-in linter's name.
+func IsBuiltin(name string) bool {
+	_, ok := builtins[name]
+	return ok
+}
+
 // RunEnabled runs every enabled [linters.<name>] and returns their results plus
 // the frame IDs that ran (check.go unions these into the known-frame-ID set so
-// whitelist entries for linter findings validate). Built-in name → built-in
-// adapter; any other name → a config-driven custom linter. Deterministic order.
+// whitelist entries for linter findings validate). A regex linter is always a
+// regex linter, whatever its name; otherwise a built-in name gets the built-in
+// adapter and any other name a config-driven custom linter. Deterministic order.
 func RunEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string) (results []engine.CheckResult, ranIDs []string) {
+	return runEnabled(lc, projectRoot, excludedDirs, false)
+}
+
+// RunEnabledUntrusted is RunEnabled for a tree its caller does not trust, such
+// as a push the gateway is checking. Linters that execute code from the tree
+// never run (each yields a SKIP saying why), and a custom linter's command must
+// be found on PATH or given as an absolute path, never as a path into the tree.
+func RunEnabledUntrusted(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string) (results []engine.CheckResult, ranIDs []string) {
+	return runEnabled(lc, projectRoot, excludedDirs, true)
+}
+
+func runEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string, untrusted bool) (results []engine.CheckResult, ranIDs []string) {
 	names := make([]string, 0, len(lc))
 	for name := range lc {
 		names = append(names, name)
@@ -68,12 +97,25 @@ func RunEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedD
 		if !cfg.Enabled {
 			continue
 		}
-		lint, ok := builtins[name]
-		if !ok {
-			if cfg.Kind == "regex" {
-				lint = regexLinter{name: name}
-			} else {
-				lint = customLinter{name: name}
+		var lint Linter
+		switch b, ok := builtins[name]; {
+		case cfg.Kind == "regex":
+			lint = regexLinter{name: name}
+		case ok:
+			lint = b
+		default:
+			lint = customLinter{name: name}
+		}
+		if untrusted {
+			if _, isRegex := lint.(regexLinter); !isRegex && ExecutesRepoCode(name) {
+				results = append(results, skipResult(lint.ID(), name+": not run at the gateway (it executes code from the pushed tree)"))
+				ranIDs = append(ranIDs, lint.ID())
+				continue
+			}
+			if _, isCustom := lint.(customLinter); isCustom && strings.ContainsRune(cfg.Command, filepath.Separator) && !filepath.IsAbs(cfg.Command) {
+				results = append(results, skipResult(lint.ID(), name+": not run at the gateway (command "+cfg.Command+" points into the pushed tree; use a command on PATH or an absolute path)"))
+				ranIDs = append(ranIDs, lint.ID())
+				continue
 			}
 		}
 		results = append(results, lint.Run(projectRoot, cfg, excludedDirs))

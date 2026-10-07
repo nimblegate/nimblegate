@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"nimblegate/internal/engine"
@@ -233,5 +234,37 @@ func TestGatewayRescan_CLI(t *testing.T) {
 	evs, _ := gateway.ReadEvents(policyRoot, func(e gateway.Event) bool { return e.Event == "scan-rescan" })
 	if len(evs) != 1 {
 		t.Fatalf("event: %+v", evs)
+	}
+}
+
+// A push can carry its own node_modules/.bin/eslint. The gateway scan must
+// never run it, even when the repo's gateway policy enables the eslint linter.
+func TestEngineChecker_neverRunsPushedESLint(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "ran")
+	root := writeTree(t, map[string]string{
+		"appframes.toml":           "[frames]\nenabled = [\"commands/curl-pipe-shell\"]\n\n[linters.eslint]\nenabled = true\n",
+		"node_modules/.bin/eslint": "#!/bin/sh\ntouch " + marker + "\necho '[]'\n",
+	})
+	if err := os.Chmod(filepath.Join(root, "node_modules", ".bin", "eslint"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	res, _, err := engineChecker{}.Check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("the gateway scan executed the pushed node_modules/.bin/eslint")
+	}
+	found := false
+	for _, r := range res {
+		if strings.HasSuffix(r.FrameID, "/eslint") {
+			found = true
+			if r.Outcome != engine.OutcomeSkip || !strings.Contains(r.Reason, "not run at the gateway") {
+				t.Errorf("eslint result: %v %q; want a SKIP saying it is not run at the gateway", r.Outcome, r.Reason)
+			}
+		}
+	}
+	if !found {
+		t.Error("no eslint result; the SKIP should be visible in the scan results")
 	}
 }
