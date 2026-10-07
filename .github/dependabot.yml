@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Keeps the digest-pinned base images (Dockerfile) and the release workflow's
+# actions current. Go module updates are reviewed by hand with the security scan.
+# GitHub is a mirror: apply a Dependabot change in the source repo, then close
+# the PR here; the next sync brings the change back.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

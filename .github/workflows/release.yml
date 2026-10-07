@@ -8,6 +8,8 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write      # signing for build-provenance attestations
+  attestations: write
 
 jobs:
   binaries:
@@ -35,6 +37,13 @@ jobs:
           args: release --clean --release-notes=${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Signed build provenance for the release archives and checksums.
+      # Verify a download: gh attestation verify <file> --repo nimblegate/nimblegate
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/checksums.txt
 
   # Only after the binaries and release page exist, so a failed release never
   # leaves an image (and a moved :latest) behind.
@@ -66,7 +75,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
-      - uses: docker/build-push-action@v6
+      - id: push
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -74,3 +84,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ github.ref_name }}-${{ steps.vars.outputs.sha_short }}
+      # Signed build provenance for the image, stored with it in the registry.
+      # Verify: gh attestation verify oci://ghcr.io/nimblegate/nimblegate:<version> --repo nimblegate/nimblegate
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/nimblegate/nimblegate
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
