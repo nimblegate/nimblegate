@@ -60,7 +60,7 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 		IgnorePath:   e.IgnorePathFunc(),
 	}
 	results := engine.Run(e.Registry, ctx)
-	lintResults, _ := linters.RunEnabled(e.ProjectConfig.Linters, root, e.ExcludedDirs())
+	lintResults, _ := linters.RunEnabledUntrusted(e.ProjectConfig.Linters, root, e.ExcludedDirs())
 	results = append(results, lintResults...)
 
 	// Apply the gateway-held whitelist (overlaid into the tree at

@@ -76,6 +76,14 @@ func AddRepo(o AddOptions) error {
 		return fmt.Errorf("apply receive cap: %w", err)
 	}
 
+	// git rejects malformed incoming objects (trees with ".git" or ".."
+	// entries, full path names) before pre-receive runs.
+	if out, err := gitBare(libBare, "config", "receive.fsckObjects", "true").CombinedOutput(); err != nil {
+		_ = os.RemoveAll(libPolicy)
+		_ = os.RemoveAll(libBare)
+		return fmt.Errorf("enable receive.fsckObjects: %w\n%s", err, out)
+	}
+
 	// Write gateway.toml directly into the lib path (bypassing
 	// FilePolicyStore.Save, which would resolve through the not-yet-existing
 	// activation symlink).

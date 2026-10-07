@@ -5,6 +5,35 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-10-08
+
+### Security
+
+- **The gateway no longer runs linters that execute code from a push.** With
+  the `eslint` linter enabled in a repo's gateway policy, a push could include
+  its own `node_modules/.bin/eslint`, which the gateway ran during the scan;
+  eslint also loads the repo's JavaScript config, and `go-vet` can fetch the
+  toolchain a pushed `go.mod` names. Both are now always skipped at the gateway
+  (the scan shows why), `gateway doctor` warns about policies that still list
+  them, and the dashboard refuses check names that belong to built-in linters.
+  A custom linter's command must be on PATH or absolute at the gateway, never a
+  path inside the push. Local `nimblegate check` is unchanged. If you enabled
+  eslint or go-vet for a gateway repo, update.
+- **Git validates pushed objects** (`receive.fsckObjects`) for new repos, so
+  malformed trees, such as entries named `.git` or `..`, are refused before the
+  scan. `gateway doctor` shows the fix for existing repos.
+
+### Changed
+
+- **Verifiable releases.** Release archives, `checksums.txt` and the container
+  image carry signed build-provenance attestations; check a download with
+  `gh attestation verify <file> --repo nimblegate/nimblegate` (see SECURITY.md).
+- **Container base images** are pinned by digest, the runtime moves to Alpine
+  3.24 (3.20 is out of support), and the s6-overlay downloads are checked
+  against their published SHA-256.
+- **SECURITY.md** describes what the gateway stores, what it discards and
+  every outbound connection; the GitHub ZIP download extracts without errors.
+
 ## [0.6.1] - 2026-10-04
 
 ### Added

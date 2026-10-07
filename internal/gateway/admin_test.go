@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -561,5 +562,19 @@ func TestAddRepo_rejectsNamesThatEscapeTheRoots(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "escape")); err == nil {
 		t.Error("a rejected name still created a path outside the roots")
+	}
+}
+
+func TestAddRepo_enablesObjectValidation(t *testing.T) {
+	reposRoot := t.TempDir()
+	if err := AddRepo(AddOptions{
+		Name: "demo", UpstreamURL: "file:///tmp/whatever.git", ProtectedRefs: []string{"refs/heads/main"},
+		Enabled: true, PolicyRoot: t.TempDir(), ReposRoot: reposRoot, SelfExe: "/usr/local/bin/nimblegate",
+	}); err != nil {
+		t.Fatalf("AddRepo: %v", err)
+	}
+	out, err := exec.Command("git", "-C", filepath.Join(reposRoot, "demo.git"), "config", "--bool", "receive.fsckObjects").Output()
+	if err != nil || strings.TrimSpace(string(out)) != "true" {
+		t.Fatalf("receive.fsckObjects = %q (%v); want true", strings.TrimSpace(string(out)), err)
 	}
 }
