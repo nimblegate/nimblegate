@@ -371,6 +371,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	} else {
 		add(DoctorCheck{Repo: name, Name: "Bare repo", Status: DoctorOK, Reason: barePath})
 		doctorCheckRelayAccess(add, cfg, name, barePath)
+		doctorCheckObjectValidation(add, name, barePath)
 		connIdx = len(rep.Repos)
 		rep.Repos = append(rep.Repos, DoctorRepoConn{
 			Name: name,
@@ -506,6 +507,21 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorInfo, Reason: "no whitelist; nothing is suppressed"})
 		default:
 			add(DoctorCheck{Repo: name, Name: "Whitelist", Status: DoctorOK, Reason: fmt.Sprintf("loads, %d %s, every one naming a real frame", entries, plural(entries, "entry", "entries"))})
+		}
+	}
+
+	if lp, err := LoadLinterPolicy(cfg.PolicyRoot, name); err == nil {
+		var ignored []string
+		for ln, c := range lp.Linters {
+			if c.Enabled && c.Kind != "regex" && linters.ExecutesRepoCode(ln) {
+				ignored = append(ignored, ln)
+			}
+		}
+		sort.Strings(ignored)
+		if len(ignored) > 0 {
+			add(DoctorCheck{Repo: name, Name: "Linters", Status: DoctorWarn,
+				Reason: strings.Join(ignored, ", ") + " enabled but never run at the gateway: they execute code from the pushed tree",
+				Fix:    "remove them from " + framePolicyPath(cfg.PolicyRoot, name) + "; run them on dev machines or in CI instead"})
 		}
 	}
 
@@ -708,4 +724,19 @@ func relayFailCheck(cfg DoctorConfig, repo, upstream, errText, reason, fix strin
 		Reason: fmt.Sprintf("the upstream refused the push to %s because it has commits the gateway does not: someone pushed to it directly, or history was rewritten through the gateway", branch),
 		Fix:    fix,
 	}
+}
+
+// doctorCheckObjectValidation reports whether git validates incoming objects
+// for the repo (receive.fsckObjects). Without it a push can store malformed
+// trees, such as entries named ".git" or "..", on the gateway; the scan then
+// fails on them, which rejects the push only in enforce mode.
+func doctorCheckObjectValidation(add func(DoctorCheck), name, barePath string) {
+	out, _ := gitBare(barePath, "config", "--bool", "receive.fsckObjects").Output()
+	if strings.TrimSpace(string(out)) == "true" {
+		add(DoctorCheck{Repo: name, Name: "Object validation", Status: DoctorOK, Reason: "receive.fsckObjects on: git rejects malformed objects before the gate runs"})
+		return
+	}
+	add(DoctorCheck{Repo: name, Name: "Object validation", Status: DoctorWarn,
+		Reason: "receive.fsckObjects is off: malformed pushed trees reach the scan instead of being refused by git",
+		Fix:    "as the repo's owner: git -C " + barePath + " config receive.fsckObjects true (new repos get it at registration)"})
 }

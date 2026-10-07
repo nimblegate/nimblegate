@@ -191,6 +191,10 @@ func (h authoringHandlers) add(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid name (use a-z 0-9 -)", http.StatusBadRequest)
 		return
 	}
+	if linters.IsBuiltin(name) {
+		http.Error(w, "that name belongs to a built-in linter; choose another", http.StatusBadRequest)
+		return
+	}
 	if !validSev[sev] {
 		http.Error(w, "invalid severity", http.StatusBadRequest)
 		return

@@ -3,9 +3,12 @@
 package gateway
 
 import (
+	"bytes"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"nimblegate/internal/scanignore"
@@ -145,5 +148,78 @@ func TestMaterializeTreeAndOverlay(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dest, "appframes.toml")); err != nil {
 		t.Errorf("expected overlaid appframes.toml: %v", err)
+	}
+}
+
+// writeRawTree stores a tree object byte for byte, bypassing the checks git
+// applies when it builds trees itself - the way a hostile client can.
+func writeRawTree(t *testing.T, bare string, entries [][3]string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	for _, e := range entries {
+		raw, err := hex.DecodeString(e[2])
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf.WriteString(e[0] + " " + e[1] + "\x00")
+		buf.Write(raw)
+	}
+	c := exec.Command("git", "--git-dir", bare, "hash-object", "-t", "tree", "-w", "--stdin", "--literally")
+	c.Stdin = &buf
+	out, err := c.Output()
+	if err != nil {
+		t.Fatalf("hash-object: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// Trees no honest git client produces must not let the scan write outside its
+// directory or read the gateway's files. receive.fsckObjects refuses them at
+// the door; materializeTree is the second line for repos registered before it.
+func TestMaterializeTree_hostileTreesStayInside(t *testing.T) {
+	bare, _ := makeBareWithCommit(t)
+	blob := func(s string) string {
+		c := exec.Command("git", "--git-dir", bare, "hash-object", "-w", "--stdin")
+		c.Stdin = strings.NewReader(s)
+		out, err := c.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	evil := blob("evil\n")
+	gitCfg := blob("[core]\n\tfsmonitor = touch /tmp/nimblegate-should-never-exist\n")
+	inner := writeRawTree(t, bare, [][3]string{{"100644", "config", gitCfg}})
+	escape := writeRawTree(t, bare, [][3]string{{"100644", "escaped.txt", evil}})
+	cases := map[string][][3]string{
+		"dot git":      {{"40000", ".git", inner}, {"100644", "a.txt", evil}},
+		"dot dot":      {{"40000", "..", escape}, {"100644", "a.txt", evil}},
+		"path in name": {{"100644", "x/../../escaped.txt", evil}},
+	}
+	for name, entries := range cases {
+		t.Run(name, func(t *testing.T) {
+			tree := writeRawTree(t, bare, entries)
+			c := exec.Command("git", "--git-dir", bare, "commit-tree", tree, "-m", name)
+			c.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+			out, err := c.Output()
+			if err != nil {
+				t.Fatalf("commit-tree: %v", err)
+			}
+			parent := t.TempDir()
+			dest := filepath.Join(parent, "scan")
+			if err := os.Mkdir(dest, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := materializeTree(bare, strings.TrimSpace(string(out)), dest, 0); err == nil {
+				t.Error("materializeTree accepted a tree with a forbidden path; the scan must fail")
+			}
+			left, _ := os.ReadDir(parent)
+			if len(left) != 1 {
+				t.Errorf("files appeared next to the scan dir: %v", left)
+			}
+			if _, err := os.Stat(filepath.Join(dest, ".git")); err == nil {
+				t.Error("a .git directory from the push was unpacked into the scan dir")
+			}
+		})
 	}
 }
