@@ -62,14 +62,19 @@ RUN apk add --no-cache openssh-server git ca-certificates \
  && chown -h git:git /home/git
 
 # Install s6-overlay v3. Multi-arch via TARGETARCH (set by buildkit).
+# The SHA-256 values are the release's published checksums for
+# S6_OVERLAY_VERSION; update them together with the version.
 RUN set -eu \
  && case "${TARGETARCH:-amd64}" in \
-      amd64)  S6_ARCH=x86_64 ;; \
-      arm64)  S6_ARCH=aarch64 ;; \
+      amd64)  S6_ARCH=x86_64;  S6_ARCH_SHA256=59289456ab1761e277bd456a95e737c06b03ede99158beb24f12b165a904f478 ;; \
+      arm64)  S6_ARCH=aarch64; S6_ARCH_SHA256=8b22a2eaca4bf0b27a43d36e65c89d2701738f628d1abd0cea5569619f66f785 ;; \
       *)      echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
+ && S6_NOARCH_SHA256=6dbcde158a3e78b9bb141d7bcb5ccb421e563523babbe2c64470e76f4fd02dae \
  && wget -qO /tmp/s6-noarch.tar.xz "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
  && wget -qO /tmp/s6-arch.tar.xz   "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \
+ && echo "${S6_NOARCH_SHA256}  /tmp/s6-noarch.tar.xz" | sha256sum -c - \
+ && echo "${S6_ARCH_SHA256}  /tmp/s6-arch.tar.xz" | sha256sum -c - \
  && tar -C / -Jxpf /tmp/s6-noarch.tar.xz \
  && tar -C / -Jxpf /tmp/s6-arch.tar.xz \
  && rm -f /tmp/s6-noarch.tar.xz /tmp/s6-arch.tar.xz

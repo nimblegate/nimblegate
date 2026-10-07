@@ -22,12 +22,44 @@ for verified vulnerabilities. Acknowledgement in `SECURITY.md` if you'd like
 The latest minor release is supported. Older versions receive security
 patches on a best-effort basis.
 
-## Threat model
+## Threat model and hardening
 
-See `docs/THREAT-MODEL.md` (coming) for the explicit boundaries the project
-guards and the ones it deliberately does not (e.g., "nimblegate is not a
-sandbox against an adversarial agent with write access to its own install
-directory").
+What nimblegate defends against, its trust boundaries and the attack scenarios
+it was designed around: [security model](https://nimblegate.com/docs/security-model).
+How to deploy the gateway so it is a real boundary (separate host, git-shell
+only, the privilege-separated relay that keeps the upstream credential from the
+`git` user, outbound firewall): [hardening the gateway](https://nimblegate.com/docs/server-hardening)
+and [dev machine setup](https://nimblegate.com/docs/dev-machine-setup).
+
+One boundary stated plainly: nimblegate is not a sandbox against an agent that
+can write to the gateway's own installation, configuration or host. Run it on a
+machine the agent cannot reach.
+
+## Data handling
+
+What the gateway keeps, what it discards, and what leaves the machine.
+
+- **Repositories.** The gateway is a git server: accepted pushes are stored in
+  its bare repositories, like on any git host, and forwarded to your upstream.
+- **Rejected pushes.** Git receives a push into a quarantine area and discards
+  those objects when the pre-receive check rejects it; they are not added to the
+  gateway's repository and never reach the upstream.
+- **Scan copies.** Each checked push is unpacked into a temporary directory,
+  which is deleted when the check finishes.
+- **Audit log.** One line per push decision: time, repository, refs, old and new
+  commit, accept or reject, the findings (rule id, severity, file and line, a
+  short description) and, for overlapping branches, the shared file names. A
+  description can quote the matched text for ordinary rules (for example the
+  path in an `rm -rf`), but secret values found by the credential, private-key,
+  kubeconfig and personal-data rules are redacted: only their location and kind
+  are recorded. Files themselves are not copied into the log.
+- **Other local files.** Per-repo policy and whitelist, an events log of
+  configuration changes, and the dashboard's login database.
+- **Outbound connections.** Only to your configured upstream (pushing accepted
+  commits; fetching history when a repo is registered or synced; reading pull
+  requests and posting Auto-PR comments when notifications are on) and to webhook
+  URLs and external linters you configure yourself. No telemetry, update checks,
+  licence checks or crash reports. See also [PRIVACY.md](PRIVACY.md).
 
 ## Test fixtures and static-analysis findings
 
