@@ -61,6 +61,21 @@ What the gateway keeps, what it discards, and what leaves the machine.
   URLs and external linters you configure yourself. No telemetry, update checks,
   licence checks or crash reports. See also [PRIVACY.md](PRIVACY.md).
 
+## Verifying a release
+
+Every release archive, its `checksums.txt` and the container image carry a
+signed build-provenance attestation from the release workflow (from the first
+release after 0.6.1). To check that a download was built from this repository:
+
+```sh
+sha256sum -c checksums.txt --ignore-missing
+gh attestation verify nimblegate_<version>_linux_amd64.tar.gz --repo nimblegate/nimblegate
+gh attestation verify oci://ghcr.io/nimblegate/nimblegate:<version> --repo nimblegate/nimblegate
+```
+
+The container's base images are pinned by digest in the `Dockerfile`, and the
+s6-overlay downloads are checked against their published SHA-256.
+
 ## Test fixtures and static-analysis findings
 
 nimblegate's whole job is to detect insecure patterns, so its test fixtures and
