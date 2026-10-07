@@ -1,1 +1,51 @@
-../../docs/server/appframes-whitelist.toml
+# nimblegate's whitelist. Used by local `nimblegate check`, and the copy the
+# gateway holds for this repo, in its policy dir at
+# .appframes/_canonical/whitelist.toml (overlayPolicy copies the policy dir's
+# .appframes/ into each materialized tree), is kept identical to it. Each entry
+# needs a reason; the suppression is recorded per-push in the audit log (not
+# silent).
+#
+# 2026-06-04 update:
+# - Frame IDs migrated from `command-safety/*` → new taxonomy (`commands/*` /
+#   `database/*`) after the v0.1.0 frames-taxonomy rework.
+# - Positive testdata fixtures under `internal/stdlib/testdata/<category>/<frame>/positives/`
+#   are whitelisted en bloc - they exist precisely to fire the frame, so each
+#   one is a known-good false positive.
+# 2026-10-08: the guides moved to nimblegate.com/docs; the entries for the
+# migration guide's fake test key and for this file quoting it were dropped.
+
+# ---------- Real installer / test code (legitimate operational files) ----------
+
+[[entry]]
+frame  = "commands/curl-pipe-shell"
+path   = "cmd/installer/install.sh"
+reason = "installer intentionally curl|sh-bootstraps the binary; documented install path"
+
+[[entry]]
+frame  = "security/no-private-keys-in-repo"
+path   = "internal/checks/scanignore_integration_test.go"
+reason = "test fixture keys exercising the scan-ignore integration, not real secrets"
+
+[[entry]]
+frame  = "security/no-private-keys-in-repo"
+path   = "internal/gateway/e2e_test.go"
+reason = "test fixture keys for the gateway e2e suite, not real secrets"
+
+# ---------- Frame test corpora (one blanket entry) ----------
+# 2026-07-08: replaced the per-frame positives/** entries. Reality from the
+# decision feed: negatives and neighbouring frames' fixtures fire too (a
+# frame scans ANOTHER frame's corpus and matches), and every new frame pack
+# added a maintenance hole. The corpus tree exists precisely to contain the
+# patterns the frames catch - one scoped entry says exactly that.
+
+[[entry]]
+frame  = "*"
+path   = "internal/stdlib/testdata/**"
+reason = "frame test corpora: these files contain, by design, the exact patterns the frames catch; graded via `nimblegate frame test`, never shipped"
+
+# ---------- Self-referential rule definitions and feature docs ----------
+
+[[entry]]
+frame  = "app-correctness/no-em-dash"
+path   = "internal/checks/noendashincommands_test.go"
+reason = "the en-dash frame's own test fixtures contain the dashes it detects"
