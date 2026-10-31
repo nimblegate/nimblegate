@@ -5,6 +5,21 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-10-31
+
+### Security
+
+- **Built with Go 1.27.3 and `golang.org/x/net` 0.60.0.** Earlier builds used
+  Go 1.27.1, which has known vulnerabilities in code nimblegate calls, including
+  HTTP/2 server crash and memory exhaustion bugs, HTTP/1 connection
+  desynchronization in `net/http`, and `html/template` and `crypto/tls` fixes.
+  Update, especially if the dashboard is reachable by people you don't trust.
+
+### Changed
+
+- Container images use updated Go and Alpine base images, and the release
+  workflow uses current versions of its GitHub Actions.
+
 ## [0.6.2] - 2026-10-08
 
 ### Security
