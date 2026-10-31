@@ -10,15 +10,16 @@ permissions:
   packages: write
   id-token: write      # signing for build-provenance attestations
   attestations: write
+  artifact-metadata: write   # storage record for the attested image
 
 jobs:
   binaries:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.27'
       # The release body is the version's CHANGELOG.md section. Written outside
@@ -31,7 +32,7 @@ jobs:
             echo "::error::CHANGELOG.md has no section for $GITHUB_REF_NAME"
             exit 1
           fi
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --clean --release-notes=${{ runner.temp }}/release-notes.md
@@ -39,7 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Signed build provenance for the release archives and checksums.
       # Verify a download: gh attestation verify <file> --repo nimblegate/nimblegate
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/*.tar.gz
@@ -51,18 +52,18 @@ jobs:
     needs: binaries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/nimblegate/nimblegate
           # GitHub does not classify PolyForm, so the licence it reports is
@@ -76,7 +77,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
       - id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -86,7 +87,7 @@ jobs:
           build-args: VERSION=${{ github.ref_name }}-${{ steps.vars.outputs.sha_short }}
       # Signed build provenance for the image, stored with it in the registry.
       # Verify: gh attestation verify oci://ghcr.io/nimblegate/nimblegate:<version> --repo nimblegate/nimblegate
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/nimblegate/nimblegate
           subject-digest: ${{ steps.push.outputs.digest }}
