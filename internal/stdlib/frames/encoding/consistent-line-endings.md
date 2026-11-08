@@ -19,7 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 1/1
-  negatives: 1/1
+  negatives: 3/3
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # Consistent line endings
@@ -37,7 +38,10 @@ Block two specific line-ending hazards:
    `bad interpreter: no such file or directory`.
 
 Windows-script extensions (`.bat`, `.cmd`, `.ps1`) and CRLF-required
-formats are exempt.
+formats are exempt. So are `.csv` and `.tsv` data files: RFC 4180
+records end in CRLF while a quoted field may hold a bare LF, so a valid
+spreadsheet export mixes both. Binary files (by extension or content)
+are skipped.
 
 ## Fix
 

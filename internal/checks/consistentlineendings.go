@@ -23,6 +23,10 @@ var crlfExemptExtensions = map[string]bool{
 	".bat": true,
 	".cmd": true,
 	".ps1": true,
+	// RFC 4180 records end in CRLF while a quoted field may hold a bare LF,
+	// so a valid CSV mixes both; spreadsheet exports do it routinely.
+	".csv": true,
+	".tsv": true,
 }
 
 // binarySkipExtensions are extensions whose content is binary (or de facto
