@@ -284,6 +284,21 @@ func TestCFPagesHeadersBaseline_PassesWithFullBaseline(t *testing.T) {
 	}
 }
 
+func TestCFPagesHeadersBaseline_FixtureSkippedAndCopiesReportedOnce(t *testing.T) {
+	root := t.TempDir()
+	partial := "/*\n  Content-Security-Policy: default-src 'self'\n  X-Frame-Options: DENY\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n"
+	writeWeb(t, root, "static/_headers", partial)
+	writeWeb(t, root, "public/_headers", partial)
+	writeWeb(t, root, "testdata/positives/_headers", "/*\n  Cache-Control: no-store\n")
+	got := CFPagesHeadersBaseline(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+	if got.Outcome != engine.OutcomeWarn {
+		t.Fatalf("outcome = %s; want WARN for the missing HSTS", got.Outcome)
+	}
+	if len(got.Hits) != 1 || !strings.Contains(got.Hits[0].Label, "Strict-Transport-Security") {
+		t.Errorf("want exactly one HSTS hit (copy deduped, fixture skipped); got %+v", got.Hits)
+	}
+}
+
 func TestCFPagesHeadersBaseline_FileDisableSuppresses(t *testing.T) {
 	root := t.TempDir()
 	writeWeb(t, root, "_headers", `# appframes:disable security/cf-pages-headers-baseline

@@ -17,7 +17,7 @@ selection-grade: passing
 selection-stats:
   positives: 1/1
   negatives: 1/1
-  last-run: 2026-05-20T14:37:33Z
+  last-run: 2026-11-08T14:28:12Z
 ---
 
 # security/cf-pages-headers-baseline
@@ -33,6 +33,8 @@ When a CF Pages `_headers` file is present, surface a WARN for each missing base
 | `Strict-Transport-Security` | HSTS - pins HTTPS for the host (and optionally subdomains) |
 
 When no `_headers` file exists in the project, PASS. The frame doesn't enforce "you must have a _headers file" - that's a per-project decision. It only enforces "if you have one, the baseline must be present."
+
+`_headers` files under test-fixture directories (`testdata/`, `fixtures/`) are not checked. When a static-site build copies `static/_headers` into its output directory, identical copies are reported once.
 
 ## Fix
 
