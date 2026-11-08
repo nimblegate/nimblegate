@@ -334,7 +334,8 @@ func TestNoHardcodedCredentials_AWSDocSentinelExcluded(t *testing.T) {
 func TestNoHardcodedCredentials_ObviouslyFakeAWSKeysPass(t *testing.T) {
 	root := t.TempDir()
 	piiWrite(t, root, "docs/migrate.md", "AWS_ACCESS_KEY_ID=AKIAZZZZMIGRATION007\nAKIAXXXXXXXXXXXXXXXX\nAKIA0123TESTKEY45678\nAKIAMYFAKEKEY0000001\n")
-	piiWrite(t, root, "aws_test.go", `"AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",`+"\n")
+	piiWrite(t, root, "aws_test.go", `"AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",`+"\n"+
+		`"AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG+bPxRfiCYDIFFERENTKEY",`+"\n")
 	res := NoHardcodedCredentials(piiCtx(root))
 	if res.Outcome != engine.OutcomePass {
 		t.Fatalf("obvious fakes should pass, got %v (%s)", res.Outcome, res.Reason)

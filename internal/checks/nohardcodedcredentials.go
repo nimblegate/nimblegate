@@ -148,8 +148,12 @@ func credentialObviouslyFake(v string) bool {
 			run = 1
 		}
 	}
-	return containsAny(v, credentialFakeWords)
+	return containsAny(v, credentialFakeWords) || strings.HasPrefix(v, awsDocSecretStem)
 }
+
+// awsDocSecretStem opens AWS's documentation secret key; test suites vary
+// its tail (`...CiYDIFFERENTKEY`) to get a second fake.
+const awsDocSecretStem = "wJalrXUtnFEMI/K7MDENG"
 
 const credentialsDisableMarker = "appframes:disable security/no-hardcoded-credentials"
 const credentialsDisableLineMarker = "appframes:disable-next-line security/no-hardcoded-credentials"

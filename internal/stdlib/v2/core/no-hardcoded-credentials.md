@@ -141,6 +141,8 @@ that the project has decided are not subject to this scan
   value has a run of four identical characters (`AKIAZZZZ...`, `XXXX`) or
   embeds `EXAMPLE`, `FAKE`, `TEST`, `DUMMY` or `SAMPLE`. Issued keys are
   random; the chance of either in a real key is a few in ten thousand.
+  Secrets that start like AWS's documentation secret
+  (`wJalrXUtnFEMI/K7MDENG...`) are variants of it and pass too.
 
 
 Documented so a future "why didn't it catch X?" has an answer:
