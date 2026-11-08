@@ -50,7 +50,7 @@ func placeholderInLine(line string) string {
 
 var placeholderShapes = []placeholderShape{
 	{
-		Label:   "Lorem Ipsum placeholder text",
+		Label: "Lorem Ipsum placeholder text",
 		// The filler itself ("Lorem ipsum dolor sit amet", or the two
 		// words alone as a heading/paragraph), not prose that mentions
 		// "dropping lorem ipsum in for layout".
