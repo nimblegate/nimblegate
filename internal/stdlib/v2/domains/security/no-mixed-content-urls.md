@@ -22,7 +22,7 @@ selection-grade: passing
 selection-stats:
   positives: 2/2
   negatives: 3/3
-  last-run: 2026-05-20T14:37:33Z
+  last-run: 2026-11-08T14:37:29Z
 ---
 
 # security/no-mixed-content-urls
@@ -38,6 +38,9 @@ Every `src="http://..."` and `href="http://..."` value, with these exemptions:
 - Localhost / RFC1918 ranges (`127.0.0.1`, `192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`)
 - `example.com` / `example.org` / `example.net` - documentation examples
 - IETF / purl reference URLs
+- Navigation links - `href` on `<a>` / `<area>` is a page the visitor
+  follows, not a resource the page loads; browsers do not block it.
+  (`<link href>`, `<base href>` and every `src` still count.)
 
 For everything else: BLOCK.
 
@@ -68,7 +71,7 @@ Per-line for explicit demos / docs:
 
 ```html
 <!-- appframes:disable-next-line security/no-mixed-content-urls -->
-<a href="http://internal-only.lan/admin">Admin (LAN only)</a>
+<iframe src="http://internal-only.lan/admin"></iframe>
 ```
 
 Per-file for entire pages that legitimately serve HTTP-internal contexts:

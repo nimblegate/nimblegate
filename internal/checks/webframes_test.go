@@ -213,6 +213,19 @@ func TestNoMixedContentURLs_BlocksHttpInSrc(t *testing.T) {
 	}
 }
 
+func TestNoMixedContentURLs_NavigationLinksAreNotMixedContent(t *testing.T) {
+	root := t.TempDir()
+	writeWeb(t, root, "refs.html", "<a class=\"ref\"\n   href=\"http://www.kotesovec.cz/books/pieces.pdf\">book</a>\n<area shape=\"rect\" href=\"http://old.host.cz/\">\n")
+	ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()}
+	if got := NoMixedContentURLs(ctx); got.Outcome != engine.OutcomePass {
+		t.Errorf("navigation links should pass; got %s %s", got.Outcome, got.Reason)
+	}
+	writeWeb(t, root, "head.html", "<link rel=\"stylesheet\"\n  href=\"http://fonts.host.cz/a.css\">\n")
+	if got := NoMixedContentURLs(ctx); got.Outcome == engine.OutcomePass {
+		t.Errorf("<link href=http://> is a subresource and must still fire")
+	}
+}
+
 func TestNoMixedContentURLs_PassesWithHttps(t *testing.T) {
 	root := t.TempDir()
 	writeWeb(t, root, "page.html", `<img src="https://cdn.example.com/logo.png" alt="">`)
