@@ -239,7 +239,7 @@ func TestPolicyPage_scanBannerWhenRecExistsAndNotDismissed(t *testing.T) {
 		Dismissed:         false,
 	}
 	body := renderPolicyBody(t, root, "demo", policyPageOpts{AllowEdits: true, CSRFToken: "tok", Repos: []string{"demo"}, ScanRec: rec})
-	for _, want := range []string{"Scan recommendation", "@web", "/policy/repo/scan-apply", "/policy/repo/scan-dismiss", "/policy/repo/scan-rescan"} {
+	for _, want := range []string{"Scan recommendation", "@web", "/policy/repo/scan-preview", "/policy/repo/scan-dismiss", "/policy/repo/scan-rescan"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("scan banner missing %q", want)
 		}
@@ -266,7 +266,7 @@ func TestPolicyPage_scanBannerHiddenWhenDismissed(t *testing.T) {
 		t.Fatalf("loadScanRec must return nil when dismissed=true; got %+v", got)
 	}
 	body := renderPolicyBody(t, root, "demo", policyPageOpts{AllowEdits: true, CSRFToken: "tok", Repos: []string{"demo"}, ScanRec: got})
-	if strings.Contains(body, "/policy/repo/scan-apply") {
+	if strings.Contains(body, "/policy/repo/scan-preview") {
 		t.Error("scan banner must be hidden when rec dismissed")
 	}
 }
@@ -471,7 +471,7 @@ func TestRenderPolicyPage_HasKitChipsRow(t *testing.T) {
 		`id="gw-policy-kits-row"`,
 		`data-applied-kit="core"`,
 		`Apply Web app`,
-		`hx-post="/policy/kits/apply"`,
+		`action="/policy/kits/preview"`,
 		`gw-kit-count`, // count badge inside each pill
 	} {
 		if !strings.Contains(html, want) {

@@ -13,6 +13,7 @@
 package whitelist
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -32,9 +33,9 @@ import (
 type Entry struct {
 	Frame   string `toml:"frame"`
 	Path    string `toml:"path"`
-	Pattern string `toml:"pattern"`
+	Pattern string `toml:"pattern,omitempty"`
 	Reason  string `toml:"reason"`
-	Expires string `toml:"expires"` // YYYY-MM-DD; "" means never expires
+	Expires string `toml:"expires,omitempty"` // YYYY-MM-DD; "" means never expires
 }
 
 // resolved is the compiled, validated form of an Entry - what Match works
@@ -351,15 +352,20 @@ func AddEntry(path string, e Entry) (added bool, err error) {
 			return false, nil // dedup
 		}
 	}
+	// Encoded rather than formatted: Go's %q escapes (\x..) are not valid TOML.
+	var block bytes.Buffer
+	enc := toml.NewEncoder(&block)
+	enc.Indent = ""
+	if err := enc.Encode(rootTable{Entry: []Entry{e}}); err != nil {
+		return false, fmt.Errorf("whitelist: encode entry: %w", err)
+	}
 	var b strings.Builder
 	b.WriteString(existing)
 	if existing != "" && !strings.HasSuffix(existing, "\n") {
 		b.WriteByte('\n')
 	}
-	b.WriteString("\n[[entry]]\n")
-	fmt.Fprintf(&b, "frame  = %q\n", e.Frame)
-	fmt.Fprintf(&b, "path   = %q\n", e.Path)
-	fmt.Fprintf(&b, "reason = %q\n", e.Reason)
+	b.WriteString("\n")
+	b.Write(block.Bytes())
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
