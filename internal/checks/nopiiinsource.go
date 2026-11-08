@@ -19,8 +19,8 @@ var (
 	// between digits included, so a card candidate is judged with its
 	// surroundings: a list of numbers is one long run, not a card.
 	piiCardRunRe = regexp.MustCompile(`[0-9](?:[0-9]|[ -][0-9])*`)
-	piiIbanRe = regexp.MustCompile(`\b([A-Z]{2}\d{2}[A-Z0-9]{10,30})\b`)
-	piiSSNRe  = regexp.MustCompile(`\b(\d{3})-(\d{2})-(\d{4})\b`)
+	piiIbanRe    = regexp.MustCompile(`\b([A-Z]{2}\d{2}[A-Z0-9]{10,30})\b`)
+	piiSSNRe     = regexp.MustCompile(`\b(\d{3})-(\d{2})-(\d{4})\b`)
 )
 
 const piiDisableMarker = "appframes:disable security/no-pii-in-source"

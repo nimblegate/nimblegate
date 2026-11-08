@@ -70,11 +70,11 @@ func TestDatedTodo_AcceptedForms(t *testing.T) {
 // is not a TODO; one that opens a comment or a Markdown line is.
 func TestDatedTodo_MentionsAreNotMarkers(t *testing.T) {
 	mentions := map[string]string{
-		"src/a.go":        "pattern := \"TODO\\\\(\"\nb.WriteString(\"## TODO before this is real\\n\")\nbody := \"// FIXME this is broken\\n\"\n",
-		"src/b.go":        "// is a TODO checklist + a reference back to the incident\nre := `\\b(?:TODO|FIXME)\\b`\n",
-		"src/c.py":        "x = 'TODO here'  # matches TODO/FIXME markers\n",
-		"docs/plan.md":    "**Placeholder scan:** No TBD/TODO; every step complete.\nCosts ~$XXX/month.\nMarkers like `TODO` are scanned.\n\n```go\n// TODO: come back to this\n```\n",
-		"docs/review.md":  "Lines matching the TODO regex are tested.\n",
+		"src/a.go":       "pattern := \"TODO\\\\(\"\nb.WriteString(\"## TODO before this is real\\n\")\nbody := \"// FIXME this is broken\\n\"\n",
+		"src/b.go":       "// is a TODO checklist + a reference back to the incident\nre := `\\b(?:TODO|FIXME)\\b`\n",
+		"src/c.py":       "x = 'TODO here'  # matches TODO/FIXME markers\n",
+		"docs/plan.md":   "**Placeholder scan:** No TBD/TODO; every step complete.\nCosts ~$XXX/month.\nMarkers like `TODO` are scanned.\n\n```go\n// TODO: come back to this\n```\n",
+		"docs/review.md": "Lines matching the TODO regex are tested.\n",
 	}
 	root := t.TempDir()
 	for rel, body := range mentions {
