@@ -50,6 +50,44 @@ var datedTodoExtensions = map[string]bool{
 	".md":   true,
 }
 
+// datedTodoCommentLeader matches a comment opener ending the text before a
+// marker in source code: the marker is the comment's first word.
+var datedTodoCommentLeader = regexp.MustCompile(`(?://+|/\*+|^\s*\*+|#+|--|<!--)$`)
+
+// datedTodoMarkdownLead matches what may precede a marker that opens a
+// Markdown line: quote, list bullet, checkbox, heading, emphasis.
+var datedTodoMarkdownLead = regexp.MustCompile(`^\s*(?:>\s*)*(?:[-*+]\s*|\d+[.)]\s*)?(?:\[[ xX]\]\s*)?(?:#{1,6}\s*)?[*_]*$`)
+
+// datedTodoMarkerIn returns the first marker on line that is used as a
+// marker rather than mentioned: in source it must open a comment (outside
+// a string literal); in Markdown prose it must open the line or an HTML
+// comment. "TODO/placeholder", "TODO|FIXME" and "~$XXX/month" are
+// mentions, not markers.
+func datedTodoMarkerIn(line string, markdown bool) string {
+	for _, loc := range datedTodoMarker.FindAllStringIndex(line, -1) {
+		if loc[1] < len(line) && strings.IndexByte("/|\\\"'`_-.", line[loc[1]]) >= 0 {
+			continue
+		}
+		prefix := strings.TrimRight(line[:loc[0]], " \t")
+		if markdown {
+			if datedTodoMarkdownLead.MatchString(prefix) || strings.HasSuffix(prefix, "<!--") {
+				return line[loc[0]:loc[1]]
+			}
+			continue
+		}
+		lead := datedTodoCommentLeader.FindStringIndex(prefix)
+		if lead == nil {
+			continue
+		}
+		code := prefix[:lead[0]]
+		if (strings.Count(code, `"`)-strings.Count(code, `\"`))%2 == 1 || strings.Count(code, "`")%2 == 1 {
+			continue
+		}
+		return line[loc[0]:loc[1]]
+	}
+	return ""
+}
+
 const datedTodoDisableMarker = "appframes:disable documentation/dated-todo"
 const datedTodoDisableLineMarker = "appframes:disable-next-line documentation/dated-todo"
 
@@ -106,8 +144,13 @@ func DatedTodo(ctx engine.CheckContext) engine.CheckResult {
 			continue // file-level opt-out
 		}
 		lines := strings.Split(content, "\n")
+		markdown := isMarkdownPath(file)
+		scan := lines
+		if markdown {
+			scan = markdownProse(content)
+		}
 		for i, line := range lines {
-			match := datedTodoMarker.FindString(line)
+			match := datedTodoMarkerIn(scan[i], markdown)
 			if match == "" {
 				continue
 			}

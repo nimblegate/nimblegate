@@ -43,3 +43,35 @@ func inVendoredDir(rel string) bool {
 	}
 	return false
 }
+
+// isMarkdownPath reports Markdown sources.
+func isMarkdownPath(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".markdown", ".mdx":
+		return true
+	}
+	return false
+}
+
+// markdownProse returns the lines of a Markdown document with fenced code
+// blocks blanked and inline code spans removed, keeping line numbers
+// aligned. Code in a document is an example, not the document's own text.
+func markdownProse(content string) []string {
+	lines := strings.Split(content, "\n")
+	out := make([]string, len(lines))
+	inFence, marker := false, ""
+	for i, line := range lines {
+		if inFence {
+			if isClosingFence(line, marker) {
+				inFence = false
+			}
+			continue
+		}
+		if m := fenceOpenRegex.FindStringSubmatch(line); m != nil {
+			inFence, marker = true, m[1]
+			continue
+		}
+		out[i] = stripInlineCode(line)
+	}
+	return out
+}
