@@ -184,6 +184,8 @@ files:
 				if link == "" {
 					continue
 				}
+				// CommonMark `<...>` destination.
+				link = strings.TrimPrefix(link, "<")
 				// External scheme - skip.
 				if externalSchemeRegex.MatchString(link) {
 					continue
@@ -213,6 +215,12 @@ files:
 				}
 				abs := filepath.Join(ctx.ProjectRoot, resolved)
 				if _, statErr := os.Stat(abs); statErr != nil {
+					// "/policy", "/en-US/docs/Web/API": a root-relative
+					// target with no file extension is an app or site
+					// route the document was written for, not a repo path.
+					if strings.HasPrefix(target, "/") && filepath.Ext(strings.TrimSuffix(target, "/")) == "" {
+						continue
+					}
 					hits = append(hits, fmt.Sprintf("%s:%d → %s", file, lineNum+1, link))
 					hitsStruct = append(hitsStruct, engine.Hit{
 						File:  file,
