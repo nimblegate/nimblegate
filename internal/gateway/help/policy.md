@@ -4,11 +4,19 @@ Per-repo rule selection. The **Editing:** dropdown picks the repo; the tab strip
 
 > **Observe vs enforce.** This page sets *which* frames run and at what severity, but whether a finding actually **blocks** a push depends on the repo's **mode** (the `off · observe · enforce` badge in the top bar, set when you register the repo). In **observe** mode every finding, even BLOCK-severity, is recorded but the push is relayed anyway: nothing is rejected. Flip the repo to enforce (untick *observe-only* on the repo, or `observe = false` in its `gateway.toml`) for BLOCK frames to actually stop a push.
 
+## Next push preview
+
+For the selected repo, the **Next push preview** section states what the gate would do if the latest pushed code were pushed again under the current policy: "With this policy, the next push would: block X, warn Y", plus an expandable list of findings (severity, frame, file:line, label). It is the gate's own evaluation, not an estimate: the latest commit of the default branch (or, when the gate does not check that branch, the most recently committed gated branch) is extracted and checked with the same frames, gateway-held whitelist, `[scan]` settings, linters, size cap and scan timeout the pre-receive hook uses. It is recomputed on every page load and after each frame tick; results are cached per commit and policy, so an unchanged page does not rescan. A repo with no pushed code yet says so instead.
+
+- **Whitelist this**: each BLOCK row offers a one-line reason box. Submitting adds an exact-path entry (that one file, that one frame) to the repo's gateway-held whitelist, the same file the gate reads, and logs a `whitelist-add` event. The reason is required; paths with globs, `..` or line breaks are refused (use the Whitelist tab for patterns). Only on a dashboard started with `--allow-edits`.
+- **Apply recommended** and the kit **Apply** buttons open a confirm view first. It shows block and warn counts now and after applying, with findings the change adds marked **new**. Nothing is written until you press **Apply**.
+- **Switch to observe**: when the repo enforces and the change would make the next push fail, the confirm view also offers **Apply and switch to observe mode**. It is never pre-selected; pressing it puts the repo in observe mode (logged as a `set-observe` event) before the policy is written, so the next push is recorded instead of rejected while you fix or whitelist the findings.
+
 ## Frames
 
 Tick which frames nimblegate runs against pushes to the active repo. A frame is on if and only if its ID appears in `[frames] enabled` in the repo's `appframes.toml`.
 
-- **Apply a kit**: `Core` / `Web app` / `CF Pages` / `CF Workers` / `Security strict` / `Encoding strict` / `Agent shortcuts`. Kits are stackable; the chip row at the top shows live counts.
+- **Apply a kit**: `Core` / `Web app` / `CF Pages` / `CF Workers` / `Security strict` / `Encoding strict` / `Agent shortcuts`. Kits are stackable; the chip row at the top shows live counts. Each Apply button opens the confirm view described above.
 - **Tick individual frames**: every kit's frames are visible in the browse tree, grouped by the v2 axes: **Core / Domain / Framework / Platform**. Cloudflare nests Cf Pages and Cf D1 as children; HTML sits under Domain (not Framework, since HTML cross-cuts every web framework). Ticking the same frame anywhere updates every browse path that shows it.
 - **New custom kit**: save your own named selection for one-click reuse later. Custom kits appear at the top of the browse tree.
 - **Override severity**: per-frame BLOCK ↔ WARN ↔ INFO when the default doesn't fit your context.

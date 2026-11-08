@@ -364,14 +364,20 @@ func gatewayDashboard(args []string) int {
 				html.EscapeString(repo), html.EscapeString(repo),
 			))
 		}
-		renderPolicyHTTP(w, vm, policyPageOpts{AllowEdits: *allowEdits, CSRFToken: token, Repos: repos, ActiveTab: r.URL.Query().Get("tab"), Authoring: authoring, NotifRail: notifRail, Notice: policyRootNotice(*policyRoot), Chrome: buildChrome("policy", repo, *policyRoot), ScanRec: loadScanRec(*policyRoot, repo), Archived: gateway.ListArchivedRepos(*policyRoot), PolicyRoot: *policyRoot, JustRegistered: justRegistered})
+		scanRec := loadScanRec(*policyRoot, repo)
+		nextPush, scanRecAfter := policyPreviews(*policyRoot, *reposRoot, repo, fp.Enabled, *allowEdits, scanRec)
+		renderPolicyHTTP(w, vm, policyPageOpts{AllowEdits: *allowEdits, CSRFToken: token, Repos: repos, ActiveTab: r.URL.Query().Get("tab"), Authoring: authoring, NotifRail: notifRail, Notice: policyRootNotice(*policyRoot), Chrome: buildChrome("policy", repo, *policyRoot), ScanRec: scanRec, Archived: gateway.ListArchivedRepos(*policyRoot), PolicyRoot: *policyRoot, JustRegistered: justRegistered, NextPush: nextPush, ScanRecAfter: scanRecAfter})
 	})
 	if *allowEdits {
-		ph := policyHandlers{policyRoot: *policyRoot, token: token}
+		ph := policyHandlers{policyRoot: *policyRoot, token: token, reposRoot: *reposRoot}
 		mux.HandleFunc("/policy/severity", ph.severity)
 		mux.HandleFunc("/policy/repo", ph.repo)
 		mux.HandleFunc("/policy/frames/toggle", ph.toggleFrame)
 		mux.HandleFunc("/policy/kits/apply", ph.applyKit)
+		pv := previewHandlers{policyRoot: *policyRoot, reposRoot: *reposRoot, token: token}
+		mux.HandleFunc("/policy/kits/preview", pv.kitConfirm)
+		mux.HandleFunc("/policy/repo/scan-preview", pv.scanConfirm)
+		mux.HandleFunc("/policy/preview/whitelist", pv.whitelistThis)
 		mux.HandleFunc("/policy/kits/clear", ph.clearKit)
 		mux.HandleFunc("/policy/kits/new-form", ph.userKitForm)
 		mux.HandleFunc("/policy/kits/create", ph.createUserKit)

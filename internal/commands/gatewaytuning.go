@@ -103,10 +103,12 @@ type policyPageOpts struct {
 	NotifRail      template.HTML // pre-rendered notification rail section (spec §7.4)
 	Notice         string        // loud config warning (empty = none)
 	Chrome         chromeData
-	ScanRec        *ScanRecommendation // banner shown when non-nil and !Dismissed
-	Archived       []string            // lib entries without an active symlink
-	PolicyRoot     string              // gateway policy root - used to resolve per-tier time-estimates for the editor
-	JustRegistered string              // non-empty repo name: show success banner at page top
+	ScanRec        *ScanRecommendation    // banner shown when non-nil and !Dismissed
+	Archived       []string               // lib entries without an active symlink
+	PolicyRoot     string                 // gateway policy root - used to resolve per-tier time-estimates for the editor
+	JustRegistered string                 // non-empty repo name: show success banner at page top
+	NextPush       *nextPushView          // next-push preview under the stored policy; nil = not computed
+	ScanRecAfter   *gateway.PreviewResult // preview with the scan recommendation applied
 }
 
 // groupToggle + groupToggleSets are retained for the add-repo form (T10 will migrate them).
@@ -617,7 +619,7 @@ var policyTmpl = func() *template.Template {
 	// by invoking it with a data value that carries Repo, AllowEdits, and CSRFToken.
 	template.Must(t.New("credentialSection").Parse(`{{if and .AllowEdits .Repo}}<details class="frame gw-credential"><summary class="gw-section-head">Add or rotate upstream credential</summary><form class="gw-credform" hx-post="/policy/repo/credential" hx-headers='{"X-CSRF-Token":"{{.CSRFToken}}"}' hx-encoding="application/x-www-form-urlencoded"><input type="hidden" name="repo" value="{{.Repo}}"><label>New credential<input type="password" name="upstream_credential" autocomplete="new-password" placeholder="PAT / deploy token: overwrites the current credential"></label><button type="submit">Update credential</button><p class="gw-credform-note">Stored at <code>&lt;policy-root&gt;/{{.Repo}}/credential</code> with mode 0640. The previous value is gone after submit; no audit-log surface beyond a "credential-update" event with no payload.</p></form></details>{{end}}`))
 	template.Must(t.New("timeEstimatesSection").Parse(`{{if and .AllowEdits .Repo}}<details class="frame gw-time-estimates"><summary class="gw-section-head">Time-prevented estimates</summary><p class="gw-te-hint">Hours of debugging saved per blocking finding, by frame tier. These weight the <a href="/stats">/stats</a> "time saved" estimate only - they do not affect gating. A tier left at its built-in number is marked "default".</p><form hx-post="/policy/repo/time-estimates" hx-headers='{"X-CSRF-Token":"{{.CSRFToken}}"}' hx-encoding="application/x-www-form-urlencoded"><input type="hidden" name="repo" value="{{.Repo}}"><div class="gw-te-grid">{{range .TimeEstimates}}<label class="gw-te-row"><span class="gw-te-tier">Tier {{.Tier}}</span><input type="number" step="0.05" min="0" name="tier-{{.Tier}}" value="{{printf "%g" .Value}}"><span class="sub">{{if .IsDefault}}default{{else}}override{{end}}</span></label>{{end}}</div><button type="submit">Save estimates</button></form></details>{{end}}`))
-	template.Must(t.New("scanBanner").Parse(`{{with .ScanRec}}{{if not .Dismissed}}<div class="frame gw-scan-banner"><h2>Scan recommendation</h2><div class="sub">scanned {{.ScannedAt}}</div><div>recommended: {{range .RecommendedGroups}}<span class="gw-group">{{.Name}}{{if not .Always}} (would flag {{.WouldFlag}}){{end}}</span> {{end}}</div>{{if $.AllowEdits}}<div class="gw-scan-actions"><button hx-post="/policy/repo/scan-apply" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Apply recommended</button><button hx-post="/policy/repo/scan-dismiss" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Dismiss</button><button hx-post="/policy/repo/scan-rescan" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Rescan now</button></div>{{end}}</div>{{end}}{{end}}`))
+	template.Must(t.New("scanBanner").Parse(`{{with .ScanRec}}{{if not .Dismissed}}<div class="frame gw-scan-banner"><h2>Scan recommendation</h2><div class="sub">scanned {{.ScannedAt}}</div><div>recommended: {{range .RecommendedGroups}}<span class="gw-group">{{.Name}}</span> {{end}}</div>{{with $.ScanRecAfter}}{{if .Rev}}<div class="gw-scan-preview">With the recommendation applied, the next push would: <b>block {{.BlockCount}}</b>, warn {{.WarnCount}}{{if .ScanError}} (the scan failed, so it would be rejected){{end}}{{with $.NextPush}}{{if .Res.Rev}} - now: block {{.Res.BlockCount}}, warn {{.Res.WarnCount}}{{end}}{{end}}</div>{{end}}{{end}}{{if $.AllowEdits}}<div class="gw-scan-actions"><form method="get" action="/policy/repo/scan-preview" style="display:inline"><input type="hidden" name="name" value="{{$.Repo}}"><button type="submit">Apply recommended</button></form><button hx-post="/policy/repo/scan-dismiss" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Dismiss</button><button hx-post="/policy/repo/scan-rescan" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-vals='{"name":"{{$.Repo}}"}'>Rescan now</button></div>{{end}}</div>{{end}}{{end}}`))
 	template.Must(t.New("archivedPanel").Parse(`{{if .Archived}}<details class="frame gw-archived"><summary>Archived repos ({{len .Archived}})</summary>{{range .Archived}}<div class="gw-archived-row"><span>{{.}}</span>{{if $.AllowEdits}}<form hx-post="/policy/repo/restore" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'><input type="hidden" name="name" value="{{.}}"><button type="submit">Restore</button></form><form hx-post="/policy/repo/delete" hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}' hx-confirm="Permanently delete {{.}}? This removes its bare repo (all git history) and policy/credential from the gateway. The upstream is untouched and other repos are unaffected. This cannot be undone."><input type="hidden" name="name" value="{{.}}"><button type="submit" class="danger">Delete permanently</button></form>{{end}}</div>{{end}}</details>{{end}}`))
 	template.Must(t.New("editRepoForm").Parse(`<details class="frame gw-edit-repo"><summary class="gw-section-head">+ Edit existing repo in gateway</summary>{{if .Repos}}<form><label>Repo: <select name="repo" hx-get="/policy" hx-target="body" hx-swap="outerHTML"><option value="">(pick a repo to edit)</option>{{range .Repos}}<option value="{{.}}"{{if eq . $.Repo}} selected{{end}}>{{.}}</option>{{end}}</select></label></form>{{if .Repo}}<p class="warn">{{icon "warn"}} You&#39;re editing live config for <b>{{.Repo}}</b>. Frame toggle changes take effect on next push to this repo.</p>{{end}}{{else}}<p class="sub">No repos registered yet. Add one above.</p>{{end}}</details>`))
 	template.Must(t.New("repoPicker").Parse(`<div class="gw-repo-picker">{{if .Repos}}<form style="display:inline"><label for="gw-policy-repo" style="font-size:12px;color:var(--gw-text-muted);margin-right:6px">Editing:</label><select name="repo" id="gw-policy-repo" data-policy-tab="{{.ActiveTab}}" onchange="if(this.value==='__repos'){window.location='/repos'}else if(this.value){var t=this.dataset.policyTab||'';var q='/policy?repo='+encodeURIComponent(this.value);if(t&&t!=='frames')q+='&tab='+encodeURIComponent(t);window.location=q}">{{$cur := .Repo}}{{range .Repos}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}<option value="__repos">Manage repos →</option></select></form>{{else}}<div class="frame gw-policy-empty"><p class="sub">No repos registered yet. <a href="/repos" style="color:var(--gw-accent)">Add one in Repos</a></p></div>{{end}}</div>`))
@@ -626,7 +628,8 @@ var policyTmpl = func() *template.Template {
 <h2 class="gw-pagehead">Policy</h2>
 <p class="gw-pagedesc">Pick a repo to edit its frame policy. Manage repos at <a href="/repos" style="color:var(--gw-accent)">Repos</a>.</p>
 {{template "justRegisteredBanner" .}}
-{{template "scanBanner" .}}`))
+{{template "scanBanner" .}}
+{{with .NextPush}}{{template "nextPush" .}}{{end}}`))
 	template.Must(t.New("pageTrailer").Parse(`{{if .Authoring}}<h3 class="gw-section-head">Custom linters</h3><p class="sub">Regex-based rules you authored, runs alongside the stdlib frames.</p>{{.Authoring}}{{end}}
 {{if .NotifRail}}{{.NotifRail}}{{end}}
 {{if .Whitelisted}}<h3 class="gw-section-head">Whitelist ({{len .Whitelisted}})</h3><table class="fr"><tr><td class="k">frame</td><td class="k">path</td><td class="k">reason</td>{{if .AllowEdits}}<td class="k"></td>{{end}}</tr>{{range .Whitelisted}}<tr><td>{{.Frame}}</td><td>{{.Path}}</td><td>{{.Reason}}</td>{{if $.AllowEdits}}<td><form style="display:inline"><input type="hidden" name="repo" value="{{$.Repo}}"><input type="hidden" name="frame" value="{{.Frame}}"><input type="hidden" name="path" value="{{.Path}}"><button type="button" hx-post="/policy/whitelist/remove" hx-include="closest form" hx-target="next .wlrm-out" hx-swap="innerHTML">Remove</button></form><div class="wlrm-out"></div></td>{{end}}</tr>{{end}}</table>{{end}}`))
@@ -653,6 +656,8 @@ type policyPageData struct {
 	UpstreamURL    string                  // current upstream, pre-fills the Edit repo settings form
 	ProtectedRefs  string                  // current protected refs (space-joined), pre-fills the form
 	TimeEstimates  []effectiveTimeEstimate // per-tier hours (override or default) for the editor
+	NextPush       *nextPushView
+	ScanRecAfter   *gateway.PreviewResult
 }
 
 // renderPolicyPage writes the /policy page content fragment (without shell chrome)
@@ -679,6 +684,8 @@ func renderPolicyPage(w io.Writer, vm policyVM, opts policyPageOpts) error {
 		ScanRec:        opts.ScanRec,
 		Archived:       opts.Archived,
 		JustRegistered: opts.JustRegistered,
+		NextPush:       opts.NextPush,
+		ScanRecAfter:   opts.ScanRecAfter,
 	}
 	if vm.Repo != "" && opts.PolicyRoot != "" {
 		wlPath := filepath.Join(opts.PolicyRoot, vm.Repo, ".appframes", "_canonical", "whitelist.toml")
@@ -954,9 +961,11 @@ func renderFrameSelection(w io.Writer, vm policyVM) error {
 		if k.FullyApplied {
 			disabled = ` disabled aria-pressed="true"`
 		}
+		// A GET to the confirm view: it previews the next push with the kit
+		// merged in, and only its Apply button writes.
 		fmt.Fprintf(w, `
-      <button class="gw-kit-apply" hx-post="/policy/kits/apply" hx-vals='{"name":%q,"repo":%q}'%s>Apply %s</button>`,
-			k.Name, vm.Repo, disabled, htmlEsc(k.Display))
+      <form method="get" action="/policy/kits/preview" style="display:inline"><input type="hidden" name="repo" value="%s"><input type="hidden" name="name" value="%s"><button type="submit" class="gw-kit-apply"%s>Apply %s</button></form>`,
+			htmlEsc(vm.Repo), htmlEsc(k.Name), disabled, htmlEsc(k.Display))
 	}
 	fmt.Fprint(w, `
     </div>
@@ -1214,6 +1223,7 @@ func htmlEsc(s string) string {
 type policyHandlers struct {
 	policyRoot string
 	token      string
+	reposRoot  string // "" skips the next-push preview refresh on frame toggles
 }
 
 func validSeverity(s string) bool { return s == "BLOCK" || s == "WARN" || s == "INFO" }
@@ -1352,6 +1362,14 @@ func (h policyHandlers) toggleFrame(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `%d frames enabled`, gn)
 	}
 	fmt.Fprint(w, `</div>`)
+
+	// OOB 4: the next-push preview, so a tick shows its effect at once.
+	if h.reposRoot != "" {
+		if v, ok := nextPushFor(h.policyRoot, h.reposRoot, repo, fp.Enabled, true); ok {
+			v.OOB = true
+			_ = policyTmpl.ExecuteTemplate(w, "nextPush", v)
+		}
+	}
 }
 
 func (h policyHandlers) applyKit(w http.ResponseWriter, r *http.Request) {
@@ -1374,6 +1392,9 @@ func (h policyHandlers) applyKit(w http.ResponseWriter, r *http.Request) {
 	k, ok := ks.Get(name)
 	if !ok {
 		http.Error(w, "unknown kit", http.StatusBadRequest)
+		return
+	}
+	if !switchToObserveIfAsked(w, r, h.policyRoot, repo, "kit-apply") {
 		return
 	}
 	cfgPath := filepath.Join(h.policyRoot, repo, "appframes.toml")
@@ -1400,6 +1421,10 @@ func (h policyHandlers) applyKit(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := addAppliedKit(cfgPath, name); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if r.PostForm.Get("confirm") == "1" {
+		redirectAfterAction(w, r, "/policy?repo="+repo)
 		return
 	}
 	w.Header().Set("HX-Refresh", "true")
