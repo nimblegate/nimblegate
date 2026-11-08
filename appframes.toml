@@ -31,6 +31,7 @@ enabled = [
     "security/no-innerHTML-user-input",
     "security/no-kubeconfig-in-repo",
     "security/no-mixed-content-urls",
+    "security/no-out-of-tree-references",
     "security/no-plaintext-passwords",
     "security/no-private-keys-in-repo",
     "security/no-terraform-state-in-repo",
