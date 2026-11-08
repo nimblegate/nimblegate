@@ -15,6 +15,9 @@ import (
 	"nimblegate/internal/config"
 )
 
+// The key headers below are fabricated fixtures pushed to provoke a BLOCK.
+// appframes:disable security/no-private-keys-in-repo
+
 // e2eGoBin is prepended to PATH so child `go` / hook invocations resolve the
 // toolchain that may not be on the default PATH in this environment.
 var e2eGoBin = detectGoBin()
