@@ -22,7 +22,7 @@ selection-grade: passing
 selection-stats:
   positives: 3/3
   negatives: 2/2
-  last-run: 2026-05-20T14:37:33Z
+  last-run: 2026-11-08T14:45:34Z
 ---
 
 # HTML markup must be valid
@@ -39,14 +39,18 @@ Browsers tolerate most of these via the HTML5 error-recovery algorithm; downstre
 
 Uses the `golang.org/x/net/html` tokenizer to walk the file. Void elements (`<br>`, `<img>`, `<input>`, etc.) are recognized as auto-closed. Foreign content (`<svg>`, `<math>`, `<script>`, `<style>`, `<template>`) is skipped for balance checking because those subtrees have different parsing rules.
 
-For Svelte / Astro files: the framework wrapper (script blocks, frontmatter) is stripped before tokenization, so the report is about the user-visible HTML body.
+For Svelte / Astro files: the framework wrapper (script blocks, frontmatter) is stripped before tokenization, so the report is about the user-visible HTML body. Capitalised tags (`<ChartCanvas>`) are framework components, not elements, and are not balance-checked.
+
+End tags HTML lets an author omit are not required: `</html>`, `</head>`, `</body>`, `</p>`, `</li>`, `</dt>`, `</dd>`, `</tr>`, `</td>`, `</th>`, `</thead>`, `</tbody>`, `</tfoot>`, `</option>` and friends. `<p>one<p>two`, `<li>a<li>b</ul>` and a page that never writes `</html>` are valid.
+
+Files under test-fixture, test-suite and hidden folders (`testdata/`, `tests/`, `.superpowers/`, ...) are skipped.
 
 ## Common cases this catches
 
 ```html
 <!-- Unclosed tag -->
 <section>
-  <p>Content
+  <span>Content
 </section>
 
 <!-- Mismatched close -->

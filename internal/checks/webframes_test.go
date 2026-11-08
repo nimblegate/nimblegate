@@ -131,14 +131,14 @@ func TestHTMLImgAlt_PassesWithRealAlt(t *testing.T) {
 func TestHTMLMarkupValid_FlagsUnclosedTag(t *testing.T) {
 	root := t.TempDir()
 	writeWeb(t, root, "page.html", `<section>
-  <p>hello
+  <span>hello
 </section>`)
 	got := HTMLMarkupValid(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
 	if got.Outcome != engine.OutcomeWarn {
 		t.Fatalf("outcome = %s; want WARN\nreason: %s", got.Outcome, got.Reason)
 	}
-	if !strings.Contains(got.Reason, "<p>") {
-		t.Errorf("expected <p> mention in reason; got: %s", got.Reason)
+	if !strings.Contains(got.Reason, "<span>") {
+		t.Errorf("expected <span> mention in reason; got: %s", got.Reason)
 	}
 }
 

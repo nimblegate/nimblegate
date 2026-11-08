@@ -91,6 +91,29 @@ func TestHTMLPlaceholderContent_OnlyShippedCopy(t *testing.T) {
 	}
 }
 
+func TestHTMLMarkupValid_OptionalEndTagsAndComponents(t *testing.T) {
+	pass := map[string]string{
+		"a.html":                         "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><title>x</title>\n<body>\n<p>one\n<p>two\n<ul><li>a<li>b</ul>\n<table><tr><td>1<td>2<tr><td>3</table>\n<div><p>inside</div>\n",
+		"src/routes/r/+page.svelte":      "<div class=\"h\">\n  <ChartCanvas data={d}>\n    <Axis />\n  </ChartCanvas>\n</div>\n",
+		"tests/fixtures/broken.html":     "<div><span></div>\n",
+		".superpowers/brainstorm/x.html": "<div>\n",
+	}
+	for rel, body := range pass {
+		if got := runOneFile(t, HTMLMarkupValid, map[string]string{rel: body}); got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: want PASS, got %s %s", rel, got.Outcome, got.Reason)
+		}
+	}
+	warn := map[string]string{
+		"b.html": "<div><span>text</div>\n",
+		"c.html": "<html><body><div class=\"container\">\n</body></html>\n",
+	}
+	for rel, body := range warn {
+		if got := runOneFile(t, HTMLMarkupValid, map[string]string{rel: body}); got.Outcome != engine.OutcomeWarn {
+			t.Errorf("%s: want WARN, got %s", rel, got.Outcome)
+		}
+	}
+}
+
 func keys(m map[string]string) []string {
 	var out []string
 	for k := range m {
