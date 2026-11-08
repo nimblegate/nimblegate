@@ -18,8 +18,9 @@ pattern: invisible-payload
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 2/2
+  negatives: 4/4
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No Unicode bidirectional override
@@ -49,6 +50,11 @@ Presence of any of the following codepoints:
 | U+2067 | RLI - right-to-left isolate |
 | U+2068 | FSI - first strong isolate |
 | U+2069 | PDI - pop directional isolate |
+
+Binary files are skipped: a known binary extension (images, video,
+archives, fonts, compressed `.br`/`.gz`/`.zst`, compiled objects) or a NUL
+byte anywhere in the file. In those bytes a bidi sequence turns up by
+chance, and git shows nobody the file as text to deceive.
 
 ## Fix
 

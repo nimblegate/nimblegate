@@ -40,7 +40,7 @@ var binarySkipExtensions = map[string]bool{
 	".ico": true, ".bmp": true, ".tiff": true, ".tif": true, ".heic": true, ".avif": true,
 	// Documents / archives
 	".pdf": true, ".zip": true, ".tar": true, ".gz": true, ".bz2": true, ".xz": true,
-	".7z": true, ".rar": true, ".dmg": true, ".iso": true,
+	".7z": true, ".rar": true, ".dmg": true, ".iso": true, ".tgz": true, ".br": true, ".zst": true,
 	// Fonts
 	".woff": true, ".woff2": true, ".ttf": true, ".otf": true, ".eot": true,
 	// Audio / video
@@ -48,7 +48,7 @@ var binarySkipExtensions = map[string]bool{
 	".webm": true, ".m4a": true, ".mov": true, ".avi": true, ".mkv": true,
 	// Compiled / object code
 	".so": true, ".dll": true, ".dylib": true, ".o": true, ".a": true,
-	".class": true, ".jar": true, ".wasm": true, ".pyc": true,
+	".class": true, ".jar": true, ".wasm": true, ".pyc": true, ".exe": true, ".bin": true,
 }
 
 // minifiedExtensions are extensions where the file is typically machine-

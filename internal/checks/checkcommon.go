@@ -6,7 +6,12 @@
 // TestNoUnboundedReadInChecks catches at build time.
 package checks
 
-import "os"
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 // DefaultMaxFileBytes is the size cap every content-scanning frame should
 // use unless it has a domain-specific reason to allow larger. 1 MiB is
@@ -32,6 +37,16 @@ const DefaultMaxFileBytes = 1 << 20
 // reason in the calling frame's comment and reviewer will check whether
 // the larger cap is justified. Don't reach for raw os.ReadFile - that's
 // exactly what TestNoUnboundedReadInChecks blocks.
+// isBinaryForTextScan reports whether a file is binary: a known binary
+// extension (binarySkipExtensions) or a NUL byte anywhere in data. Frames
+// that decode Unicode must skip binaries - in compressed or image bytes any
+// three-byte UTF-8 sequence, a bidi override included, turns up by chance.
+// A NUL also makes git treat the file as binary, so no reviewer reads it as
+// text either.
+func isBinaryForTextScan(path string, data []byte) bool {
+	return binarySkipExtensions[strings.ToLower(filepath.Ext(path))] || bytes.IndexByte(data, 0) >= 0
+}
+
 func ReadFileBounded(path string, maxBytes int64) ([]byte, bool) {
 	info, err := os.Stat(path)
 	if err != nil || info.Size() > maxBytes {
