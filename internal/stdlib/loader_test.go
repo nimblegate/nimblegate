@@ -146,6 +146,8 @@ func TestLoadStdlibFrames_TierMetadataPresent(t *testing.T) {
 		"security/no-terraform-state-in-repo":          1,
 		"security/no-kubeconfig-in-repo":               1,
 		"security/no-database-dump-in-repo":            2,
+		"security/no-plaintext-passwords":              1,
+		"security/possible-secret":                     2,
 		"database/migration-script-explicit-env":       1,
 		"database/migration-verification-step":         1,
 		"database/sqlite-migration-idempotent-wrapper": 1,

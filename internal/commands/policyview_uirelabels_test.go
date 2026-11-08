@@ -139,3 +139,24 @@ func TestBuildNestedPlatformSubs_unrelatedVendorFlat(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildPolicyView_noEmptySubcategories: the browse tree lists only
+// buckets that hold at least one frame.
+func TestBuildPolicyView_noEmptySubcategories(t *testing.T) {
+	vm := buildPolicyView("", "test", nil)
+	var walk func(cat string, subs []policySubcategory)
+	walk = func(cat string, subs []policySubcategory) {
+		for _, s := range subs {
+			if len(s.Frames) == 0 && len(s.Children) == 0 {
+				t.Errorf("%s/%s is empty but shown", cat, s.Name)
+			}
+			walk(cat, s.Children)
+		}
+	}
+	for _, c := range vm.Categories {
+		if len(c.Subcategories) == 0 {
+			t.Errorf("axis %s shown with no buckets", c.ID)
+		}
+		walk(c.ID, c.Subcategories)
+	}
+}

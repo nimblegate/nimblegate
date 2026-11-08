@@ -43,19 +43,6 @@ var v2AxisOrder = []struct {
 	{v2AxisPlatform, "Platform"},
 }
 
-// canonicalFrameworks is the static list of framework axis values per spec
-// §6.1. Surfaced as visible-but-empty sub-buckets under Framework so the
-// operator can see what the axis covers even before any frames declare a
-// specific framework. NOTE: 'html' lives under Domain, not Framework, per
-// the cross-cutting-concern discussion (a SvelteKit project still emits
-// HTML that needs alt attributes - HTML isn't the project's framework).
-var canonicalFrameworks = []string{"svelte", "astro", "react", "vue", "go", "python"}
-
-// canonicalPlatformVendors is the analogous static list for the Platform
-// axis. Visible-but-empty surfacing matches Framework so the operator sees
-// the axis shape consistently across both pages.
-var canonicalPlatformVendors = []string{"cloudflare", "aws", "vercel", "netlify"}
-
 // coreCategories lists v1 categories whose frames represent the universal
 // floor - they apply to every project regardless of stack. git-safety
 // frames and shell-command-safety frames belong here per the v2 spec's

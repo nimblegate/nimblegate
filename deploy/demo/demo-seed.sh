@@ -94,6 +94,9 @@ rec acme-storefront 96  refs/heads/main false false \
   "$NONE" '["push rejected for acme-storefront"]'
 rec acme-storefront 210 refs/heads/feat-cart true false "$NONE" \
   '[{"frame":"documentation/dated-todo","file":"src/cart.js","label":"known backlog item","severity":"WARN"}]' '[]'
+rec acme-storefront 330 refs/heads/feat-shipping-rates true false \
+  '[{"id":"security/possible-secret","severity":"WARN","message":"config/shipping.yaml:12 - possible secret in api_key"}]' \
+  "$NONE" '[]'
 rec acme-storefront 1490 refs/heads/feat-search true false "$NONE" "$NONE" '[]'
 # Two agents working in parallel end up in the same files. With a repos-root
 # these are real commits on real branches; without one, fixed stand-in SHAs.
@@ -129,6 +132,9 @@ cat >> "$ROOT/payments-api/appframes.toml" <<'LINTERS'
 LINTERS
 rec payments-api 19  refs/heads/main false false \
   '[{"id":"security/no-private-keys-in-repo","severity":"BLOCK","message":"deploy/release.pem - PEM RSA private key"}]' \
+  "$NONE" '["push rejected for payments-api"]'
+rec payments-api 58  refs/heads/agent/claude/db-backup false false \
+  '[{"id":"security/no-plaintext-passwords","severity":"BLOCK","message":".claude/settings.local.json:7 - mysql password flag"}]' \
   "$NONE" '["push rejected for payments-api"]'
 rec payments-api 142 refs/heads/feat-payouts false false \
   '[{"id":"database/sqlite-migration-idempotent-wrapper","severity":"BLOCK","message":"migrations/008_payouts.sql:5 - DROP TABLE without IF EXISTS (non-idempotent)"}]' \

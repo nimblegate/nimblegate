@@ -1,0 +1,1 @@
+url: postgres://app:${DB_PASSWORD}@db.internal/app
