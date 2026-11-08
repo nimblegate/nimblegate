@@ -19,7 +19,7 @@ var innerHTMLPattern = regexp.MustCompile(`\.innerHTML\s*=\s*[^"'` + "`" + `;\s]
 const innerHTMLMaxLineLen = 1000
 
 // disableMarker is the per-file or per-line suppression comment.
-const disableMarker ="appframes:disable security/no-innerHTML-user-input"
+const disableMarker = "appframes:disable security/no-innerHTML-user-input"
 
 // applicableExtensions is the set of file suffixes that this check examines.
 var applicableExtensions = map[string]bool{
