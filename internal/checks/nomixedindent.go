@@ -49,6 +49,23 @@ func mixedIndentApplicableFile(path string) bool {
 	return mixedIndentExtensions[strings.ToLower(filepath.Ext(path))]
 }
 
+// mixedIndentTabsThenSpacesOK reports whether tabs followed by spaces are a
+// legitimate shape in this file: a make recipe line must start with a tab
+// and the spaces after it belong to the shell command, and C-family code
+// conventionally indents with tabs and aligns with spaces. Only a space
+// before a tab is wrong there - make rejects the recipe, and the width
+// depends on the reader's tab stop.
+func mixedIndentTabsThenSpacesOK(path string) bool {
+	if mixedIndentBasenames[filepath.Base(path)] {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".mk", ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp":
+		return true
+	}
+	return false
+}
+
 // goLinesStartingInLiteral marks, per line, whether the line begins inside a
 // raw string literal or a block comment. Its leading whitespace is then
 // content (embedded SQL, JSON, an indented example), not indentation:
@@ -151,6 +168,7 @@ filesLoop:
 			continue
 		}
 		lines := strings.Split(content, "\n")
+		alignWithSpaces := mixedIndentTabsThenSpacesOK(file)
 		var inLiteral []bool
 		if strings.EqualFold(filepath.Ext(file), ".go") {
 			inLiteral = goLinesStartingInLiteral(lines)
@@ -176,6 +194,12 @@ filesLoop:
 		done:
 			if !hasTab || !hasSpace {
 				continue
+			}
+			if alignWithSpaces {
+				lead := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+				if !strings.Contains(lead, " \t") {
+					continue
+				}
 			}
 			label := "mixed tab + space in leading whitespace"
 			hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, label))
