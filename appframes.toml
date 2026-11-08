@@ -20,6 +20,7 @@ enabled = [
     "git/no-force-push-main",
     "network/no-localhost-in-proxy-config",
     "security/no-hardcoded-credentials",
+    "security/no-plaintext-passwords",
     "security/no-private-keys-in-repo",
 ]
 
