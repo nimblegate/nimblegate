@@ -8,6 +8,9 @@ import (
 	"nimblegate/internal/engine"
 )
 
+// The kubeconfig samples below are fabricated fixtures.
+// appframes:disable security/no-kubeconfig-in-repo
+
 const kubeconfigSample = `apiVersion: v1
 kind: Config
 clusters:
@@ -18,7 +21,7 @@ users:
 - name: admin
   user:
     client-certificate-data: LS0tRkFLRS1DRVJULS0t
-    client-key-data: LS0tRkFLRS1LRVktLS0=
+    client-key-data: LS0tLS1CRUdJTiBGQUtFIFRFU1QgS0VZLS0tLS1maXh0dXJlIG9ubHksIG5vdCBhIGtleS0tLS0tRU5EIEZBS0UgVEVTVCBLRVktLS0tLQ==
 `
 
 func TestNoKubeconfigInRepo_ClientKeyDataBlocks(t *testing.T) {
@@ -52,10 +55,22 @@ func TestNoKubeconfigInRepo_UnrelatedYamlPasses(t *testing.T) {
 	}
 }
 
+// TestNoKubeconfigInRepo_PlaceholderKeyDataPasses: docs and redacted dumps
+// name the field without key material behind it.
+func TestNoKubeconfigInRepo_PlaceholderKeyDataPasses(t *testing.T) {
+	root := t.TempDir()
+	piiWrite(t, root, "docs/k8s.md", "A line containing `client-key-data:` is key material.\n")
+	piiWrite(t, root, "docs/view.yaml", "users:\n- user:\n    client-key-data: DATA+OMITTED\n    client-key-data: <base64-encoded-key>\n    client-key-data: REDACTED\n")
+	res := NoKubeconfigInRepo(piiCtx(root))
+	if res.Outcome != engine.OutcomePass {
+		t.Fatalf("want PASS, got %v (%s)", res.Outcome, res.Reason)
+	}
+}
+
 func TestNoKubeconfigInRepo_DisableLineMarkerHonored(t *testing.T) {
 	root := t.TempDir()
 	piiWrite(t, root, "docs/example.yaml",
-		"# appframes:disable-next-line security/no-kubeconfig-in-repo\nclient-key-data: RkFLRQ==\n")
+		"# appframes:disable-next-line security/no-kubeconfig-in-repo\nclient-key-data: LS0tLS1CRUdJTiBGQUtFIFRFU1QgS0VZLS0tLS1maXh0dXJlIG9ubHksIG5vdCBhIGtleS0tLS0tRU5EIEZBS0UgVEVTVCBLRVktLS0tLQ==\n")
 	res := NoKubeconfigInRepo(piiCtx(root))
 	if res.Outcome != engine.OutcomePass {
 		t.Fatalf("want PASS, got %v (%s)", res.Outcome, res.Reason)

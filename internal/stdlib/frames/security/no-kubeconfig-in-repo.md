@@ -19,8 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 2/2
-  negatives: 2/2
-  last-run: 2026-07-07T18:42:23Z
+  negatives: 3/3
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No kubeconfig in repo
@@ -34,7 +34,7 @@ certificate says they are.
 
 | Path | Signal |
 |---|---|
-| Content | A line containing `client-key-data:` - base64-encoded client private key material; fires in any file, whatever its name |
+| Content | `client-key-data:` followed by a base64 value of at least 40 characters - client private key material; fires in any file, whatever its name. Placeholders (`DATA+OMITTED` from `kubectl config view`, `<base64-key>`, `REDACTED`) and prose naming the field do not fire |
 | Filename | Conventional basenames (`kubeconfig`, `.kubeconfig`, `kubeconfig.yaml`, `kubeconfig.yml`) when the file also has kubeconfig document shape (`clusters:` + `users:`) |
 
 ## Severity
