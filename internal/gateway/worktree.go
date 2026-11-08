@@ -4,6 +4,7 @@ package gateway
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"nimblegate/internal/engine"
 	"nimblegate/internal/scanignore"
 )
 
@@ -58,7 +60,9 @@ func exceeded(r io.Reader) bool {
 
 // materializeTree exports the tree at rev from the bare repo gitDir into destDir
 // using `git archive | tar -x`. destDir must already exist. maxBytes caps the
-// extracted stream (0 = unlimited).
+// extracted stream (0 = unlimited). On success it also writes the list of
+// neutralised symlinks to OutsideLinksPath(destDir); removeStagedTree removes
+// both.
 func materializeTree(gitDir, rev, destDir string, maxBytes int64) error {
 	archive := exec.Command("git", "--git-dir", gitDir, "archive", "--format=tar", rev)
 	var aerr bytes.Buffer
@@ -117,7 +121,52 @@ func materializeTree(gitDir, rev, destDir string, maxBytes int64) error {
 	case copyErr != nil:
 		return fmt.Errorf("stream: %w", copyErr)
 	}
-	return neutralizeEscapingSymlinks(destDir)
+	links, err := neutralizeEscapingSymlinks(destDir)
+	if err != nil {
+		return err
+	}
+	return writeOutsideLinks(destDir, links)
+}
+
+// OutsideLinksPath is the sidecar next to a staged tree that lists the
+// symlinks neutralised in it. It sits outside the tree so pushed content can
+// neither forge nor suppress it.
+func OutsideLinksPath(tree string) string {
+	return filepath.Clean(tree) + ".outside-links.json"
+}
+
+func writeOutsideLinks(tree string, links []engine.OutsideLink) error {
+	if links == nil {
+		links = []engine.OutsideLink{} // "[]", so a reader can tell "none" from "no sidecar"
+	}
+	b, err := json.Marshal(links)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(OutsideLinksPath(tree), b, 0o600)
+}
+
+// LoadOutsideLinks reads the sidecar materializeTree wrote for tree. No
+// sidecar (a tree the gateway did not stage) returns nil, nil.
+func LoadOutsideLinks(tree string) ([]engine.OutsideLink, error) {
+	b, err := os.ReadFile(OutsideLinksPath(tree))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	links := []engine.OutsideLink{}
+	if err := json.Unmarshal(b, &links); err != nil {
+		return nil, fmt.Errorf("%s: %w", OutsideLinksPath(tree), err)
+	}
+	return links, nil
+}
+
+// removeStagedTree removes a staged tree and its sidecar.
+func removeStagedTree(tree string) {
+	_ = os.RemoveAll(tree)
+	_ = os.Remove(OutsideLinksPath(tree))
 }
 
 // neutralizeEscapingSymlinks replaces every symlink under dir whose target
@@ -134,7 +183,8 @@ func materializeTree(gitDir, rev, destDir string, maxBytes int64) error {
 // Replaced rather than deleted: the path stays visible, so a frame keyed on
 // filenames still sees a pushed ".env" that was smuggled in as a symlink.
 // Links that stay inside the tree are ordinary content and are left alone.
-func neutralizeEscapingSymlinks(dir string) error {
+// Returns what it replaced, so the scan can still report each one.
+func neutralizeEscapingSymlinks(dir string) ([]engine.OutsideLink, error) {
 	root, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		root = dir // dir itself is ours and was just created; fall back to it
@@ -153,17 +203,24 @@ func neutralizeEscapingSymlinks(dir string) error {
 		}
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
+	var links []engine.OutsideLink
 	for _, p := range escaping {
+		target, _ := os.Readlink(p)
+		rel, err := filepath.Rel(dir, p)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, engine.OutsideLink{Path: filepath.ToSlash(rel), Target: target})
 		if err := os.Remove(p); err != nil {
-			return err
+			return nil, err
 		}
 		if err := os.WriteFile(p, nil, 0o644); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return links, nil
 }
 
 // resolveLink returns the real path a symlink points at, following the whole

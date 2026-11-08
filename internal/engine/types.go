@@ -51,6 +51,19 @@ type CheckContext struct {
 	// callers / tests that build CheckContext by hand), checks should
 	// fall back to the segment-only behavior via checks.IsExcluded.
 	IgnorePath func(absPath string) bool
+
+	// OutsideLinks lists the symlinks the gateway replaced with empty files
+	// while staging a pushed tree, because their targets left it. Non-nil
+	// means the tree on disk no longer shows them, so checks must use this
+	// list; nil means symlinks in the tree are still live and checks find
+	// them themselves.
+	OutsideLinks []OutsideLink
+}
+
+// OutsideLink is a symlink whose target resolved outside the scanned tree.
+type OutsideLink struct {
+	Path   string `json:"path"`   // relative to the tree root, slash-separated
+	Target string `json:"target"` // the link target as committed
 }
 
 // CheckOutcome is the verdict from running one frame.
