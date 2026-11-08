@@ -22,7 +22,7 @@ func ScanFirstPush(bare, repo, policyRoot, selfExe string) error {
 	if err != nil {
 		return fmt.Errorf("mkdir tmp: %w", err)
 	}
-	defer os.RemoveAll(tmp)
+	defer removeStagedTree(tmp)
 
 	// Resolve a ref to scan: prefer symbolic HEAD, fall back to the first
 	// branch under refs/heads/. On a fresh bare repo the symbolic HEAD may

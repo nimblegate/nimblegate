@@ -163,7 +163,7 @@ func previewScan(in PreviewInput, rev string) []engine.CheckResult {
 	if err != nil {
 		return failed(err.Error())
 	}
-	defer os.RemoveAll(tmp)
+	defer removeStagedTree(tmp)
 	if err := materializeTree(in.GitDir, rev, tmp, in.MaxTreeBytes); err != nil {
 		return failed("materialize: " + err.Error())
 	}

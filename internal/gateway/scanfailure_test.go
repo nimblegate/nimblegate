@@ -338,8 +338,26 @@ func TestNeutralizeEscapingSymlinks(t *testing.T) {
 	link("inside-link.txt", "chained-inside.txt")     // chain that stays in
 	link("absolute-escape.txt", "chained-escape.txt") // chain that leaves
 
-	if err := neutralizeEscapingSymlinks(staged); err != nil {
+	links, err := neutralizeEscapingSymlinks(staged)
+	if err != nil {
 		t.Fatalf("neutralize: %v", err)
+	}
+	got := map[string]string{}
+	for _, l := range links {
+		got[l.Path] = l.Target
+	}
+	want := map[string]string{
+		"absolute-escape.txt": secretPath,
+		"relative-escape.txt": "../../etc/passwd",
+		"chained-escape.txt":  "absolute-escape.txt",
+	}
+	if len(got) != len(want) {
+		t.Errorf("reported links = %v, want %v", got, want)
+	}
+	for p, target := range want {
+		if got[p] != target {
+			t.Errorf("reported %s -> %q, want %q", p, got[p], target)
+		}
 	}
 
 	for _, name := range []string{"absolute-escape.txt", "relative-escape.txt", "chained-escape.txt"} {

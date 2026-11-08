@@ -18,8 +18,9 @@ pattern: byte-order-mark
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 2/2
+  negatives: 4/4
+  last-run: 2026-11-08T18:35:32Z
 ---
 
 # No UTF-8 byte-order mark
@@ -30,7 +31,12 @@ scripts (interpreter line not recognised), shebang handling, JSON
 parsers, and many migration tools.
 
 CSV and TSV files are exempt - Excel writes a BOM by default and the
-files often round-trip through it.
+files often round-trip through it. So are .NET source, project and
+solution files (`.cs`, `.vb`, `.fs`, `.csproj`, `.vbproj`, `.fsproj`,
+`.sln`): Visual Studio saves them with a BOM and the .NET toolchain
+expects it. Only this frame skips them; secret and other frames still
+scan them. Scripts and config files (`.sh`, `.ps1`, `.json`,
+`NuGet.config`) still block.
 
 ## Fix
 
