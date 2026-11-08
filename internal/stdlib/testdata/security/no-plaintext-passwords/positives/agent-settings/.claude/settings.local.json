@@ -1,0 +1,1 @@
+{"permissions":{"allow":["Bash(mysql -u root -pS3cretPw9 appdb:*)"]}}

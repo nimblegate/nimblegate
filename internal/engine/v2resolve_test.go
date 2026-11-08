@@ -21,9 +21,9 @@ func TestBuildV2FrameMap_walksEntireV2Tree(t *testing.T) {
 	// files-that-never-belong-in-history pack (2026-07-08: env file,
 	// tfstate, kubeconfig, database dump) brings it to 50; the agent-shortcut
 	// frames (2026-09-28: test skips, weakened CI, blanket lint disables,
-	// placeholder tests, test special-casing, no-op test scripts) to 56.
-	if got := len(m.IDToBucket); got != 56 {
-		t.Errorf("V2FrameMap has %d entries, want 56 (classification table)", got)
+	// placeholder tests, test special-casing, no-op test scripts) to 56; plaintext-passwords + possible-secret to 58.
+	if got := len(m.IDToBucket); got != 58 {
+		t.Errorf("V2FrameMap has %d entries, want 58 (classification table)", got)
 	}
 }
 

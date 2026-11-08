@@ -23,6 +23,8 @@
 | commands/curl-pipe-shell | domains/security/curl-pipe-shell | Per spec §3.3 worked example: framework-agnostic command-execution security |
 | commands/approved-registries-only | domains/security/approved-registries-only | Framework-agnostic supply-chain security (added 2026-07-06) |
 | security/no-pii-in-source | domains/security/no-pii-in-source | Framework-agnostic data-exposure security (added 2026-07-06) |
+| security/no-plaintext-passwords | domains/security/no-plaintext-passwords | Framework-agnostic credential exposure (added 2026-11-08) |
+| security/possible-secret | domains/security/possible-secret | Framework-agnostic credential heuristic, WARN (added 2026-11-08) |
 | **platform/cloudflare/cf-pages (4 frames - Pages-specific)** | | |
 | app-correctness/top-of-page-import-safety | platform/cloudflare/cf-pages/top-of-page-import-safety | `platform: [cloudflare, cf-pages]` in frontmatter; Pages-specific bundling concern |
 | app-correctness/prefer-static-public | platform/cloudflare/cf-pages/prefer-static-public | `platform: [cloudflare, cf-pages]` in frontmatter; Pages public dir convention |

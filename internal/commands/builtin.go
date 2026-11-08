@@ -38,6 +38,8 @@ func BuiltinCheckFuncs() map[string]engine.CheckFunc {
 		"security/no-terraform-state-in-repo":          checks.NoTerraformStateInRepo,
 		"security/no-kubeconfig-in-repo":               checks.NoKubeconfigInRepo,
 		"security/no-database-dump-in-repo":            checks.NoDatabaseDumpInRepo,
+		"security/no-plaintext-passwords":              checks.NoPlaintextPasswords,
+		"security/possible-secret":                     checks.PossibleSecret,
 		"encoding/no-bom":                              checks.NoBOM,
 		"encoding/no-smart-quotes-in-config":           checks.NoSmartQuotesInConfig,
 		"encoding/yaml-no-tabs":                        checks.YAMLNoTabs,

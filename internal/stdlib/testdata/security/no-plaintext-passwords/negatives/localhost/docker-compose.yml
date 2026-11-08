@@ -1,0 +1,1 @@
+DATABASE_URL: postgres://postgres:devpass1@localhost:5432/app

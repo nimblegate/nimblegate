@@ -30,8 +30,8 @@ func TestLoadStdlib_ReturnsAllBuiltinKits(t *testing.T) {
 func TestLoadStdlib_CoreHas18Frames(t *testing.T) {
 	ks, _ := LoadStdlib()
 	core, _ := ks.Get("core")
-	if len(core.Frames) != 18 {
-		t.Errorf("core kit: got %d frames, want 18", len(core.Frames))
+	if len(core.Frames) != 19 {
+		t.Errorf("core kit: got %d frames, want 19", len(core.Frames))
 	}
 }
 
