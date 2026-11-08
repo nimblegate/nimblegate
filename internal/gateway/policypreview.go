@@ -232,7 +232,7 @@ func overlayPolicyEnabled(policyDir, destDir string, enabled []string) error {
 	if err := toml.NewEncoder(&buf).Encode(doc); err != nil {
 		return err
 	}
-	return os.WriteFile(p, buf.Bytes(), 0o644)
+	return os.WriteFile(p, buf.Bytes(), 0o600)
 }
 
 // previewRef picks the ref whose code the next push most likely builds on:
