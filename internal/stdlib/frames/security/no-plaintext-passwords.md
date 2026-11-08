@@ -70,9 +70,14 @@ and agents' approved-command lists.
   `postgres:postgres`.
 - `mysql -p` with no value (it prompts), `sshpass -e`, `docker login
   --password-stdin`.
-- Docs that only name a flag: `` `sshpass -p`, `` or `` `mysql -p`. `` in a
-  README. Values that are only markup or punctuation, or shorter than three
-  characters, are ignored; a real password inside backticks still fires.
+- Docs that only name a flag, such as `sshpass -p` or `mysql -p` followed by
+  a comma or full stop, in markdown or generated HTML (`&lt;pw&gt;` counts as
+  the placeholder `<pw>`). Values that are only markup or punctuation, or
+  shorter than three characters, are ignored; a real password inside a code
+  span still fires.
+- Third-party code: `vendor/`, `third_party/`, `.venv/`, `venv/`,
+  `site-packages/`, `bower_components/` and `.svelte-kit/`, whose docs and tests
+  carry example URLs.
 - Documentation stand-ins: `UPPER_SNAKE` names (`GITEA_TOKEN`) and the
   RFC 5737 example IP ranges (`192.0.2.*`, `198.51.100.*`, `203.0.113.*`).
 - URL and command shapes inside test files and `testdata/` or `fixtures/`

@@ -11,6 +11,9 @@ import (
 	"nimblegate/internal/scanignore"
 )
 
+// The key headers below are fabricated fixtures.
+// appframes:disable security/no-private-keys-in-repo
+
 // TestNoPrivateKeys_RespectsAppframesIgnoreMarker verifies that a directory
 // flagged via .appframes-ignore is skipped by an end-to-end file-scanning
 // check. The check would normally BLOCK on a PEM private key - the marker

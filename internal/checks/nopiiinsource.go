@@ -15,9 +15,12 @@ import (
 )
 
 var (
-	piiCardRe = regexp.MustCompile(`(?:^|[^0-9])((?:\d[ -]?){12,18}\d)(?:[^0-9]|$)`)
-	piiIbanRe = regexp.MustCompile(`\b([A-Z]{2}\d{2}[A-Z0-9]{10,30})\b`)
-	piiSSNRe  = regexp.MustCompile(`\b(\d{3})-(\d{2})-(\d{4})\b`)
+	// piiCardRunRe takes a whole digit run, single spaces or dashes
+	// between digits included, so a card candidate is judged with its
+	// surroundings: a list of numbers is one long run, not a card.
+	piiCardRunRe = regexp.MustCompile(`[0-9](?:[0-9]|[ -][0-9])*`)
+	piiIbanRe    = regexp.MustCompile(`\b([A-Z]{2}\d{2}[A-Z0-9]{10,30})\b`)
+	piiSSNRe     = regexp.MustCompile(`\b(\d{3})-(\d{2})-(\d{4})\b`)
 )
 
 const piiDisableMarker = "appframes:disable security/no-pii-in-source"
@@ -142,18 +145,68 @@ func piiSSNShapeValid(area, group, serial string) bool {
 	return group != "00" && serial != "0000"
 }
 
+func piiWordByte(c byte) bool {
+	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// piiCardDigits returns the digits of a card-number candidate run at
+// line[start:end], or "" when the run is not shaped like one: the
+// fraction or exponent part of a decimal (0.4485...), part of a hex or
+// alphanumeric token, or separated digits that are not grouped the way
+// cards are printed (4-4-4-4[-1..3], 4-6-5, 4-6-4).
+func piiCardDigits(line string, start, end int) string {
+	if start > 0 && (line[start-1] == '.' || piiWordByte(line[start-1])) {
+		return ""
+	}
+	if end < len(line) && (piiWordByte(line[end]) || line[end] == '.' && end+1 < len(line) && line[end+1] >= '0' && line[end+1] <= '9') {
+		return ""
+	}
+	run := line[start:end]
+	groups := strings.FieldsFunc(run, func(r rune) bool { return r == ' ' || r == '-' })
+	if len(groups) > 1 {
+		if strings.Contains(run, " ") && strings.Contains(run, "-") {
+			return ""
+		}
+		var lens []int
+		for _, g := range groups {
+			lens = append(lens, len(g))
+		}
+		if !piiCardGrouping(lens) {
+			return ""
+		}
+	}
+	digits := strings.Join(groups, "")
+	if len(digits) < 13 || len(digits) > 19 {
+		return ""
+	}
+	return digits
+}
+
+func piiCardGrouping(lens []int) bool {
+	eq := func(want ...int) bool {
+		if len(lens) != len(want) {
+			return false
+		}
+		for i := range want {
+			if lens[i] != want[i] {
+				return false
+			}
+		}
+		return true
+	}
+	if len(lens) == 5 && lens[4] >= 1 && lens[4] <= 3 && eq(4, 4, 4, 4, lens[4]) {
+		return true
+	}
+	return eq(4, 4, 4, 4) || eq(4, 6, 5) || eq(4, 6, 4)
+}
+
 // piiScanLine returns the labels of validated personal-data findings on one
 // line. Matched values are never returned - only kind labels.
 func piiScanLine(line string) []string {
 	var labels []string
-	for _, m := range piiCardRe.FindAllStringSubmatch(line, -1) {
-		digits := strings.Map(func(r rune) rune {
-			if r >= '0' && r <= '9' {
-				return r
-			}
-			return -1
-		}, m[1])
-		if len(digits) < 13 || len(digits) > 19 {
+	for _, loc := range piiCardRunRe.FindAllStringIndex(line, -1) {
+		digits := piiCardDigits(line, loc[0], loc[1])
+		if digits == "" {
 			continue
 		}
 		if !piiCardScheme(digits) || !piiLuhnValid(digits) || piiKnownTestCards[digits] {
@@ -222,6 +275,12 @@ func NoPIIInSource(ctx engine.CheckContext) engine.CheckResult {
 filesLoop:
 	for _, file := range files {
 		if ShouldSkipPath(ctx, file) {
+			continue
+		}
+		// Test sources spell out checksum-valid values to exercise
+		// validators. Fixture data files stay in scope: a copied
+		// production dump is the leak this frame exists for.
+		if k := testFileKind(projectRel(ctx, file)); k != "" && k != "rs" {
 			continue
 		}
 		data, ok := ReadFileBounded(file, DefaultMaxFileBytes)

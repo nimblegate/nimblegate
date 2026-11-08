@@ -231,7 +231,7 @@ func lintAt(root string, stderr io.Writer) int {
 	// .appframes-ignore patterns as warnings so the user can fix typos.
 	excludeNames := cfg.Scan.Exclude
 	if len(excludeNames) == 0 {
-		excludeNames = []string{".git", "node_modules", "dist", "build", ".appframes"}
+		excludeNames = []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
 	}
 	matcher, _ := scanignore.New(root, excludeNames, cfg.Scan.ExcludePaths)
 	if matcher != nil {

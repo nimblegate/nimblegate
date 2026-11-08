@@ -72,7 +72,7 @@ func HTMLRequiredMeta(ctx engine.CheckContext) engine.CheckResult {
 		if !htmlApplicableFile(file) {
 			continue
 		}
-		if htmlTemplateFragment(ctx, file) {
+		if !htmlPageInScope(ctx, file) {
 			continue
 		}
 		if ShouldSkipPath(ctx, file) {
@@ -91,15 +91,20 @@ func HTMLRequiredMeta(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		body := extractHTMLBody(file, content)
+		if !htmlIsDocument(file, body) {
+			continue
+		}
+		// A Svelte route's charset and viewport live in app.html.
+		svelte := strings.HasSuffix(strings.ToLower(file), ".svelte")
 
 		var missing []string
-		if !metaCharsetRegex.MatchString(body) {
+		if !svelte && !metaCharsetRegex.MatchString(body) {
 			missing = append(missing, "charset")
 		}
-		if !metaViewportRegex.MatchString(body) {
+		if !svelte && !metaViewportRegex.MatchString(body) {
 			missing = append(missing, "viewport")
 		}
-		if !titleRegex.MatchString(body) && !svelteHeadRegex.MatchString(body) {
+		if !titleRegex.MatchString(body) && !svelteHeadRegex.MatchString(body) && !svelteKitShell(body) {
 			missing = append(missing, "title")
 		}
 		if len(missing) == 0 {

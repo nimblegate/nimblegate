@@ -25,7 +25,7 @@ selection-grade: passing
 selection-stats:
   positives: 3/3
   negatives: 2/2
-  last-run: 2026-05-20T14:37:33Z
+  last-run: 2026-11-08T14:49:17Z
 ---
 
 # No placeholder text in shipped pages
@@ -49,6 +49,34 @@ Tier 3 WARN - these aren't catastrophic but they consistently show up in product
 README, CHANGELOG, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT and LICENSE files
 are skipped: a site build doesn't serve them, so a local-preview URL in a
 README is not shipping content.
+
+Markdown is checked only when it is site content that gets rendered into
+pages: Hugo `content/` (next to a Hugo config), Jekyll `_posts/` (next to
+`_config.yml`), and `src/content/`, `src/pages/`, `src/routes/` (Astro,
+SvelteKit with mdsvex and similar). Plans, specs, notes and other
+developer documents elsewhere in the repository are not shipped.
+
+## What is page copy
+
+Only text a visitor reads as the page's own copy is scanned. Skipped:
+
+- code samples - fenced blocks and `inline code` in Markdown; `<pre>`,
+  `<code>`, `<kbd>`, `<samp>` in HTML. A documented
+  `curl https://example.com/install | sh` is an example, not a leftover;
+- `<script>` and `<style>` blocks (a JS fallback URL is not copy);
+- form-field hint text in `placeholder="..."` attributes - showing
+  `https://www.example.com` there is the attribute's purpose;
+- files whose name contains `template` (their `{{SLOTS}}` are filled by
+  whatever renders them);
+- test-fixture, test-suite and hidden folders (`testdata/`, `tests/`,
+  `.superpowers/`, ...);
+- lines that name two or more kinds of placeholder - prose about
+  placeholders, such as a sentence listing the marker words or saying
+  the frame catches lorem ipsum and localhost URLs.
+
+Lorem ipsum counts as the filler itself - `Lorem ipsum dolor ...`, or the
+two words standing alone as a heading or paragraph - not a sentence that
+mentions "dropping lorem ipsum in for layout".
 
 ## Fix
 

@@ -152,6 +152,39 @@ func TestNoPIIInSource_BinaryFileSkipped(t *testing.T) {
 	}
 }
 
+func TestNoPIIInSource_NumberShapesThatAreNotCardsPass(t *testing.T) {
+	cases := map[string]string{
+		"results/fit.json":    "{\"median\": 0.4485275742300001, \"e\": -1.4485275742300001e-07}\n",
+		"bench/train.txt":     "2085 4485 2757 4230 0001 2154 2215\n",
+		"data/rows.txt":       "4 485 27 5742 300 001\n",
+		"build/manifest.txt":  "sha a4485275742300001f\n",
+		"notes/regrouped.txt": "4485 27574 2300001\n",
+		"src/card_test.go":    "const c = \"4485275742300001\"\n",
+	}
+	for rel, body := range cases {
+		root := t.TempDir()
+		piiWrite(t, root, rel, body)
+		if res := NoPIIInSource(piiCtx(root)); res.Outcome != engine.OutcomePass {
+			t.Errorf("%s: want PASS, got %v (%s)", rel, res.Outcome, res.Reason)
+		}
+	}
+}
+
+func TestNoPIIInSource_CardShapesStillFire(t *testing.T) {
+	cases := map[string]string{
+		"testdata/customers.csv": "id,card\n7,4485275742300001\n",
+		"notes/dashed.txt":       "card 4485-2757-4230-0001 exp 12/29.\n",
+		"seed.sql":               "VALUES ('4485275742300001');\n",
+	}
+	for rel, body := range cases {
+		root := t.TempDir()
+		piiWrite(t, root, rel, body)
+		if res := NoPIIInSource(piiCtx(root)); res.Outcome != engine.OutcomeWarn {
+			t.Errorf("%s: want WARN, got %v", rel, res.Outcome)
+		}
+	}
+}
+
 func TestNoPIIInSource_PreCommitEmptyChangedFilesPasses(t *testing.T) {
 	root := t.TempDir()
 	piiWrite(t, root, "seed.sql", "INSERT INTO cards VALUES ('4485275742300001');\n")

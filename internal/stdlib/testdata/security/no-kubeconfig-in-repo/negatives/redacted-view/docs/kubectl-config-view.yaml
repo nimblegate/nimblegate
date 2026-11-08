@@ -1,0 +1,8 @@
+# Output of `kubectl config view`: key material is omitted.
+apiVersion: v1
+kind: Config
+users:
+- name: admin
+  user:
+    client-certificate-data: DATA+OMITTED
+    client-key-data: DATA+OMITTED

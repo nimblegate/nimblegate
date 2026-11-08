@@ -364,14 +364,25 @@ func gatewayDashboard(args []string) int {
 				html.EscapeString(repo), html.EscapeString(repo),
 			))
 		}
-		renderPolicyHTTP(w, vm, policyPageOpts{AllowEdits: *allowEdits, CSRFToken: token, Repos: repos, ActiveTab: r.URL.Query().Get("tab"), Authoring: authoring, NotifRail: notifRail, Notice: policyRootNotice(*policyRoot), Chrome: buildChrome("policy", repo, *policyRoot), ScanRec: loadScanRec(*policyRoot, repo), Archived: gateway.ListArchivedRepos(*policyRoot), PolicyRoot: *policyRoot, JustRegistered: justRegistered})
+		scanRec := loadScanRec(*policyRoot, repo)
+		var nextPush *nextPushView
+		var scanRecAfter *gateway.PreviewResult
+		if *reposRoot != "" {
+			nextPush = pendingNextPush(repo, scanRec != nil)
+		}
+		renderPolicyHTTP(w, vm, policyPageOpts{AllowEdits: *allowEdits, CSRFToken: token, Repos: repos, ActiveTab: r.URL.Query().Get("tab"), Authoring: authoring, NotifRail: notifRail, Notice: policyRootNotice(*policyRoot), Chrome: buildChrome("policy", repo, *policyRoot), ScanRec: scanRec, Archived: gateway.ListArchivedRepos(*policyRoot), PolicyRoot: *policyRoot, JustRegistered: justRegistered, NextPush: nextPush, ScanRecAfter: scanRecAfter})
 	})
+	mux.HandleFunc("/policy/preview/next", previewHandlers{policyRoot: *policyRoot, reposRoot: *reposRoot, token: token, allowEdits: *allowEdits}.previewNext)
 	if *allowEdits {
-		ph := policyHandlers{policyRoot: *policyRoot, token: token}
+		ph := policyHandlers{policyRoot: *policyRoot, token: token, reposRoot: *reposRoot}
 		mux.HandleFunc("/policy/severity", ph.severity)
 		mux.HandleFunc("/policy/repo", ph.repo)
 		mux.HandleFunc("/policy/frames/toggle", ph.toggleFrame)
 		mux.HandleFunc("/policy/kits/apply", ph.applyKit)
+		pv := previewHandlers{policyRoot: *policyRoot, reposRoot: *reposRoot, token: token, allowEdits: true}
+		mux.HandleFunc("/policy/kits/preview", pv.kitConfirm)
+		mux.HandleFunc("/policy/repo/scan-preview", pv.scanConfirm)
+		mux.HandleFunc("/policy/preview/whitelist", pv.whitelistThis)
 		mux.HandleFunc("/policy/kits/clear", ph.clearKit)
 		mux.HandleFunc("/policy/kits/new-form", ph.userKitForm)
 		mux.HandleFunc("/policy/kits/create", ph.createUserKit)
@@ -536,6 +547,10 @@ func gatewayDashboard(args []string) int {
 	// pre-receive hook enqueues on every rejected push; this loop delivers them.
 	startNotificationDaemon(context.Background(), *policyRoot)
 	fmt.Println(notifDaemonStartLine())
+
+	if *reposRoot != "" {
+		go warmPreviews(context.Background(), *policyRoot, *reposRoot, 30*time.Second)
+	}
 
 	bind := fmt.Sprintf("%s:%d", *addr, *port)
 	fmt.Printf("nimblegate gateway dashboard: http://%s  (Ctrl-C to stop)\n", bind)

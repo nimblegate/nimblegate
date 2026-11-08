@@ -65,6 +65,43 @@ func TestDatedTodo_AcceptedForms(t *testing.T) {
 	}
 }
 
+// TestDatedTodo_MentionsAreNotMarkers - a marker word that is talked
+// about (in a string, mid-comment, in Markdown prose or a code example)
+// is not a TODO; one that opens a comment or a Markdown line is.
+func TestDatedTodo_MentionsAreNotMarkers(t *testing.T) {
+	mentions := map[string]string{
+		"src/a.go":       "pattern := \"TODO\\\\(\"\nb.WriteString(\"## TODO before this is real\\n\")\nbody := \"// FIXME this is broken\\n\"\n",
+		"src/b.go":       "// is a TODO checklist + a reference back to the incident\nre := `\\b(?:TODO|FIXME)\\b`\n",
+		"src/c.py":       "x = 'TODO here'  # matches TODO/FIXME markers\n",
+		"docs/plan.md":   "**Placeholder scan:** No TBD/TODO; every step complete.\nCosts ~$XXX/month.\nMarkers like `TODO` are scanned.\n\n```go\n// TODO: come back to this\n```\n",
+		"docs/review.md": "Lines matching the TODO regex are tested.\n",
+	}
+	root := t.TempDir()
+	for rel, body := range mentions {
+		writeSource(t, root, rel, body)
+	}
+	got := DatedTodo(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+	if got.Outcome != engine.OutcomePass {
+		t.Errorf("mentions should pass; got %s %s", got.Outcome, got.Reason)
+	}
+
+	markers := map[string]string{
+		"src/d.go":      "x := 1 // TODO: handle overflow\n",
+		"src/e.ts":      "/**\n * FIXME remove after migration\n */\n",
+		"docs/notes.md": "- [ ] TODO write the intro\n",
+		"docs/next.md":  "<!-- TODO add diagram -->\n",
+		"src/f.py":      "s = \"a#b\"  # HACK around the parser\n",
+	}
+	for rel, body := range markers {
+		root := t.TempDir()
+		writeSource(t, root, rel, body)
+		got := DatedTodo(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+		if got.Outcome != engine.OutcomeWarn {
+			t.Errorf("%s: real marker should warn; got %s", rel, got.Outcome)
+		}
+	}
+}
+
 // TestDatedTodo_RejectedForms - explicitly bad cases.
 func TestDatedTodo_RejectedForms(t *testing.T) {
 	root := t.TempDir()

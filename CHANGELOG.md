@@ -5,6 +5,60 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-11-09
+
+### Added
+
+- **Next-push preview on the Policy page.** For the selected repo the page
+  states what the gate would do with the latest pushed code under the current
+  policy ("the next push would: block X, warn Y") with the list of findings.
+  It is the gate's own evaluation: same frames, whitelist, scan settings,
+  linters, size cap and timeout. The section loads after the page and the
+  dashboard keeps it current in the background.
+- **Confirm step for kits and Apply recommended.** Each shows block and warn
+  counts now and after applying, marks the findings the change adds, and,
+  when an enforcing repo would reject the next push, offers to apply and
+  switch to observe mode (never preselected).
+- **Whitelist this.** Each blocking finding in a preview can be whitelisted
+  for that exact file, with a required reason, in the whitelist the gate
+  reads.
+
+### Changed
+
+- The scan banner's per-group "would flag" counts are replaced by the
+  preview counts, Core included.
+- `.venv`, `venv`, `site-packages`, `__pycache__` and `.svelte-kit` are
+  skipped by default, like `node_modules`.
+- `golang.org/x/net` v0.62.0.
+
+### Fixed
+
+- **False alarms across the frame set**, found by running every frame over
+  about 120,000 real files. What should be caught still is: a corpus of real
+  keys, tokens and broken files is caught identically before and after, and
+  every frame doc now passes every frame. Among the fixes:
+  - Unicode, bidi and non-printable checks skip binary files (images, video,
+    archives, PDFs).
+  - `no-private-keys-in-repo` needs a key body after the header, so docs and
+    detector code that only name the header pass; a public-key `.pem` is not
+    a key file.
+  - `no-hardcoded-credentials` passes hand-typed AWS placeholder keys.
+  - `no-mixed-indent` skips Go raw strings and allows tab-then-space
+    alignment in C and Makefiles; `consistent-line-endings` exempts CSV/TSV;
+    `no-smart-quotes-in-config` passes JSON that parses.
+  - `no-en-dash-in-commands` fires only before a letter, and its suggested
+    fix no longer doubles every hyphen.
+  - `no-kubeconfig-in-repo`, `no-terraform-state-in-repo`,
+    `curl-pipe-shell` (comments) and `migration-script-explicit-env`
+    (login/config subcommands, continuation lines).
+  - HTML page frames check only whole shipping pages; `dated-todo`,
+    `no-pii-in-source`, `markdown-link-check-internal`,
+    `no-innerHTML-user-input`, `no-homoglyph-identifiers`,
+    `no-unmarked-test-skips` and `cf-pages-headers-baseline` lose their
+    common false alarms.
+- Whitelist entries are written with a TOML encoder, so unusual paths can no
+  longer produce an invalid whitelist file.
+
 ## [0.7.1] - 2026-11-08
 
 ### Fixed

@@ -34,6 +34,8 @@ type lineScan struct {
 	// lines (a Makefile target and its recipe). fileCheckFor selects files.
 	fileCheck    func(lines []string) []engine.Hit
 	fileCheckFor func(path string) bool
+	// exempt, when set, clears a rule match on lines[i] from its context.
+	exempt func(path string, lines []string, i int) bool
 }
 
 func (s lineScan) wants(path string) bool {
@@ -102,6 +104,9 @@ scan:
 					continue
 				}
 				if i > 0 && lineCarriesMarker(lines[i-1], lineMarker) {
+					break
+				}
+				if s.exempt != nil && s.exempt(file, lines, i) {
 					break
 				}
 				hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, r.label))
@@ -203,6 +208,42 @@ func isLineComment(trimmed string) bool {
 		strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*")
 }
 
+var conditionalOpenerRe = regexp.MustCompile(`^(?:\}\s*)?(?:if|else|elif|case|default|switch|select)\b`)
+
+// conditionalSkip reports a runtime skip (Go t.Skip, Python pytest.skip /
+// skipTest) that sits inside an if/else/case: like skipif, it states its
+// condition ("git not on PATH", "-short mode", "Windows"). Go blocks are
+// found by brace depth, Python blocks by indentation.
+func conditionalSkip(path string, lines []string, i int) bool {
+	line := lines[i]
+	switch testFileKind(path) {
+	case "go":
+		if conditionalOpenerRe.MatchString(strings.TrimSpace(line)) {
+			return true
+		}
+		depth := 0
+		for j := i - 1; j >= 0 && j >= i-40; j-- {
+			t := strings.TrimSpace(lines[j])
+			depth += strings.Count(t, "}") - strings.Count(t, "{")
+			if depth < 0 {
+				return conditionalOpenerRe.MatchString(t)
+			}
+		}
+	case "py":
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		for j := i - 1; j >= 0 && j >= i-40; j-- {
+			t := strings.TrimSpace(lines[j])
+			if t == "" || strings.HasPrefix(t, "#") {
+				continue
+			}
+			if ind := len(lines[j]) - len(strings.TrimLeft(lines[j], " \t")); ind < indent {
+				return conditionalOpenerRe.MatchString(t) || strings.HasPrefix(t, "except")
+			}
+		}
+	}
+	return false
+}
+
 // NoUnmarkedTestSkips flags skipped and focused tests. A skipped test hides a
 // failure; a focused one (.only, fit) silently stops the rest of the suite.
 func NoUnmarkedTestSkips(ctx engine.CheckContext) engine.CheckResult {
@@ -210,6 +251,7 @@ func NoUnmarkedTestSkips(ctx engine.CheckContext) engine.CheckResult {
 		frameID:  "app-correctness/no-unmarked-test-skips",
 		rulesFor: func(p string) []lineRule { return testSkipRules[testFileKind(p)] },
 		comment:  isLineComment,
+		exempt:   conditionalSkip,
 		header:   "skipped or focused tests",
 		fix:      "fix the test and remove the skip, or record why it is skipped: a whitelist entry with a reason, or `// appframes:disable-next-line app-correctness/no-unmarked-test-skips` above the line",
 	}.run(ctx)

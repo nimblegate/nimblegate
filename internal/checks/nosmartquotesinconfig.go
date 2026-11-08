@@ -3,6 +3,7 @@
 package checks
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -96,6 +97,12 @@ filesLoop:
 		}
 		data, err := os.ReadFile(file)
 		if err != nil {
+			continue
+		}
+		// JSON that parses has every curly quote inside a string value,
+		// where it is content (a search index, translated copy), not a
+		// broken delimiter.
+		if strings.EqualFold(filepath.Ext(file), ".json") && json.Valid(data) {
 			continue
 		}
 		content := string(data)

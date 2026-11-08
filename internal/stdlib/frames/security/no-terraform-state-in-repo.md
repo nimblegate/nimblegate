@@ -19,8 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 3/3
-  negatives: 2/2
-  last-run: 2026-07-07T18:42:23Z
+  negatives: 3/3
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No Terraform state in repo
@@ -36,7 +36,7 @@ Two detection paths, content first:
 
 | Path | Signal |
 |---|---|
-| Content | The document carries both `"terraform_version"` and `"lineage"` - present in every real state file regardless of Terraform version, so renamed state (`backup/state.json`) still fires |
+| Content | The document carries both `"terraform_version"` and `"lineage"` as JSON members with a string value (`"lineage": "..."`) - present in every real state file regardless of Terraform version, so renamed state (`backup/state.json`) still fires. Prose that names the keys does not |
 | Filename | Basename ending `.tfstate` or `.tfstate.backup` (the automatic backup Terraform writes next to the state) |
 
 ## Severity

@@ -5,6 +5,7 @@ package checks
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"io/fs"
 	"path/filepath"
 	"regexp"
@@ -102,6 +103,12 @@ var pwFakeMarkers = []string{"fake", "dummy", "example", "placeholder", "changem
 func isPasswordPlaceholder(v, user string) bool {
 	// Docs quote commands in backticks and follow them with punctuation
 	// (`sshpass -p`, `mysql -p`.); what the pattern captures there is markup.
+	// Generated HTML docs escape the placeholder (&lt;pw&gt;) and close the
+	// code element right after it (-p</code>).
+	v = html.UnescapeString(v)
+	if i := strings.Index(v, "</"); i >= 0 {
+		v = v[:i]
+	}
 	v = strings.TrimRight(strings.Trim(strings.TrimSpace(v), "'\"`"), ".,;:)`'\"")
 	if len(v) < 3 || !strings.ContainsFunc(v, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) {
 		return true
@@ -247,6 +254,9 @@ filesLoop:
 			continue
 		}
 		rel := relPath(ctx, file)
+		if isThirdPartyPath(rel) {
+			continue
+		}
 		var fileRules []pwFileRule
 		for _, fr := range pwFileRules {
 			if fr.match(rel) {

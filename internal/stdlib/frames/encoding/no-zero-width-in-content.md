@@ -27,8 +27,9 @@ pattern: invisible-chars
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 2/2
+  negatives: 2/2
+  last-run: 2026-11-08T14:49:17Z
 ---
 
 # No zero-width characters in docs / prose
@@ -61,3 +62,6 @@ or in editors with "show invisible characters" turned on, delete by hand.
 
 - **ZWJ between two emoji** (👩‍💻) - the standard way to compose one
   glyph from two. A joiner between letters is still reported.
+- **Code examples in Markdown** - fenced blocks and inline code spans. A
+  doc that demonstrates the attack (a ZWNJ inside `varname`) has to
+  contain the character it describes.

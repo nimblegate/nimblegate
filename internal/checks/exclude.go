@@ -17,7 +17,7 @@ import (
 // us the project root directly; the walker-based callers were already
 // skipping `.git` via filepath.WalkDir's SkipDir behaviour.
 func DefaultExcludes() []string {
-	return []string{".git", "node_modules", "dist", "build", ".appframes"}
+	return []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
 }
 
 // ShouldSkipPath is the single decision point file-scanning checks consult

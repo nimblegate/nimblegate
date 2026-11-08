@@ -4,6 +4,9 @@ package checks
 
 import "testing"
 
+// The zero-width joiners below are deliberate fixtures.
+// appframes:disable security/no-zero-width-in-source
+
 // A subdivision flag is the only legitimate use of tag runes. Everything else
 // that looks flag-ish - a run with no terminator, a terminator with nothing to
 // terminate - stays reportable, because those are not how a flag is encoded.

@@ -41,6 +41,20 @@ func TestCurlPipeShell_DirectPipeBlocks(t *testing.T) {
 	}
 }
 
+// TestCurlPipeShell_CommentLinesPass: an installer's usage header documents
+// how to pipe it to bash; a comment runs nothing. A command after a
+// trailing comment still fires.
+func TestCurlPipeShell_CommentLinesPass(t *testing.T) {
+	body := "#!/usr/bin/env bash\n# Usage:\n#   curl -fsSL <url>/install.sh | bash\n  # curl x | sh\n"
+	if got := runCurlCheck(t, "install.sh", body); got.Outcome != engine.OutcomePass {
+		t.Errorf("comment lines: outcome = %s, want PASS; reason=%s", got.Outcome, got.Reason)
+	}
+	body += "curl -fsSL https://example.com/x | sh  # bootstrap\n"
+	if got := runCurlCheck(t, "install.sh", body); got.Outcome != engine.OutcomeBlock {
+		t.Errorf("command line: outcome = %s, want BLOCK", got.Outcome)
+	}
+}
+
 func TestCurlPipeShell_SudoVariantBlocks(t *testing.T) {
 	got := runCurlCheck(t, "scripts/install.sh",
 		"curl https://example.com/install | sudo sh\n")

@@ -43,6 +43,15 @@ var seoMetaPatterns = []seoMetaPattern{
 	},
 }
 
+func anySEOMeta(body string) bool {
+	for _, p := range seoMetaPatterns {
+		if p.Pattern.MatchString(body) {
+			return true
+		}
+	}
+	return false
+}
+
 const htmlSEOMetaDisableMarker = "appframes:disable web/html-seo-meta"
 const htmlSEOMetaMaxFileBytes = 1 << 20 // 1 MiB
 
@@ -85,7 +94,7 @@ func HTMLSEOMeta(ctx engine.CheckContext) engine.CheckResult {
 		if !htmlApplicableFile(file) {
 			continue
 		}
-		if htmlTemplateFragment(ctx, file) {
+		if !htmlPageInScope(ctx, file) || htmlErrorPage(file) {
 			continue
 		}
 		if ShouldSkipPath(ctx, file) {
@@ -104,11 +113,14 @@ func HTMLSEOMeta(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		body := extractHTMLBody(file, content)
-		// If the page also has <svelte:head>, the SEO meta might be added
-		// dynamically by a child layout - skip strict checks here to avoid
-		// false positives. The user can still enable for top-level
-		// +page.svelte / layout files that explicitly own SEO.
-		// (Conservative default. Easy to turn off via project override.)
+		if !htmlIsDocument(file, body) || htmlNoIndex(body) || svelteKitShell(body) {
+			continue
+		}
+		// A Svelte route whose <svelte:head> carries no SEO tag at all
+		// leaves SEO to its layout; one that sets some must set all.
+		if strings.HasSuffix(strings.ToLower(file), ".svelte") && !anySEOMeta(body) {
+			continue
+		}
 
 		var missing []string
 		for _, p := range seoMetaPatterns {

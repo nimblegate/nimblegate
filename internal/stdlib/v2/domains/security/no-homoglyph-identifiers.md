@@ -38,8 +38,9 @@ pattern: identifier-confusable
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 2/2
+  negatives: 3/3
+  last-run: 2026-11-08T14:43:37Z
 ---
 
 # No homoglyph (Latin-confusable) characters in source
@@ -84,6 +85,12 @@ indistinguishable from common Latin letters in monospace fonts:
 
 The set is intentionally tight - the most common attack-shape
 substitutions, not the full UTR #39 confusables list.
+
+A confusable only counts inside a word of three or more letters that
+also contains ASCII letters (`vаlidate`, `ρush`, `"pаypal.com"`): that
+mix is the impersonation. Words wholly in Cyrillic or Greek (`"Москва"`,
+a math variable `α`, notation like `αn`) are that script being used and
+pass, as do comment lines. Two-letter spoofs (`іd`) are not caught.
 
 ## Fix
 

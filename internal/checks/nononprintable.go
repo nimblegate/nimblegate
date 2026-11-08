@@ -18,41 +18,6 @@ const noNonPrintableDisableMarker = "appframes:disable encoding/no-non-printable
 const noNonPrintableDisableLineMarker = "appframes:disable-next-line encoding/no-non-printable"
 const noNonPrintableMaxFileBytes = 1 << 20
 
-// noNonPrintableSkipExtensions are extensions where control bytes are
-// expected (binary / generated content).
-var noNonPrintableSkipExtensions = map[string]bool{
-	".png":   true,
-	".jpg":   true,
-	".jpeg":  true,
-	".gif":   true,
-	".webp":  true,
-	".ico":   true,
-	".pdf":   true,
-	".zip":   true,
-	".tar":   true,
-	".gz":    true,
-	".bz2":   true,
-	".xz":    true,
-	".7z":    true,
-	".woff":  true,
-	".woff2": true,
-	".ttf":   true,
-	".otf":   true,
-	".eot":   true,
-	".mp3":   true,
-	".mp4":   true,
-	".wav":   true,
-	".webm":  true,
-	".so":    true,
-	".dll":   true,
-	".exe":   true,
-	".bin":   true,
-	".class": true,
-	".o":     true,
-	".a":     true,
-	".pyc":   true,
-}
-
 // isNonPrintableControl reports whether r is a C0 (excl. \t \n \r) or
 // C1 control character that has no legitimate use in text files.
 func isNonPrintableControl(r rune) bool {
@@ -103,7 +68,7 @@ filesLoop:
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}
-		if noNonPrintableSkipExtensions[strings.ToLower(filepath.Ext(file))] {
+		if binaryExtensions[strings.ToLower(filepath.Ext(file))] || isMinifiedPath(file) || inFixtureDir(projectRel(ctx, file)) || inTestDir(projectRel(ctx, file)) {
 			continue
 		}
 		info, err := os.Stat(file)
@@ -112,6 +77,9 @@ filesLoop:
 		}
 		data, err := os.ReadFile(file)
 		if err != nil {
+			continue
+		}
+		if isBinaryContent(data, file) {
 			continue
 		}
 		content := string(data)

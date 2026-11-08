@@ -20,7 +20,7 @@ selection-grade: passing
 selection-stats:
   positives: 1/1
   negatives: 3/3
-  last-run: 2026-05-24T00:00:00Z
+  last-run: 2026-11-08T14:50:06Z
 ---
 
 # Markdown internal link check
@@ -53,9 +53,21 @@ navigable as the project evolves.
    `.appframes/_canonical/markdown-link-ignore.toml` (optional).
 6. If the resolved file doesn't exist → hit.
 
-In a Hugo site's `content/` folder (next to a Hugo config), a link that
+In a Hugo site's `content/` folder (next to a Hugo config) or a Jekyll
+`_posts/` folder (next to `_config.yml`), a link that
 starts with `/` is a site address, not a repository path, and is not checked.
 Relative links in those files still are.
+
+Elsewhere, a root-relative link (`/docs/guide.md`) resolves against the
+repository root. When it does not exist and does not name a document or
+asset file (`.md`, `.html`, `.pdf`, `.txt`, `.json`, `.yaml`, `.toml`,
+`.csv`, images), it is taken as a route of the app or site the document
+was written for and is not reported: `/policy`, `/settings?tab=links`,
+`/en-US/docs/Web/API`, `/Reference/Statements/try...catch`. A missing
+root-relative link to a source file (`/src/app.js`) is therefore not
+caught; relative links to any file are. CommonMark angle-bracket destinations
+(`[x](<https://example.org/a_(b)>)`) are unwrapped before the external
+check.
 
 Hits are reported as `<file>:<line> → <link>` so the user can jump
 straight to the broken link.

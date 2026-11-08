@@ -95,6 +95,37 @@ func wranglerSubcommandIsFootgun(line string) bool {
 	return false
 }
 
+// envlessSubcommands are subcommands that act on the local tool, the login
+// or the CLI's own config - not on an environment's resources - so an env
+// flag means nothing there (`gcloud auth ...`, `gcloud config set project`,
+// `kubectl config use-context`, `heroku login`). Bootstrap and CI scripts
+// run them constantly.
+var envlessSubcommands = map[string]map[string]bool{
+	"gcloud":   {"auth": true, "config": true, "components": true, "info": true, "version": true, "init": true, "help": true, "topic": true},
+	"kubectl":  {"config": true, "version": true, "completion": true, "plugin": true, "help": true},
+	"vercel":   {"login": true, "logout": true, "whoami": true, "help": true, "telemetry": true},
+	"flyctl":   {"auth": true, "version": true, "help": true},
+	"fly":      {"auth": true, "version": true, "help": true},
+	"supabase": {"login": true, "logout": true, "init": true, "help": true, "start": true, "stop": true, "status": true},
+	"firebase": {"login": true, "logout": true, "init": true, "help": true},
+	"heroku":   {"login": true, "logout": true, "auth": true, "help": true, "version": true, "plugins": true, "update": true},
+}
+
+// cliSubcommand returns the first non-flag word after cli on line.
+func cliSubcommand(line, cli string) string {
+	seen := false
+	for _, f := range strings.Fields(line) {
+		if !seen {
+			seen = f == cli
+			continue
+		}
+		if !strings.HasPrefix(f, "-") {
+			return f
+		}
+	}
+	return ""
+}
+
 // lineUsesAnyVar reports whether the line references any of the given bash
 // variables via $VAR or ${VAR} (with a word boundary so $SCOPE doesn't match
 // $SCOPED).
@@ -245,8 +276,15 @@ filesLoop:
 			if cli[1] == "wrangler" && !wranglerSubcommandIsFootgun(line) {
 				continue
 			}
+			if envlessSubcommands[cli[1]][cliSubcommand(line, cli[1])] {
+				continue
+			}
 			// CLI invocation found. If the SAME line carries an explicit env
 			// flag, treat the script as handled.
+			// A long invocation puts its flags on `\` continuation lines.
+			for k := i; k+1 < len(lines) && strings.HasSuffix(strings.TrimRight(lines[k], " \t\r"), `\`); k++ {
+				line += " " + lines[k+1]
+			}
 			if envFlagPresentRegex.MatchString(line) {
 				continue
 			}

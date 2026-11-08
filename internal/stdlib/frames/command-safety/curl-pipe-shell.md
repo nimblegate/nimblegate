@@ -24,8 +24,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 3/3
-  negatives: 3/3
-  last-run: 2026-05-20T14:37:33Z
+  negatives: 4/4
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No curl | sh
@@ -125,6 +125,10 @@ Documented so a future "why didn't it catch X?" has an answer:
   catching every "fetch then exec" path is the much-harder fully-
   contextual analysis V0.5 explicitly avoids.
 - **Markdown documentation:** intentional. See "Scope" above.
+- **Comment lines:** a line whose first non-blank character is `#` runs
+  nothing - an installer's usage header (`#   curl -fsSL .../install.sh | bash`)
+  documents the pattern rather than executing it. A command followed by a
+  trailing comment still fires.
 - **CI YAML files:** intentional for V0.5. See "Scope" above.
 - **Interactive shell invocations:** the frame is file-scanning, not
   command-intercept. If you type `curl url | sh` in your terminal

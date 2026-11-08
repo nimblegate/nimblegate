@@ -32,6 +32,25 @@ var kubeconfigBasenames = map[string]bool{
 	"kubeconfig.yml":  true,
 }
 
+// kubeconfigMinKeyDataChars is well under the base64 of the smallest PEM
+// private key (a few hundred characters); placeholders such as
+// `<base64-key>`, `REDACTED` or kubectl's `DATA+OMITTED` never reach it.
+const kubeconfigMinKeyDataChars = 40
+
+// kubeconfigKeyDataLine reports whether line assigns base64 key material to
+// client-key-data, as opposed to naming the field in prose or showing it
+// with a placeholder value.
+func kubeconfigKeyDataLine(line string) bool {
+	_, v, ok := strings.Cut(line, "client-key-data:")
+	if !ok {
+		return false
+	}
+	if f := strings.Fields(v); len(f) > 0 {
+		v = strings.Trim(f[0], `"',`)
+	}
+	return len(v) >= kubeconfigMinKeyDataChars && isBase64Line(v)
+}
+
 // NoKubeconfigInRepo detects Kubernetes client credentials committed to the
 // repository. `client-key-data:` is base64-encoded private key material -
 // cluster admin access in one line - and fires wherever it appears. The
@@ -96,7 +115,7 @@ filesLoop:
 			if i > 0 && lineCarriesMarker(lines[i-1], kubeconfigDisableLineMarker) {
 				continue
 			}
-			if strings.Contains(line, "client-key-data:") {
+			if kubeconfigKeyDataLine(line) {
 				contentMatched = true
 				label := "kubeconfig client key material (client-key-data)"
 				hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, label))

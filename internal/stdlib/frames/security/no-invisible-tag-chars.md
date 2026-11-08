@@ -18,8 +18,9 @@ pattern: invisible-payload
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 4/4
+  negatives: 6/6
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No invisible Unicode tag characters
@@ -66,3 +67,6 @@ and document why in the same file.
   letters terminated by `U+E007F`, the standard encoding. Only a
   well-formed sequence is skipped: an unterminated run, or a cancel tag
   with nothing before it, is still reported.
+- **Binary files** - a known binary extension (images, video, archives,
+  fonts, compressed files, compiled objects) or a NUL byte anywhere in the
+  file. Tag-rune byte sequences occur in such bytes by chance.

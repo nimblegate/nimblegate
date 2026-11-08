@@ -45,6 +45,30 @@ func TestNoEnDashInCommands_ProseDashPasses(t *testing.T) {
 	}
 }
 
+// TestNoEnDashInCommands_RangeInCodeSpanPasses: a dash followed by a digit
+// is a range, not a corrupted flag.
+func TestNoEnDashInCommands_RangeInCodeSpanPasses(t *testing.T) {
+	got := runEnDashCheck(t, "spec.md", "- Transitions: `0.2s–0.3s ease`\n")
+	if got.Outcome != engine.OutcomePass {
+		t.Errorf("range should pass; got %s reason=%s", got.Outcome, got.Reason)
+	}
+}
+
+// TestNoEnDashInCommands_ParagraphAboutDashesPasses: a paragraph that names
+// the character shows it as an example; a fenced command after it still
+// fires.
+func TestNoEnDashInCommands_ParagraphAboutDashesPasses(t *testing.T) {
+	doc := "Block en-dash (U+2013) when `--verbose` is\nrendered as `–verbose`.\n\nRun `ls`.\n"
+	if got := runEnDashCheck(t, "doc.md", doc); got.Outcome != engine.OutcomePass {
+		t.Errorf("explanatory paragraph should pass; got %s reason=%s", got.Outcome, got.Reason)
+	}
+	doc += "\n```sh\ncurl –verbose x\n```\n\nThen run `docker run –rm x`.\n"
+	got := runEnDashCheck(t, "doc.md", doc)
+	if got.Outcome != engine.OutcomeBlock || len(got.Hits) != 2 {
+		t.Errorf("fenced command and unrelated span should fire; got %s hits=%+v", got.Outcome, got.Hits)
+	}
+}
+
 func TestNoEnDashInCommands_AsciiDashPasses(t *testing.T) {
 	body := "curl --verbose https://example.com\n"
 	got := runEnDashCheck(t, "deploy.sh", body)
