@@ -24,10 +24,10 @@ func PreviewTree(bareDir, policyRoot string) (dir string, cleanup func(), err er
 	}
 	cfg, _ := LoadGatewayConfig(policyRoot)
 	if err := materializeTree(bareDir, tip, dest, cfg.MaxTreeBytes); err != nil {
-		os.RemoveAll(dest)
+		removeStagedTree(dest)
 		return "", func() {}, err
 	}
-	return dest, func() { os.RemoveAll(dest) }, nil
+	return dest, func() { removeStagedTree(dest) }, nil
 }
 
 // resolveTip returns the commit the bare repo's HEAD points at.

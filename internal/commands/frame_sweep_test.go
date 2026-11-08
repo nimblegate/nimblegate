@@ -90,12 +90,19 @@ func TestFrameSweep(t *testing.T) {
 				}
 				return nil
 			}
-			if !d.Type().IsRegular() {
+			link := d.Type()&fs.ModeSymlink != 0
+			if !d.Type().IsRegular() && !link {
 				return nil
 			}
 			files++
 			ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ChangedFiles: []string{p}, ExcludedDirs: excl}
 			for _, id := range ids {
+				// Symlinks go only to the frame that judges links. Content
+				// frames would read through them, and a link to a FIFO or
+				// device would hang the sweep.
+				if link && id != "security/no-out-of-tree-references" {
+					continue
+				}
 				for _, h := range all[id](ctx).Hits {
 					fmt.Fprintf(out, "%s\t%s\t%s:%d\t%s\n", id, root, strings.TrimPrefix(h.File, root+"/"), h.Line, h.Label)
 				}

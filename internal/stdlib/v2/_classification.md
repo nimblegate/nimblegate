@@ -25,6 +25,7 @@
 | security/no-pii-in-source | domains/security/no-pii-in-source | Framework-agnostic data-exposure security (added 2026-07-06) |
 | security/no-plaintext-passwords | domains/security/no-plaintext-passwords | Framework-agnostic credential exposure (added 2026-11-08) |
 | security/possible-secret | domains/security/possible-secret | Framework-agnostic credential heuristic, WARN (added 2026-11-08) |
+| security/no-out-of-tree-references | domains/security/no-out-of-tree-references | Framework-agnostic repository-boundary check, WARN (added 2026-11-09) |
 | **platform/cloudflare/cf-pages (4 frames - Pages-specific)** | | |
 | app-correctness/top-of-page-import-safety | platform/cloudflare/cf-pages/top-of-page-import-safety | `platform: [cloudflare, cf-pages]` in frontmatter; Pages-specific bundling concern |
 | app-correctness/prefer-static-public | platform/cloudflare/cf-pages/prefer-static-public | `platform: [cloudflare, cf-pages]` in frontmatter; Pages public dir convention |

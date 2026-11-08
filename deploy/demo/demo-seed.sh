@@ -97,6 +97,9 @@ rec acme-storefront 210 refs/heads/feat-cart true false "$NONE" \
 rec acme-storefront 330 refs/heads/feat-shipping-rates true false \
   '[{"id":"security/possible-secret","severity":"WARN","message":"config/shipping.yaml:12 - possible secret in api_key"}]' \
   "$NONE" '[]'
+rec acme-storefront 620 refs/heads/agent/cursor/deploy-docs true false \
+  '[{"id":"security/no-out-of-tree-references","severity":"WARN","message":"docs/deploy-key - symlink -> /home/deploy/.ssh/id_ed25519 points outside the repository (treated as missing)"}]' \
+  "$NONE" '[]'
 rec acme-storefront 1490 refs/heads/feat-search true false "$NONE" "$NONE" '[]'
 # Two agents working in parallel end up in the same files. With a repos-root
 # these are real commits on real branches; without one, fixed stand-in SHAs.

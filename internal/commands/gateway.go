@@ -52,12 +52,17 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 	}
 	defer e.Close()
 
+	outside, err := gateway.LoadOutsideLinks(root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("outside links: %w", err)
+	}
 	ctx := engine.CheckContext{
 		Trigger:      engine.TriggerCLI,
 		ProjectRoot:  root,
 		WorkingDir:   root,
 		ExcludedDirs: e.ExcludedDirs(),
 		IgnorePath:   e.IgnorePathFunc(),
+		OutsideLinks: outside,
 	}
 	results := engine.Run(e.Registry, ctx)
 	lintResults, _ := linters.RunEnabledUntrusted(e.ProjectConfig.Linters, root, e.ExcludedDirs())

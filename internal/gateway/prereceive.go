@@ -113,7 +113,7 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: err.Error()}}
 				continue
 			}
-			defer os.RemoveAll(tmp)
+			defer removeStagedTree(tmp)
 			if err := materializeTree(d.GitDir, r.NewRev, tmp, d.MaxTreeBytes); err != nil {
 				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: "materialize: " + err.Error()}}
 				continue
