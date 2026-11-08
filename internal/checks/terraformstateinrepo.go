@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"nimblegate/internal/engine"
@@ -21,12 +22,19 @@ import (
 
 const tfstateDisableMarker = "appframes:disable security/no-terraform-state-in-repo"
 
+// tfstateVersionKeyRe and tfstateLineageKeyRe match the two keys as JSON
+// members with a string value, so prose that names them (`"lineage"` in a
+// doc) is not a state document.
+var (
+	tfstateVersionKeyRe = regexp.MustCompile(`"terraform_version"\s*:\s*"`)
+	tfstateLineageKeyRe = regexp.MustCompile(`"lineage"\s*:\s*"`)
+)
+
 // tfstateContentMatch reports whether the content looks like a Terraform
 // state document: every real state file carries both keys regardless of
 // resource content or Terraform version.
 func tfstateContentMatch(content string) bool {
-	return strings.Contains(content, `"terraform_version"`) &&
-		strings.Contains(content, `"lineage"`)
+	return tfstateVersionKeyRe.MatchString(content) && tfstateLineageKeyRe.MatchString(content)
 }
 
 // tfstateBasenameMatch catches the conventional filenames, including the

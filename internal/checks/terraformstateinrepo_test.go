@@ -64,6 +64,17 @@ func TestNoTerraformStateInRepo_TfConfigPasses(t *testing.T) {
 	}
 }
 
+// TestNoTerraformStateInRepo_DocNamingKeysPasses: a doc that names both
+// keys in prose is not a state document.
+func TestNoTerraformStateInRepo_DocNamingKeysPasses(t *testing.T) {
+	root := t.TempDir()
+	piiWrite(t, root, "docs/tf.md", "Every state carries both `\"terraform_version\"` and `\"lineage\"`.\n")
+	res := NoTerraformStateInRepo(piiCtx(root))
+	if res.Outcome != engine.OutcomePass {
+		t.Fatalf("want PASS, got %v (%s)", res.Outcome, res.Reason)
+	}
+}
+
 func TestNoTerraformStateInRepo_DisableMarkerHonored(t *testing.T) {
 	root := t.TempDir()
 	piiWrite(t, root, "fixtures/state.json",
