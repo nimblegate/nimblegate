@@ -76,7 +76,7 @@ rec_overlap() {
 seed_repo() {
   local repo="$1" upstream="$2" frames="$3"
   mkdir -p "$ROOT/$repo"
-  printf 'upstream-url = "%s"\nenabled = true\n' "$upstream" > "$ROOT/$repo/gateway.toml"
+  printf 'upstream-url = "%s"\nenabled = true\nprotected-refs = ["refs/heads/*"]\n' "$upstream" > "$ROOT/$repo/gateway.toml"
   printf '[frames]\nenabled = [%s]\n' "$frames" > "$ROOT/$repo/appframes.toml"
   : > "$ROOT/$repo/audit.log"
 }
