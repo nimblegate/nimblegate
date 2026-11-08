@@ -93,7 +93,13 @@ filesLoop:
 		}
 		offset := 0
 		lines := strings.Split(content, "\n")
-		for i, line := range lines {
+		// A doc that demonstrates the trick puts it in a code span.
+		scan := lines
+		if isMarkdownPath(file) {
+			scan = markdownProse(content)
+		}
+		for i := range lines {
+			line := scan[i]
 			suppressLine := i > 0 && lineCarriesMarker(lines[i-1], noZeroWidthInContentDisableLineMarker)
 			for j := 0; j < len(line); {
 				r, size := utf8.DecodeRuneInString(line[j:])
@@ -117,7 +123,7 @@ filesLoop:
 				}
 				j += size
 			}
-			offset += len(line) + 1
+			offset += len(lines[i]) + 1
 		}
 	}
 
