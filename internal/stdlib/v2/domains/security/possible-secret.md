@@ -57,8 +57,11 @@ covers the rest with two heuristics, and only ever warns.
   (`"12345678"`).
 - UUIDs, hex hashes, `sha256-`/`sha512-` integrity values, data URIs, and
   any line mentioning a hash, digest, checksum or integrity.
-- Test files, `testdata/`, `fixtures/`, lockfiles, minified bundles and
-  source maps.
+- Test files, `testdata/`, `fixtures/`, lockfiles, minified bundles, source
+  maps, lines over 500 characters, and third-party code (`vendor/`,
+  `third_party/`, `.venv/`, `site-packages/`, `.svelte-kit/`).
+- Character sets such as `ABCDEFGHIJ...0123456789` in token generators, and a
+  keyword inside a longer word (`tokenizer`, `AutoTokenizer`).
 - Lines already caught by `security/no-hardcoded-credentials`.
 
 ## Severity

@@ -33,6 +33,7 @@ func TestPossibleSecret_Warns(t *testing.T) {
 		{"yaml unquoted", "config/prod.yaml", "  password: Tr0ub4dor3x9\n", "password"},
 		{"json client secret", "config/oauth.json", `{"client_secret": "aB3dE5fG7hJ9kL1m"}` + "\n", "client_secret"},
 		{"entropy near token word", "src/api.ts", "// auth token for the billing service\nconst x = \"q7Zr2LmX9vKp4Wn8Tb6Yc3Hd\";\n", "high-entropy string"},
+		{"entropy near authToken", "src/c.ts", "const authToken = getX(); const k = \"q7Zr2LmX9vKp4Wn8Tb6Yc3Hd\";\n", "high-entropy string"},
 		{"entropy bearer header", "src/api.go", `req.Header.Set("Authorization", "Bearer q7Zr2LmX9vKp4Wn8Tb6Yc3Hd")` + "\n", "high-entropy string"},
 	}
 	for _, c := range cases {
@@ -69,6 +70,12 @@ func TestPossibleSecret_Quiet(t *testing.T) {
 		{"dotted key near token", "google.go", `"oauth2.google.tokenSource": "compute-metadata",` + "\n"},
 		{"camelcase identifier", "zsys.go", "// private api\nprocQueryServiceConfig2W = modadvapi32.NewProc(\"QueryServiceConfig2W\")\n"},
 		{"lowercase bearer word", "README.md", "BEDROCK_AUTH=bearer BEDROCK_MODEL=us.openai.gpt-5.6-luna go run ./x\n"},
+		{"tokenizer model name", "probe.py", "tok = AutoTokenizer.from_pretrained(\"BAAI/bge-reranker-v2-m3\")\n"},
+		{"token alphabet", "gen.js", "function generateToken() {\n  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';\n"},
+		{"minified bundle line", "app/immutable/nodes/2.BXnGRQD8.js", "var token=1;" + strings.Repeat("import{c as oe,a as d}from\"../chunks/raksZQmW.js\";", 12) + "x=\"q7Zr2LmX9vKp4Wn8Tb6Yc3Hd\"\n"},
+		{"svelte-kit output", "web/.svelte-kit/output/a.js", "const apiKey = 'Zq8xW2mN4vB6cX1z'\n"},
+		{"virtualenv", "svc/.venv/lib/python3.13/site-packages/x/a.py", "API_KEY = \"Zq8xW2mN4vB6cX1z\"\n"},
+		{"camelcase type name near credentials", "api.json", "\"description\": \"client credentials grant\",\n\"id\": \"GoogleCloudApihubV1Oauth2ClientCredentialsConfig\",\n"},
 		{"lone key", "src/map.js", `const key = "Zq8xW2mN4vB6cX1z"` + "\n"},
 		{"identifier value", "config/app.yaml", "password: DB_PASSWORD\n"},
 		{"unquoted in code", "src/a.go", "token := getToken(ctx)\n"},

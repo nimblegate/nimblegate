@@ -155,7 +155,56 @@ func shannon(v string) float64 {
 
 // highEntropyValue: lower, upper and digits all present (rules out hex
 // hashes and UUIDs) and at least 3.5 bits per character.
+// hasContextWord finds a secret keyword as a word or the end of an
+// identifier (authToken, api_key) but not inside a longer word (tokenizer,
+// AutoTokenizer, secretary).
+func hasContextWord(ll string) bool {
+	for _, w := range secretContextWords {
+		for i := 0; ; {
+			j := strings.Index(ll[i:], w)
+			if j < 0 {
+				break
+			}
+			end := i + j + len(w)
+			if end < len(ll) && ll[end] == 's' {
+				end++
+			}
+			if end >= len(ll) || !unicode.IsLetter(rune(ll[end])) {
+				return true
+			}
+			i = i + j + 1
+		}
+	}
+	return false
+}
+
+// lowerRunShare is the share of v's characters that sit in runs of three or
+// more lowercase letters.
+func lowerRunShare(v string) float64 {
+	in, run := 0, 0
+	for _, r := range v + "." {
+		if r >= 'a' && r <= 'z' {
+			run++
+			continue
+		}
+		if run >= 3 {
+			in += run
+		}
+		run = 0
+	}
+	return float64(in) / float64(len(v))
+}
+
+// secretAlphabetRuns mark a character set (token generators, base64
+// alphabets), not a secret.
+var secretAlphabetRuns = []string{"abcdefghij", "ABCDEFGHIJ", "0123456789"}
+
 func highEntropyValue(v string) bool {
+	for _, run := range secretAlphabetRuns {
+		if strings.Contains(v, run) {
+			return false
+		}
+	}
 	if secretUUIDRe.MatchString(v) || isPasswordPlaceholder(v, "") {
 		return false
 	}
@@ -177,6 +226,11 @@ func highEntropyValue(v string) bool {
 		if words {
 			return false
 		}
+	}
+	// CamelCase type and field names (GoogleCloudV1Oauth2ClientConfig) are
+	// mostly runs of lowercase letters; random strings almost never are.
+	if lowerRunShare(v) >= 0.5 {
+		return false
 	}
 	// Random strings of this length nearly always carry several digits and
 	// capitals; CamelCase identifiers (QueryServiceConfig2W) rarely do.
@@ -209,7 +263,20 @@ func possibleSecretSkipFile(rel string) bool {
 	if secretLockfiles[base] || strings.HasSuffix(base, ".min.js") || strings.HasSuffix(base, ".min.css") || strings.HasSuffix(base, ".map") {
 		return true
 	}
-	return isTestOrFixturePath(rel)
+	return isTestOrFixturePath(rel) || isThirdPartyPath(rel)
+}
+
+// isThirdPartyPath reports vendored dependencies, virtualenvs and framework
+// build caches: their docs and tests carry example credentials, and none of it
+// holds the project's own secrets.
+func isThirdPartyPath(rel string) bool {
+	for _, seg := range strings.Split(filepath.ToSlash(rel), "/") {
+		switch seg {
+		case ".venv", "venv", "site-packages", "vendor", "third_party", "bower_components", ".svelte-kit":
+			return true
+		}
+	}
+	return false
 }
 
 // isTestOrFixturePath reports test sources and fixture directories, which
@@ -252,7 +319,11 @@ func possibleSecretLine(line, prev string, bare bool) string {
 	if containsAny(ll, secretHashWords) {
 		return ""
 	}
-	if !containsAny(ll, secretContextWords) && !containsAny(strings.ToLower(prev), secretContextWords) {
+	// Minified bundles are one long line of random-looking identifiers.
+	if len(line) > 500 {
+		return ""
+	}
+	if !hasContextWord(ll) && !hasContextWord(strings.ToLower(prev)) {
 		return ""
 	}
 	var cands []string
