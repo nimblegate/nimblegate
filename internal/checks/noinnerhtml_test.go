@@ -5,6 +5,7 @@ package checks
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"nimblegate/internal/engine"
@@ -32,6 +33,30 @@ func TestNoInnerHTML_DetectsAssignment(t *testing.T) {
 	})
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK; reason = %q", got.Outcome, got.Reason)
+	}
+}
+
+func TestNoInnerHTML_CodeThatDoesNotRunPasses(t *testing.T) {
+	pass := map[string]string{
+		"public/docs/frames/index.html": "<span class=\"fd\">Detect element.innerHTML = &lt;expression patterns</span>\n<pre><code>el.innerHTML = x;</code></pre>\n",
+		"src/notes.js":                  "// classic .innerHTML = identifier pattern\n/* el.innerHTML = y */\n",
+		"vendor/jspdf.umd.min.js":       "a.innerHTML=b;\n",
+		"lib/pixi.js":                   strings.Repeat("x=1;", 300) + "e.innerHTML=t;\n",
+		"testdata/positives/a.js":       "el.innerHTML = userInput;\n",
+	}
+	for rel, body := range pass {
+		root := t.TempDir()
+		writeJS(t, root, rel, body)
+		got := NoInnerHTMLUserInput(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+		if got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: want PASS, got %s %s", rel, got.Outcome, got.Reason)
+		}
+	}
+	root := t.TempDir()
+	writeJS(t, root, "site/index.html", "<p>docs</p>\n<script>\n  aside.innerHTML = html;\n</script>\n")
+	got := NoInnerHTMLUserInput(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+	if got.Outcome == engine.OutcomePass || len(got.Hits) != 1 || got.Hits[0].Line != 3 {
+		t.Errorf("assignment inside <script> must fire on line 3; got %s %+v", got.Outcome, got.Hits)
 	}
 }
 

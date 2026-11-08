@@ -21,7 +21,7 @@ selection-grade: passing
 selection-stats:
   positives: 3/3
   negatives: 2/2
-  last-run: 2026-05-20T14:37:33Z
+  last-run: 2026-11-08T14:41:46Z
 ---
 
 # No innerHTML for user input
@@ -33,8 +33,18 @@ vector. Use `textContent` for text, or a sanitized DOM API for HTML fragments.
 ## Detection
 
 Regex: `\.innerHTML\s*=\s*[^"'` + "`" + `]` (i.e., innerHTML assignment of anything that
-isn't a string literal). Conservative: false positives on `el.innerHTML = ''`
-are acceptable.
+isn't a string literal). Conservative: any non-literal value fires, since a
+regex cannot tell where it came from.
+
+Not scanned, because it does not run as code:
+
+- in `.html` files, anything outside `<script>` elements (page prose or a
+  `<pre><code>` sample that quotes `el.innerHTML = x`);
+- comment lines;
+- minified bundles (`*.min.js`) and lines over 1000 characters (bundler
+  output such as a vendored `pixi.js`);
+- test-fixture and test-suite folders (`testdata/`, `fixtures/`, `test/`,
+  `tests/`, `__tests__/`, `spec/`).
 
 ## Override
 

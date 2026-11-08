@@ -16,8 +16,10 @@ import (
 // innerHTMLPattern matches `.innerHTML = <something not a string literal>`.
 var innerHTMLPattern = regexp.MustCompile(`\.innerHTML\s*=\s*[^"'` + "`" + `;\s]`)
 
+const innerHTMLMaxLineLen = 1000
+
 // disableMarker is the per-file or per-line suppression comment.
-const disableMarker = "appframes:disable security/no-innerHTML-user-input"
+const disableMarker ="appframes:disable security/no-innerHTML-user-input"
 
 // applicableExtensions is the set of file suffixes that this check examines.
 var applicableExtensions = map[string]bool{
@@ -85,7 +87,20 @@ func NoInnerHTMLUserInput(ctx engine.CheckContext) engine.CheckResult {
 		if strings.Contains(content, disableMarker) {
 			continue
 		}
-		for i, line := range strings.Split(content, "\n") {
+		rel := projectRel(ctx, file)
+		if isMinifiedPath(file) || inFixtureDir(rel) || inTestDir(rel) {
+			continue
+		}
+		scan := content
+		if strings.EqualFold(filepath.Ext(file), ".html") {
+			scan = htmlScriptsOnly(content)
+		}
+		for i, line := range strings.Split(scan, "\n") {
+			// Over this length a line is bundler output, not code anyone
+			// reviews; comments describe code rather than run it.
+			if len(line) > innerHTMLMaxLineLen || isLineComment(strings.TrimSpace(line)) {
+				continue
+			}
 			if innerHTMLPattern.MatchString(line) {
 				hits = append(hits, fmt.Sprintf("%s:%d", file, i+1))
 				hitsStruct = append(hitsStruct, engine.Hit{

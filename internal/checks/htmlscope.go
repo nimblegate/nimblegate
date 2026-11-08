@@ -113,6 +113,19 @@ func blankHTMLElements(content string, tags ...string) string {
 	return string(out)
 }
 
+// htmlScriptsOnly blanks everything outside <script> elements, keeping
+// newlines: page prose that quotes code is not code.
+func htmlScriptsOnly(content string) string {
+	blanked := blankHTMLElements(content, "script")
+	out := []byte(content)
+	for i := range out {
+		if out[i] != '\n' && blanked[i] == content[i] && content[i] != ' ' {
+			out[i] = ' '
+		}
+	}
+	return string(out)
+}
+
 var htmlPlaceholderAttrRe = regexp.MustCompile(`(?i)\splaceholder\s*=\s*(?:"[^"]*"|'[^']*')`)
 
 // htmlVisibleText blanks the parts of an HTML page a visitor does not read
