@@ -111,6 +111,14 @@ func pemKeyBodyFollows(lines []string, after int) bool {
 	return body >= pemMinKeyBodyChars
 }
 
+// pemPublicKeyOnly reports whether content is a PEM public key with no
+// private-key header: a `.pem` holding a public key is the counterpart a
+// project is told to commit, not a leak.
+func pemPublicKeyOnly(content string) bool {
+	return (strings.Contains(content, "-----BEGIN PUBLIC KEY-----") || strings.Contains(content, "-----BEGIN RSA PUBLIC KEY-----")) &&
+		!strings.Contains(content, "PRIVATE KEY")
+}
+
 func isBase64Line(s string) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -175,10 +183,12 @@ filesLoop:
 		// label (e.g. "PEM RSA private key"), not the generic "key file
 		// (.pem)". Both detections firing on the same file is redundant.
 		contentMatched := false
+		publicKey := false
 		info, statErr := os.Stat(file)
 		if statErr == nil && info.Size() <= privateKeysMaxFileBytes {
 			if data, readErr := os.ReadFile(file); readErr == nil {
 				content := string(data)
+				publicKey = pemPublicKeyOnly(content)
 				if !fileDisabledByMarker(content, privateKeysDisableMarker) {
 					lines := strings.Split(content, "\n")
 					for i, line := range lines {
@@ -217,7 +227,7 @@ filesLoop:
 			}
 		}
 
-		if contentMatched {
+		if contentMatched || publicKey {
 			continue
 		}
 

@@ -345,6 +345,18 @@ func TestNoPrivateKeysInRepo_HeaderWithoutBodyPasses(t *testing.T) {
 	}
 }
 
+// TestNoPrivateKeysInRepo_PublicKeyPemPasses: a `.pem` holding only a
+// public key is not a key file to rotate; an empty `.pem` still is.
+func TestNoPrivateKeysInRepo_PublicKeyPemPasses(t *testing.T) {
+	pub := "-----BEGIN PUBLIC KEY-----\n" + fakeKeyBody + "\n-----END PUBLIC KEY-----\n"
+	if got := runKeyCheck(t, "test/ec256-public.pem", pub); got.Outcome != engine.OutcomePass {
+		t.Errorf("public key .pem: outcome = %s, want PASS; reason: %s", got.Outcome, got.Reason)
+	}
+	if got := runKeyCheck(t, "keys/server.pem", "\n"); got.Outcome != engine.OutcomeBlock {
+		t.Errorf("opaque .pem: outcome = %s, want BLOCK", got.Outcome)
+	}
+}
+
 // TestNoPrivateKeysInRepo_EmbeddedKeyBlocks: a key inside a JSON string
 // (service-account file) or concatenated in source still has its body.
 func TestNoPrivateKeysInRepo_EmbeddedKeyBlocks(t *testing.T) {

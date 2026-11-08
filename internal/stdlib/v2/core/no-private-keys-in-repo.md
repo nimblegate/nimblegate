@@ -19,8 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 3/3
-  negatives: 3/3
-  last-run: 2026-11-08T14:37:12Z
+  negatives: 4/4
+  last-run: 2026-11-08T14:47:40Z
 ---
 
 # No private keys in repo
@@ -116,6 +116,9 @@ literal `id_rsa` file is unambiguously suspicious.
   followed by `...`) - an illustration, not a usable key. A file with
   such content and a key extension (`.pem`, `.key`) still fires on the
   filename.
+- **A key-extension file holding a public key** - a `.pem` whose content
+  is `-----BEGIN PUBLIC KEY-----` (or `RSA PUBLIC KEY`) with no private-key
+  header is the public counterpart, not a key file.
 - **Public certificates** never BLOCK: `-----BEGIN CERTIFICATE-----`
   (CA bundles such as certifi's `cacert.pem`) is catalogued at INFO.
 
