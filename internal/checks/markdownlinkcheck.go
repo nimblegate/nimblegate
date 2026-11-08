@@ -98,6 +98,16 @@ func stripInlineCode(line string) string {
 	return b.String()
 }
 
+// linkFileExtensions are the document and asset types a root-relative
+// Markdown link names when it points at a file in the repository.
+var linkFileExtensions = map[string]bool{
+	".md": true, ".markdown": true, ".mdx": true, ".rst": true, ".txt": true,
+	".html": true, ".htm": true, ".pdf": true, ".csv": true,
+	".json": true, ".yaml": true, ".yml": true, ".toml": true,
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true,
+	".webp": true, ".avif": true, ".ico": true,
+}
+
 const markdownLinkDisableMarker = "appframes:disable documentation/markdown-link-check-internal"
 
 // MarkdownLinkCheckInternal scans markdown files for inline relative links
@@ -215,10 +225,11 @@ files:
 				}
 				abs := filepath.Join(ctx.ProjectRoot, resolved)
 				if _, statErr := os.Stat(abs); statErr != nil {
-					// "/policy", "/en-US/docs/Web/API": a root-relative
-					// target with no file extension is an app or site
-					// route the document was written for, not a repo path.
-					if strings.HasPrefix(target, "/") && filepath.Ext(strings.TrimSuffix(target, "/")) == "" {
+					// "/policy", "/en-US/docs/Web/API", ".../try...catch":
+					// a root-relative target that does not name a document
+					// or asset file is an app or site route the document
+					// was written for, not a repo path.
+					if strings.HasPrefix(target, "/") && !linkFileExtensions[strings.ToLower(filepath.Ext(strings.TrimSuffix(target, "/")))] {
 						continue
 					}
 					hits = append(hits, fmt.Sprintf("%s:%d → %s", file, lineNum+1, link))

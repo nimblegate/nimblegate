@@ -20,7 +20,7 @@ selection-grade: passing
 selection-stats:
   positives: 1/1
   negatives: 3/3
-  last-run: 2026-11-08T14:35:13Z
+  last-run: 2026-11-08T14:50:06Z
 ---
 
 # Markdown internal link check
@@ -59,10 +59,13 @@ starts with `/` is a site address, not a repository path, and is not checked.
 Relative links in those files still are.
 
 Elsewhere, a root-relative link (`/docs/guide.md`) resolves against the
-repository root. When it does not exist and its last segment has no file
-extension (`/policy`, `/settings?tab=links`, `/en-US/docs/Web/API`), it is
-taken as a route of the app or site the document was written for and is
-not reported. CommonMark angle-bracket destinations
+repository root. When it does not exist and does not name a document or
+asset file (`.md`, `.html`, `.pdf`, `.txt`, `.json`, `.yaml`, `.toml`,
+`.csv`, images), it is taken as a route of the app or site the document
+was written for and is not reported: `/policy`, `/settings?tab=links`,
+`/en-US/docs/Web/API`, `/Reference/Statements/try...catch`. A missing
+root-relative link to a source file (`/src/app.js`) is therefore not
+caught; relative links to any file are. CommonMark angle-bracket destinations
 (`[x](<https://example.org/a_(b)>)`) are unwrapped before the external
 check.
 

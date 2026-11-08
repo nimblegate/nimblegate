@@ -233,7 +233,7 @@ func TestMarkdownLinkCheck_AbsoluteRootRelative(t *testing.T) {
 // root-relative file and a bracketed external URL keep their old verdicts.
 func TestMarkdownLinkCheck_RoutesAndBracketedURLs(t *testing.T) {
 	root := t.TempDir()
-	writeMD(t, root, "help/settings.md", "Open [policy](/policy?tab=whitelist), [setup](/setup), [GC](<https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)>), [docs](/en-US/docs/Web/API/).\n")
+	writeMD(t, root, "help/settings.md", "Open [policy](/policy?tab=whitelist), [setup](/setup), [GC](<https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)>), [docs](/en-US/docs/Web/API/), [try](/en-US/docs/Web/JavaScript/Reference/Statements/try...catch#nested), [node](/en-US/docs/Glossary/Node.js).\n")
 	ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()}
 	if got := MarkdownLinkCheckInternal(ctx); got.Outcome != engine.OutcomePass {
 		t.Errorf("routes should pass; got %s %s", got.Outcome, got.Reason)
