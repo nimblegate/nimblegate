@@ -5,6 +5,34 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-08
+
+### Added
+
+- **`security/no-plaintext-passwords` frame (BLOCK).** Blocks plain passwords
+  where the surrounding text proves the value is one: a password in a URL
+  (`postgres://app:<pw>@db`), a password handed to a command (`mysql -p<pw>`,
+  `sshpass -p`, `curl -u user:<pw>`, `PGPASSWORD=`, `docker login -p`,
+  `redis-cli -a`), and credential files whose format names the field
+  (`.pgpass`, `.netrc`, `.npmrc` tokens, `.pypirc`, `.my.cnf`, Docker
+  `config.json` auths, `.vault-token`, Rails `master.key`). This catches
+  passwords saved into an agent's approved-command list, such as Claude Code's
+  `.claude/settings.local.json`. Placeholders, environment references, local
+  hosts and `user:user` dev defaults never fire, and values are never echoed.
+  Part of the Core kit (now 19 frames) and every kit built on it.
+- **`security/possible-secret` frame (WARN).** Warns about probable secrets
+  that cannot be proven: a credential-named field (`dbPassword`, `SECRET_KEY`,
+  `apiKey`, `client_secret`) holding a real-looking literal, and a high-entropy
+  string next to a secret, token or authorization keyword. Skips tests,
+  fixtures, lockfiles, minified files, hashes and UUIDs. Part of the Security
+  strict kit only.
+
+### Changed
+
+- The policy page no longer lists empty Framework buckets (Svelte, Astro,
+  React, Vue, Go, Python); the Framework section appears once a frame declares
+  a framework.
+
 ## [0.6.3] - 2026-10-31
 
 ### Security
