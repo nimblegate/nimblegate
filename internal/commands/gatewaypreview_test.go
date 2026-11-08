@@ -299,3 +299,22 @@ func TestToggleFrame_previewRefreshIsAsync(t *testing.T) {
 		t.Error("toggle computed the preview synchronously")
 	}
 }
+
+// A dashboard without --allow-edits (and the static demo built from one) has
+// no new-form or kit-preview route: its buttons must not lead there.
+func TestPolicyPage_readOnlyDisablesEditOnlyKitControls(t *testing.T) {
+	policyRoot, _ := previewRepoFixture(t, []string{"git/no-bypass-pre-commit"})
+	vm := buildPolicyView(policyRoot, "demo", []string{"git/no-bypass-pre-commit"})
+	for _, edits := range []bool{false, true} {
+		w := httptest.NewRecorder()
+		if err := renderPolicyPage(w, vm, policyPageOpts{AllowEdits: edits, CSRFToken: "tok", Repos: []string{"demo"}, PolicyRoot: policyRoot}); err != nil {
+			t.Fatal(err)
+		}
+		body := w.Body.String()
+		hasForm := strings.Contains(body, `hx-get="/policy/kits/new-form"`)
+		live := regexp.MustCompile(`action="/policy/kits/preview"[^>]*>(<input[^>]*>)*<button type="submit" class="gw-kit-apply">`).MatchString(body)
+		if edits != hasForm || edits != live {
+			t.Errorf("allow-edits=%v: new-form link=%v, enabled kit apply=%v", edits, hasForm, live)
+		}
+	}
+}

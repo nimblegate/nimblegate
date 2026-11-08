@@ -52,6 +52,7 @@ func csrfOK(r *http.Request, token string) bool {
 // Categories lists the canonical taxonomy in order, with empty categories omitted.
 // BuiltinKits is the Quick-start row of pre-defined starter kits.
 type policyVM struct {
+	ReadOnly    bool // dashboard without --allow-edits: edit-only views do not exist
 	Repo        string
 	Enabled     []string        // flat list, source of truth
 	AppliedKits []string        // built-in kit names currently applied
@@ -672,6 +673,7 @@ type policyPageData struct {
 //  3. Per-repo editing sections: custom linters, whitelist
 //  4. Frame selection (kit chips + browse tree) - gated on a repo being selected
 func renderPolicyPage(w io.Writer, vm policyVM, opts policyPageOpts) error {
+	vm.ReadOnly = !opts.AllowEdits
 	activeTab := opts.ActiveTab
 	if activeTab != "linters" && activeTab != "whitelist" {
 		activeTab = "frames"
@@ -959,12 +961,21 @@ func renderFrameSelection(w io.Writer, vm policyVM) error {
 	// Custom-kit creation button first, then built-in kit apply buttons.
 	// Linter authoring stays on the Custom linters tab to keep the mental
 	// model clean - Frames tab manages frames, Linters tab manages linters.
-	fmt.Fprintf(w, `
+	const readOnlyTitle = ` disabled title="read-only dashboard: start it with --allow-edits to change policy"`
+	if vm.ReadOnly {
+		fmt.Fprint(w, `
+      <button class="gw-kit-new"`+readOnlyTitle+`>+ New custom kit</button>`)
+	} else {
+		fmt.Fprintf(w, `
       <button class="gw-kit-new" hx-get="/policy/kits/new-form" hx-vals='{"repo":%q}' hx-target="#gw-userkit-formslot" hx-swap="innerHTML">+ New custom kit</button>`, vm.Repo)
+	}
 	for _, k := range vm.BuiltinKits {
 		disabled := ""
-		if k.FullyApplied {
+		switch {
+		case k.FullyApplied:
 			disabled = ` disabled aria-pressed="true"`
+		case vm.ReadOnly:
+			disabled = readOnlyTitle
 		}
 		// A GET to the confirm view: it previews the next push with the kit
 		// merged in, and only its Apply button writes.
