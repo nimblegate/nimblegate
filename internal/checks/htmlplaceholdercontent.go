@@ -111,6 +111,18 @@ filesLoop:
 		if repoDocFile(file) {
 			continue
 		}
+		rel := projectRel(ctx, file)
+		if inFixtureDir(rel) || inTestDir(rel) || inHiddenDir(rel) {
+			continue
+		}
+		// A template's {{SLOTS}} are filled by whatever renders it.
+		if strings.Contains(strings.ToLower(filepath.Base(file)), "template") {
+			continue
+		}
+		markdown := isMarkdownPath(file) || strings.EqualFold(filepath.Ext(file), ".mdoc")
+		if markdown && !markdownShips(ctx, file) {
+			continue
+		}
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}
@@ -127,7 +139,19 @@ filesLoop:
 			continue
 		}
 		lines := strings.Split(content, "\n")
-		for i, line := range lines {
+		// Code samples and scripts are not page copy: a documented
+		// `curl https://example.com/install` or a JS fallback URL is fine.
+		var scan []string
+		if markdown {
+			scan = markdownProse(content)
+		} else {
+			scan = strings.Split(htmlVisibleText(extractHTMLBody(file, content)), "\n")
+		}
+		for i := range lines {
+			if i >= len(scan) {
+				break
+			}
+			line := scan[i]
 			if i > 0 && lineCarriesMarker(lines[i-1], htmlPlaceholderDisableLineMarker) {
 				continue
 			}

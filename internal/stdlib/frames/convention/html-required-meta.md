@@ -21,7 +21,7 @@ selection-grade: passing
 selection-stats:
   positives: 3/3
   negatives: 2/2
-  last-run: 2026-05-20T11:45:47Z
+  last-run: 2026-11-08T14:40:13Z
 ---
 
 # Every HTML page needs the required meta tags
@@ -32,7 +32,19 @@ Every shipping HTML page (plain `*.html`, SvelteKit `+page.svelte` / `+layout.sv
 2. **`<meta name="viewport">`** - mobile rendering. Without this, mobile devices render at desktop width and zoom out.
 3. **`<title>`** - required by every browser tab, every share, every search result.
 
-In SvelteKit projects, the title is usually injected via `<svelte:head>` in a layout. This frame treats the presence of `<svelte:head>` as satisfying the title requirement on the assumption the layout (or this component) is filling it in.
+In SvelteKit projects, the title is usually injected via `<svelte:head>` in a layout. This frame treats the presence of `<svelte:head>` as satisfying the title requirement on the assumption the layout (or this component) is filling it in. Charset and viewport belong in `src/app.html`, so they are not required of `.svelte` files, and `app.html` itself needs no `<title>` (each route fills `%sveltekit.head%`).
+
+## What counts as a page
+
+Only whole documents are checked: an `.html` / `.htm` / `.astro` file
+with an `<html>` or `<head>` tag, or a `.svelte` route with its own
+`<svelte:head>`. Fragments (HTMX partials, report snippets, a route with
+no head of its own) get their meta from the page they are loaded into.
+
+Files under test-fixture and test-suite folders (`testdata/`,
+`fixtures/`, `test/`, `tests/`, `__tests__/`, `spec/`) and under hidden
+folders (`.superpowers/`, `.private/`; `.well-known/` excepted) are not
+shipped pages and are skipped.
 
 ## Site generator templates
 
@@ -45,12 +57,11 @@ is checked as usual.
 
 ## Fix
 
-For a SvelteKit project, put the static meta in `src/routes/+layout.svelte`:
+For a SvelteKit project, charset and viewport go in `src/app.html`; the
+title goes in `src/routes/+layout.svelte` (or per route):
 
 ```svelte
 <svelte:head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Your Site</title>
 </svelte:head>
 ```
