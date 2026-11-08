@@ -116,11 +116,39 @@ func credentialLineFires(p credentialPattern, line string) bool {
 		if len(m) > 1 && m[1] != "" {
 			hit = m[1]
 		}
-		if !credentialDocSentinels[hit] {
-			return true
+		if credentialDocSentinels[hit] {
+			continue
 		}
+		if strings.HasPrefix(p.Name, "AWS ") && credentialObviouslyFake(hit) {
+			continue
+		}
+		return true
 	}
 	return false
+}
+
+// credentialFakeWords mark a hand-written placeholder. AWS key characters
+// are random, so one of these words inside a 16- or 40-character value is a
+// few-in-a-million chance for a real key.
+var credentialFakeWords = []string{"EXAMPLE", "FAKE", "TEST", "DUMMY", "SAMPLE"}
+
+// credentialObviouslyFake reports whether an AWS key value was typed by a
+// person rather than issued: a run of four identical characters
+// (AKIAZZZZ..., XXXX) or an embedded placeholder word, as in the many
+// variants of AWS's own documentation keys.
+func credentialObviouslyFake(v string) bool {
+	run := 1
+	for i := 1; i < len(v); i++ {
+		if v[i] == v[i-1] {
+			run++
+			if run >= 4 {
+				return true
+			}
+		} else {
+			run = 1
+		}
+	}
+	return containsAny(v, credentialFakeWords)
 }
 
 const credentialsDisableMarker = "appframes:disable security/no-hardcoded-credentials"

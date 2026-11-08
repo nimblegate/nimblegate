@@ -19,8 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 3/3
-  negatives: 4/4
-  last-run: 2026-07-07T19:28:19Z
+  negatives: 5/5
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No hardcoded credentials
@@ -137,6 +137,10 @@ that the project has decided are not subject to this scan
   `AKIAI44QH8DHBEXAMPLE`) - AWS's own published example keys are fake by
   design and excluded entirely, not downgraded; docs quoting them never
   fire. A non-sentinel key on the same line still fires.
+- **Hand-typed AWS placeholders** - an AWS access key ID or secret whose
+  value has a run of four identical characters (`AKIAZZZZ...`, `XXXX`) or
+  embeds `EXAMPLE`, `FAKE`, `TEST`, `DUMMY` or `SAMPLE`. Issued keys are
+  random; the chance of either in a real key is a few in ten thousand.
 
 
 Documented so a future "why didn't it catch X?" has an answer:
