@@ -34,6 +34,21 @@ func TestAgentShortcuts_ProjectWalkFindsEach(t *testing.T) {
 	}
 }
 
+func TestNoUnmarkedTestSkips_ConditionalSkipsPass(t *testing.T) {
+	root := t.TempDir()
+	writeWeb(t, root, "gc_test.go", "package gc\n\nfunc TestGC(t *testing.T) {\n\tif _, err := exec.LookPath(\"git\"); err != nil {\n\t\tt.Skip(\"git not on PATH\")\n\t}\n\tif testing.Short() { t.Skip(\"short\") }\n\tswitch runtime.GOOS {\n\tcase \"windows\":\n\t\tt.Skip(\"Windows no-op\")\n\t}\n}\n")
+	writeWeb(t, root, "test_x.py", "def test_x():\n    if sys.platform == 'win32':\n        pytest.skip('posix only')\n    try:\n        import yaml\n    except ImportError:\n        pytest.skip('no yaml')\n")
+	if got := NoUnmarkedTestSkips(cliCtx(root)); got.Outcome != engine.OutcomePass {
+		t.Errorf("conditional skips should pass; got %s %s", got.Outcome, got.Reason)
+	}
+	writeWeb(t, root, "store_test.go", "package store\n\nfunc TestSave(t *testing.T) {\n\tfor _, c := range cases {\n\t\t_ = c\n\t}\n\tt.Skip(\"broken on CI\")\n}\n")
+	writeWeb(t, root, "test_y.py", "def test_y():\n    pytest.skip('later')\n")
+	got := NoUnmarkedTestSkips(cliCtx(root))
+	if !strings.Contains(got.Reason, "store_test.go") || !strings.Contains(got.Reason, "test_y.py") {
+		t.Errorf("unconditional skips should warn; got %s %s", got.Outcome, got.Reason)
+	}
+}
+
 func TestAgentShortcuts_FileLevelOptOut(t *testing.T) {
 	root := t.TempDir()
 	writeWeb(t, root, "gen/client.ts", "// appframes:disable app-correctness/no-blanket-lint-disable - generated\n// @ts-nocheck\n")
