@@ -8,6 +8,9 @@ import (
 	"nimblegate/internal/engine"
 )
 
+// The zero-width runes below are deliberate fixtures.
+// appframes:disable security/no-zero-width-in-source
+
 func runZeroWidthContentCheck(t *testing.T, rel, content string) engine.CheckResult {
 	t.Helper()
 	root := t.TempDir()

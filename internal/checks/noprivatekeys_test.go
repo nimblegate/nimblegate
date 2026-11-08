@@ -17,6 +17,12 @@ import (
 // by decision; the decision is now on the record.
 // appframes:disable security/no-private-keys-in-repo
 
+// fakeKeyBody is random bytes in PEM line shape: the frame needs a body of
+// real length behind a header, and this is not a key.
+const fakeKeyBody = "C8QPkXdg1a1OvuRGOQbkICa+jZmHcDPmzrU414QpJ+Ry//pa8/bftEGgkfKvE5bA\n" +
+	"t1eKkzWOfJO8nALbmBFbzkogtl+GjJePfGTJGwgankt63TbTY4Gc2Y2dijd+9gj4\n" +
+	"3GR/Wtt4U59/0lHZfOcpzKKXzNJ95dFDIQfTs7GweG9GBhfuelULA4517Q+VDqWu"
+
 func runKeyCheck(t *testing.T, rel, content string) engine.CheckResult {
 	t.Helper()
 	root := t.TempDir()
@@ -29,10 +35,7 @@ func runKeyCheck(t *testing.T, rel, content string) engine.CheckResult {
 }
 
 func TestNoPrivateKeysInRepo_RSAPrivateKeyBlocks(t *testing.T) {
-	body := `-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEAyL...redacted...
------END RSA PRIVATE KEY-----
-`
+	body := "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEAyL\n" + fakeKeyBody + "\n-----END RSA PRIVATE KEY-----\n"
 	got := runKeyCheck(t, "keys/server.pem", body)
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK", got.Outcome)
@@ -48,7 +51,7 @@ MIIEpAIBAAKCAQEAyL...redacted...
 }
 
 func TestNoPrivateKeysInRepo_OpenSSHPrivateKeyBlocks(t *testing.T) {
-	body := "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjE=\n-----END OPENSSH PRIVATE KEY-----\n"
+	body := "-----BEGIN OPENSSH PRIVATE KEY-----\n" + fakeKeyBody + "\n-----END OPENSSH PRIVATE KEY-----\n"
 	got := runKeyCheck(t, "id_ed25519", body)
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK", got.Outcome)
@@ -56,7 +59,7 @@ func TestNoPrivateKeysInRepo_OpenSSHPrivateKeyBlocks(t *testing.T) {
 }
 
 func TestNoPrivateKeysInRepo_ECPrivateKeyBlocks(t *testing.T) {
-	body := "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIM/...redacted...\n-----END EC PRIVATE KEY-----\n"
+	body := "-----BEGIN EC PRIVATE KEY-----\n" + fakeKeyBody + "\n-----END EC PRIVATE KEY-----\n"
 	got := runKeyCheck(t, "ec.txt", body)
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK; reason: %s", got.Outcome, got.Reason)
@@ -67,7 +70,7 @@ func TestNoPrivateKeysInRepo_ECPrivateKeyBlocks(t *testing.T) {
 }
 
 func TestNoPrivateKeysInRepo_PGPPrivateKeyBlocks(t *testing.T) {
-	body := "-----BEGIN PGP PRIVATE KEY BLOCK-----\nlQVYBGT...\n-----END PGP PRIVATE KEY BLOCK-----\n"
+	body := "-----BEGIN PGP PRIVATE KEY BLOCK-----\n" + fakeKeyBody + "\n-----END PGP PRIVATE KEY BLOCK-----\n"
 	got := runKeyCheck(t, "secret.asc", body)
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK", got.Outcome)
@@ -78,7 +81,7 @@ func TestNoPrivateKeysInRepo_PGPPrivateKeyBlocks(t *testing.T) {
 // count as private keys (the passphrase is the missing link, not the
 // data being non-secret).
 func TestNoPrivateKeysInRepo_EncryptedPrivateKey(t *testing.T) {
-	body := "-----BEGIN ENCRYPTED PRIVATE KEY-----\nMIIFDjBABg...\n-----END ENCRYPTED PRIVATE KEY-----\n"
+	body := "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" + fakeKeyBody + "\n-----END ENCRYPTED PRIVATE KEY-----\n"
 	got := runKeyCheck(t, "enc.txt", body)
 	if got.Outcome != engine.OutcomeBlock {
 		t.Errorf("outcome = %s, want BLOCK", got.Outcome)
@@ -321,6 +324,53 @@ func TestNoPrivateKeysInRepo_LargeFileSkipped(t *testing.T) {
 	if got.Outcome != engine.OutcomePass {
 		t.Errorf("outcome = %s, want PASS (>1MB skip); reason: %s",
 			got.Outcome, got.Reason)
+	}
+}
+
+// TestNoPrivateKeysInRepo_HeaderWithoutBodyPasses: a doc table cell, a doc
+// example cut off with "...", a JSON list of header labels and a test that
+// writes only the header carry no key.
+func TestNoPrivateKeysInRepo_HeaderWithoutBodyPasses(t *testing.T) {
+	for rel, body := range map[string]string{
+		"docs/keys.md":      "| `-----BEGIN RSA PRIVATE KEY-----` | content | PKCS#1 RSA |\n",
+		"docs/keys.html":    "<td><code>-----BEGIN EC PRIVATE KEY-----</code></td>\n",
+		"docs/example.md":   "```\n-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----\n```\n",
+		"docs/truncated.md": "-----BEGIN OPENSSH PRIVATE KEY-----\n" + fakeKeyBody[:64] + "\n...\n",
+		"baseline.json":     "{\"labels\": [\n  \"-----BEGIN DSA PRIVATE KEY-----\",\n  \"-----BEGIN PGP PRIVATE KEY BLOCK-----\"\n]}\n",
+		"gen_test.go":       "pem := \"-----BEGIN RSA PRIVATE KEY-----\\nMIIE...\\n-----END RSA PRIVATE KEY-----\\n\"\n",
+	} {
+		if got := runKeyCheck(t, rel, body); got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: outcome = %s, want PASS; reason: %s", rel, got.Outcome, got.Reason)
+		}
+	}
+}
+
+// TestNoPrivateKeysInRepo_PublicKeyPemPasses: a `.pem` holding only a
+// public key is not a key file to rotate; an empty `.pem` still is.
+func TestNoPrivateKeysInRepo_PublicKeyPemPasses(t *testing.T) {
+	pub := "-----BEGIN PUBLIC KEY-----\n" + fakeKeyBody + "\n-----END PUBLIC KEY-----\n"
+	if got := runKeyCheck(t, "test/ec256-public.pem", pub); got.Outcome != engine.OutcomePass {
+		t.Errorf("public key .pem: outcome = %s, want PASS; reason: %s", got.Outcome, got.Reason)
+	}
+	if got := runKeyCheck(t, "keys/server.pem", "\n"); got.Outcome != engine.OutcomeBlock {
+		t.Errorf("opaque .pem: outcome = %s, want BLOCK", got.Outcome)
+	}
+}
+
+// TestNoPrivateKeysInRepo_EmbeddedKeyBlocks: a key inside a JSON string
+// (service-account file) or concatenated in source still has its body.
+func TestNoPrivateKeysInRepo_EmbeddedKeyBlocks(t *testing.T) {
+	oneLine := strings.ReplaceAll(fakeKeyBody, "\n", `\n`)
+	goLines := strings.ReplaceAll(fakeKeyBody, "\n", "\\n\" +\n\t\"")
+	legacy := "Proc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,0123456789ABCDEF\n\n" + fakeKeyBody
+	for rel, body := range map[string]string{
+		"sa.json":    "{\"private_key\": \"-----BEGIN PRIVATE KEY-----\\n" + oneLine + "\\n-----END PRIVATE KEY-----\\n\"}\n",
+		"keys.go":    "const k = \"-----BEGIN EC PRIVATE KEY-----\\n\" +\n\t\"" + goLines + "\\n\" +\n\t\"-----END EC PRIVATE KEY-----\\n\"\n",
+		"legacy.txt": "-----BEGIN RSA PRIVATE KEY-----\n" + legacy + "\n-----END RSA PRIVATE KEY-----\n",
+	} {
+		if got := runKeyCheck(t, rel, body); got.Outcome != engine.OutcomeBlock {
+			t.Errorf("%s: outcome = %s, want BLOCK", rel, got.Outcome)
+		}
 	}
 }
 

@@ -69,6 +69,66 @@ const privateKeysDisableMarker = "appframes:disable security/no-private-keys-in-
 const privateKeysDisableLineMarker = "appframes:disable-next-line security/no-private-keys-in-repo"
 const privateKeysMaxFileBytes = 1 << 20 // 1 MiB
 
+// pemMinKeyBodyChars is the shortest base64 body a real private key has:
+// a PKCS#8 Ed25519 key is 48 DER bytes, 64 base64 characters.
+const pemMinKeyBodyChars = 60
+
+// pemBodyLineTrim strips the quoting and concatenation that wraps a key
+// embedded in source (`"MIIE...\n" +`, JSON strings, YAML block scalars).
+const pemBodyLineTrim = " \t\r\"'`+,;()"
+
+// pemKeyBodyFollows reports whether a private-key header is followed by a
+// key body: base64 lines adding up to at least pemMinKeyBodyChars. A doc
+// table cell, a label list or a test that writes only the header has no
+// body, and a body cut off with "..." is an illustration, not a key. The
+// body may continue on the header's own line after literal \n escapes
+// (a key inside a JSON string).
+func pemKeyBodyFollows(lines []string, after int) bool {
+	var rest []string
+	for i, l := range lines {
+		if i == 0 {
+			l = l[after:]
+		}
+		if i > 64 {
+			break
+		}
+		l = strings.ReplaceAll(l, `\r`, "")
+		rest = append(rest, strings.Split(l, `\n`)...)
+	}
+	body := 0
+	for _, l := range rest {
+		l = strings.Trim(l, pemBodyLineTrim)
+		if l == "" || (body == 0 && strings.Contains(l, ":")) {
+			// Blank separators and RFC 1421 headers (Proc-Type, DEK-Info)
+			// of a legacy encrypted key come before the body.
+			continue
+		}
+		if !isBase64Line(l) {
+			return body >= pemMinKeyBodyChars && !strings.Contains(l, "...") && !strings.Contains(l, "\u2026")
+		}
+		body += len(l)
+	}
+	return body >= pemMinKeyBodyChars
+}
+
+// pemPublicKeyOnly reports whether content is a PEM public key with no
+// private-key header: a `.pem` holding a public key is the counterpart a
+// project is told to commit, not a leak.
+func pemPublicKeyOnly(content string) bool {
+	return (strings.Contains(content, "-----BEGIN PUBLIC KEY-----") || strings.Contains(content, "-----BEGIN RSA PUBLIC KEY-----")) &&
+		!strings.Contains(content, "PRIVATE KEY")
+}
+
+func isBase64Line(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '/' || c == '=') {
+			return false
+		}
+	}
+	return true
+}
+
 // NoPrivateKeysInRepo scans staged/working-tree files for PEM-armored
 // private keys + known key filenames. Severity is mixed (BLOCK for
 // private keys, INFO for public certs); see internal/stdlib/frames/security/no-private-keys-in-repo.md.
@@ -123,10 +183,12 @@ filesLoop:
 		// label (e.g. "PEM RSA private key"), not the generic "key file
 		// (.pem)". Both detections firing on the same file is redundant.
 		contentMatched := false
+		publicKey := false
 		info, statErr := os.Stat(file)
 		if statErr == nil && info.Size() <= privateKeysMaxFileBytes {
 			if data, readErr := os.ReadFile(file); readErr == nil {
 				content := string(data)
+				publicKey = pemPublicKeyOnly(content)
 				if !fileDisabledByMarker(content, privateKeysDisableMarker) {
 					lines := strings.Split(content, "\n")
 					for i, line := range lines {
@@ -134,7 +196,11 @@ filesLoop:
 							continue
 						}
 						for _, h := range pemHeaders {
-							if !strings.Contains(line, h.Marker) {
+							at := strings.Index(line, h.Marker)
+							if at < 0 {
+								continue
+							}
+							if h.Severity == engine.OutcomeBlock && !pemKeyBodyFollows(lines[i:], at+len(h.Marker)) {
 								continue
 							}
 							contentMatched = true
@@ -161,7 +227,7 @@ filesLoop:
 			}
 		}
 
-		if contentMatched {
+		if contentMatched || publicKey {
 			continue
 		}
 

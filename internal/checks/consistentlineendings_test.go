@@ -31,6 +31,17 @@ func TestConsistentLineEndings_MixedBlocks(t *testing.T) {
 	}
 }
 
+// TestConsistentLineEndings_CSVExempt: CRLF records with a bare LF inside a
+// quoted field are valid RFC 4180.
+func TestConsistentLineEndings_CSVExempt(t *testing.T) {
+	body := "name,note\r\na,\"two\nlines\"\r\nb,x\n"
+	for _, rel := range []string{"links.csv", "plan.TSV"} {
+		if got := runLineEndingsCheck(t, rel, body); got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: outcome = %s, want PASS; reason=%s", rel, got.Outcome, got.Reason)
+		}
+	}
+}
+
 func TestConsistentLineEndings_ShebangCRLFBlocks(t *testing.T) {
 	body := "#!/bin/bash\r\necho hi\r\n"
 	got := runLineEndingsCheck(t, "run.sh", body)

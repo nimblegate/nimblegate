@@ -19,8 +19,8 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 3/3
-  negatives: 2/2
-  last-run: 2026-05-20T14:37:33Z
+  negatives: 4/4
+  last-run: 2026-11-08T14:47:40Z
 ---
 
 # No private keys in repo
@@ -28,9 +28,12 @@ selection-stats:
 Detect private cryptographic keys committed to the repository. Two
 detection paths run in parallel:
 
-1. **Content scan** - match PEM-armored block headers anywhere in any
-   text file. These headers are standardized across OpenSSL, OpenSSH,
-   and GnuPG and have effectively zero false-positive rate.
+1. **Content scan** - match PEM-armored private-key headers anywhere in
+   any text file, when a key body follows: base64 lines adding up to at
+   least 60 characters (the smallest real key, PKCS#8 Ed25519, has 64).
+   The body may be wrapped in source quoting (`"...\n" +`), sit in a
+   JSON string after literal `\n` escapes, or follow the `Proc-Type` /
+   `DEK-Info` lines of a legacy encrypted key.
 
 2. **Filename scan** - flag file paths that conventionally hold
    private keys (`id_rsa`, `*.pem`, `*.key`, …) so binary key formats
@@ -103,6 +106,21 @@ The filename-pattern detection is also suppressed by either marker
 when present in the file's content - but a zero-byte `id_rsa` can't
 hold a comment, so it'll fire regardless. That's intentional: a
 literal `id_rsa` file is unambiguously suspicious.
+
+## Never fires
+
+- **A header with no key behind it** - a docs table naming the header, a
+  JSON list of header labels, a test that writes only the header line, a
+  rendered HTML page (`<code>-----BEGIN ...-----</code>`).
+- **An example cut off with `...`** (`MIIEpAIBAAKCAQEA...`, or a body line
+  followed by `...`) - an illustration, not a usable key. A file with
+  such content and a key extension (`.pem`, `.key`) still fires on the
+  filename.
+- **A key-extension file holding a public key** - a `.pem` whose content
+  is `-----BEGIN PUBLIC KEY-----` (or `RSA PUBLIC KEY`) with no private-key
+  header is the public counterpart, not a key file.
+- **Public certificates** never BLOCK: `-----BEGIN CERTIFICATE-----`
+  (CA bundles such as certifi's `cacert.pem`) is catalogued at INFO.
 
 ## What's NOT detected
 

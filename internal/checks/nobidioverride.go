@@ -76,6 +76,9 @@ filesLoop:
 		if err != nil {
 			continue
 		}
+		if isBinaryForTextScan(file, data) {
+			continue
+		}
 		content := string(data)
 		if fileDisabledByMarker(content, noBidiOverrideDisableMarker) {
 			continue

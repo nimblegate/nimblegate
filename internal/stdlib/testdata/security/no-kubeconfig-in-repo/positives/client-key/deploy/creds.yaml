@@ -8,4 +8,4 @@ users:
 - name: admin
   user:
     client-certificate-data: LS0tRkFLRS1DRVJULS0t
-    client-key-data: LS0tRkFLRS1LRVktLS0=
+    client-key-data: LS0tLS1CRUdJTiBGQUtFIFRFU1QgS0VZLS0tLS1maXh0dXJlIG9ubHksIG5vdCBhIGtleS0tLS0tRU5EIEZBS0UgVEVTVCBLRVktLS0tLQ==

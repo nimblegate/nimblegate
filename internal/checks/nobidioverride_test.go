@@ -26,6 +26,26 @@ func runBidiCheck(t *testing.T, rel, content string) engine.CheckResult {
 	})
 }
 
+// TestNoBidiOverride_BinaryFilesSkipped: compressed and image bytes hold
+// bidi byte sequences by chance. A binary extension or a NUL byte skips the
+// file; the same bytes in a text file still fire.
+func TestNoBidiOverride_BinaryFilesSkipped(t *testing.T) {
+	noise := "\x89PNG\r\n\x1a\nIDAT\xe2\x80\xae\x13\x07"
+	for rel, body := range map[string]string{
+		"img/photo.png":     noise,
+		"video/clip.mp4":    noise,
+		"assets/app.js.br":  noise,
+		"sumdb/tile/8/x926": "\x00\x17" + noise,
+	} {
+		if got := runBidiCheck(t, rel, body); got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: outcome = %s, want PASS; reason=%s", rel, got.Outcome, got.Reason)
+		}
+	}
+	if got := runBidiCheck(t, "app.js", "x = 1\xe2\x80\xae\n"); got.Outcome != engine.OutcomeBlock {
+		t.Errorf("text file: outcome = %s, want BLOCK", got.Outcome)
+	}
+}
+
 func TestNoBidiOverride_RLOBlocks(t *testing.T) {
 	// U+202E (RLO) embedded mid-line - the classic Trojan Source pattern.
 	body := "if (admin)‮ { grant() } else {}\n"

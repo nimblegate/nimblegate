@@ -32,6 +32,17 @@ func TestNoInvisibleTagChars_LanguageTagBlocks(t *testing.T) {
 	}
 }
 
+// TestNoInvisibleTagChars_BinaryFilesSkipped: archive bytes hold tag-rune
+// byte sequences by chance.
+func TestNoInvisibleTagChars_BinaryFilesSkipped(t *testing.T) {
+	noise := "PK\x03\x04\x00\x14\xf3\xa0\x80\x9c\x07"
+	for _, rel := range []string{"mod/v0.4.0.zip", "data/blob"} {
+		if got := runTagCharCheck(t, rel, noise); got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: outcome = %s, want PASS; reason=%s", rel, got.Outcome, got.Reason)
+		}
+	}
+}
+
 func TestNoInvisibleTagChars_TagSpaceBlocks(t *testing.T) {
 	// U+E0020 - tag SPACE, common in tag-encoded payloads.
 	body := "ok\U000E0020done\n"
