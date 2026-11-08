@@ -7,21 +7,38 @@
 [frames]
 enabled = [
     "app-correctness/dynamic-env-declared",
+    "app-correctness/prefer-static-public",
+    "app-correctness/top-of-page-import-safety",
     "commands/apt-purge-preview",
     "commands/curl-pipe-shell",
     "database/migration-script-explicit-env",
     "database/migration-verification-step",
     "database/schema-vs-code-drift",
     "database/sqlite-migration-idempotent-wrapper",
+    "documentation/cross-branch-id-consistency",
+    "documentation/dated-todo",
+    "documentation/doc-touches-with-code",
+    "documentation/markdown-link-check-internal",
     "filesystem/rm-rf-protected-paths",
     "git/folder-branch-lock",
     "git/no-amend-pushed-commits",
     "git/no-bypass-pre-commit",
     "git/no-force-push-main",
     "network/no-localhost-in-proxy-config",
+    "security/cf-pages-headers-baseline",
+    "security/no-env-file-in-repo",
     "security/no-hardcoded-credentials",
+    "security/no-innerHTML-user-input",
+    "security/no-kubeconfig-in-repo",
+    "security/no-mixed-content-urls",
     "security/no-plaintext-passwords",
     "security/no-private-keys-in-repo",
+    "security/no-terraform-state-in-repo",
+    "web/html-img-alt",
+    "web/html-markup-valid",
+    "web/html-placeholder-content",
+    "web/html-required-meta",
+    "web/html-seo-meta",
 ]
 
 # The gate scans the committed tree; `nimblegate check` walks the working
@@ -32,7 +49,7 @@ enabled = [
 # .private lives in exclude (a directory NAME) rather than exclude-paths: only
 # the name list reaches the regex linters, so a path glob would leave them
 # scanning private business docs.
-exclude = [".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit", "bin", ".private", ".superpowers", ".claude"]
+exclude = [".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit", "bin", ".private", ".superpowers", ".claude", "demo-static"]
 
 [linters]
   [linters.no-em-dash]

@@ -25,8 +25,8 @@ var placeholderMarkerRe = regexp.MustCompile(`\b(?:FIXME|XXX|HACK)\b`)
 var placeholderNameRe = regexp.MustCompile(`(?i)\b(?:lorem\s+ipsum|localhost|127\.0\.0\.1|example\.(?:com|org|net)|insert\s+(?:text|content)\s+here)\b|\b(?:TODO|FIXME|XXX|HACK)\b`)
 
 // placeholderNameList reports a line naming two or more different kinds
-// of placeholder ("lorem ipsum, localhost URLs, FIXME markers", "TODO,
-// FIXME, HACK, and XXX"): prose about placeholders, not a leftover one.
+// of placeholder, such as "lorem ipsum, localhost URLs, FIXME markers" or
+// "TODO, FIXME, HACK, and XXX": prose about placeholders, not a leftover.
 func placeholderNameList(line string) bool {
 	seen := map[string]bool{}
 	for _, m := range placeholderNameRe.FindAllString(line, -1) {
