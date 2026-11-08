@@ -72,6 +72,7 @@ func TestHTMLPlaceholderContent_OnlyShippedCopy(t *testing.T) {
 		{"hugo.toml": "", "content/docs/curl.md": "Pipe: `curl https://example.com/install | sh`\n\n```\nproxy_pass http://127.0.0.1:8080;\n// FIXME(acme): x\n```\n"},
 		{"tools/utm/index.html": fullHead + "</head><body><input type=\"url\" placeholder=\"https://www.example.com\">\n<script>\nconst u = 'https://example.com';\n</script>\n<pre><code>// HACK(#142): workaround\n</code></pre><p>Use <code>FIXME(acme)</code> markers.</p></body></html>\n"},
 		{"docs/drawn/template.html": "<div>{{SVG1}}</div>\n"},
+		{"hugo.toml": "", "content/docs/p.md": "A designer dropped lorem ipsum in for layout.\nScans for TODO, FIXME, HACK, and XXX markers.\ndescription: lorem ipsum, localhost URLs, FIXME markers\n"},
 		{"testdata/positives/lorem.html": "<p>Lorem ipsum dolor</p>\n"},
 	}
 	for _, files := range pass {
@@ -82,6 +83,7 @@ func TestHTMLPlaceholderContent_OnlyShippedCopy(t *testing.T) {
 	warn := []map[string]string{
 		merge(hugo, map[string]string{"content/blog/post.md": "Lorem ipsum dolor sit amet.\n"}),
 		{"src/content/blog/price.md": "Costs ~$XXX/month.\n"},
+		{"src/content/blog/draft.md": "# Lorem ipsum\n"},
 		{"site/index.html": fullHead + "</head><body><p>Contact us at https://example.com/contact</p></body></html>\n"},
 	}
 	for _, files := range warn {

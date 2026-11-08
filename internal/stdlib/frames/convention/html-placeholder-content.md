@@ -25,7 +25,7 @@ selection-grade: passing
 selection-stats:
   positives: 3/3
   negatives: 2/2
-  last-run: 2026-11-08T14:40:13Z
+  last-run: 2026-11-08T14:49:17Z
 ---
 
 # No placeholder text in shipped pages
@@ -69,7 +69,14 @@ Only text a visitor reads as the page's own copy is scanned. Skipped:
 - files whose name contains `template` (their `{{SLOTS}}` are filled by
   whatever renders them);
 - test-fixture, test-suite and hidden folders (`testdata/`, `tests/`,
-  `.superpowers/`, ...).
+  `.superpowers/`, ...);
+- lines that name two or more kinds of placeholder - prose about
+  placeholders, such as a sentence listing the marker words or saying
+  the frame catches lorem ipsum and localhost URLs.
+
+Lorem ipsum counts as the filler itself - `Lorem ipsum dolor ...`, or the
+two words standing alone as a heading or paragraph - not a sentence that
+mentions "dropping lorem ipsum in for layout".
 
 ## Fix
 
