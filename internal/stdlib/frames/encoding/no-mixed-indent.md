@@ -33,8 +33,9 @@ pattern: indent
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 2/2
+  negatives: 3/3
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No mixed tab + space indentation
@@ -57,3 +58,10 @@ or `expand`/`unexpand` to normalize.
 For Makefiles specifically: recipe lines must start with a literal
 tab - but the *first character* must be a tab, not a space followed
 by a tab.
+
+## Never fires
+
+- **Go raw string literals and block comments.** A line that starts inside
+  a backtick string (embedded SQL, JSON) or a `/* */` comment holds content,
+  not indentation; gofmt normalises every code line to tabs and leaves
+  literals alone. Mixed indentation on Go code lines still fires.

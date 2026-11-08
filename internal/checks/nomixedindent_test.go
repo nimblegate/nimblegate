@@ -27,6 +27,17 @@ func TestNoMixedIndent_PythonTabAfterSpacesBlocks(t *testing.T) {
 	}
 }
 
+// TestNoMixedIndent_GoLiterals: inside a raw string (embedded SQL/JSON) or a
+// block comment the whitespace is content; mixed indent on a code line
+// after them still fires.
+func TestNoMixedIndent_GoLiterals(t *testing.T) {
+	body := "package q\n\nconst sql = `\n\tSELECT a,\n\t       b\n\tFROM t`\n\n/*\n\t  indented example\n*/\nvar s = \"`\"\n\nfunc f() {\n\t  return\n}\n"
+	got := runMixedIndentCheck(t, "query.go", body)
+	if got.Outcome != engine.OutcomeBlock || len(got.Hits) != 1 || got.Hits[0].Line != 14 {
+		t.Fatalf("want one BLOCK hit on line 14, got %s %+v", got.Outcome, got.Hits)
+	}
+}
+
 func TestNoMixedIndent_MakefileSpaceBeforeTabBlocks(t *testing.T) {
 	body := "all:\n \techo hi\n"
 	got := runMixedIndentCheck(t, "Makefile", body)

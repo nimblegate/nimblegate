@@ -49,6 +49,56 @@ func mixedIndentApplicableFile(path string) bool {
 	return mixedIndentExtensions[strings.ToLower(filepath.Ext(path))]
 }
 
+// goLinesStartingInLiteral marks, per line, whether the line begins inside a
+// raw string literal or a block comment. Its leading whitespace is then
+// content (embedded SQL, JSON, an indented example), not indentation:
+// gofmt normalises every code line to tabs and leaves literals alone.
+func goLinesStartingInLiteral(lines []string) []bool {
+	out := make([]bool, len(lines))
+	const (
+		code = iota
+		raw
+		block
+	)
+	state := code
+	for i, line := range lines {
+		out[i] = state != code
+		for j := 0; j < len(line); j++ {
+			c := line[j]
+			switch state {
+			case raw:
+				if c == '`' {
+					state = code
+				}
+			case block:
+				if c == '*' && j+1 < len(line) && line[j+1] == '/' {
+					state = code
+					j++
+				}
+			default:
+				switch {
+				case c == '`':
+					state = raw
+				case c == '/' && j+1 < len(line) && line[j+1] == '*':
+					state = block
+					j++
+				case c == '/' && j+1 < len(line) && line[j+1] == '/':
+					j = len(line)
+				case c == '"' || c == '\'':
+					// Interpreted strings and runes end on this line; skip
+					// them so a backtick inside one opens nothing.
+					for j++; j < len(line) && line[j] != c; j++ {
+						if line[j] == '\\' {
+							j++
+						}
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
 // NoMixedIndent flags lines whose leading whitespace contains BOTH
 // tabs and spaces. Renders identically in editors; binds differently
 // to interpreters (Python TabError, make recipe rules, gofmt churn).
@@ -101,8 +151,15 @@ filesLoop:
 			continue
 		}
 		lines := strings.Split(content, "\n")
+		var inLiteral []bool
+		if strings.EqualFold(filepath.Ext(file), ".go") {
+			inLiteral = goLinesStartingInLiteral(lines)
+		}
 		for i, line := range lines {
 			if i > 0 && lineCarriesMarker(lines[i-1], noMixedIndentDisableLineMarker) {
+				continue
+			}
+			if inLiteral != nil && inLiteral[i] {
 				continue
 			}
 			hasTab, hasSpace := false, false
