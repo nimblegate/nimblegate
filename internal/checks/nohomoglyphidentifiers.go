@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"nimblegate/internal/engine"
@@ -46,6 +47,46 @@ var latinConfusables = map[rune]string{
 	0x0391: "Greek capital letter Alpha (looks like Latin A)",
 	0x039F: "Greek capital letter Omicron (looks like Latin O)",
 	0x03A1: "Greek capital letter Rho (looks like Latin P)",
+}
+
+// homoglyphInLine returns the first confusable rune that sits in a word
+// of three or more letters mixing it with ASCII letters ("vаlidate",
+// "ρush"). A word wholly in Greek or Cyrillic ("Москва", a math "α" or
+// "αn") is that script being used, not one letter impersonating another.
+func homoglyphInLine(line string) (rune, string, bool) {
+	var word []rune
+	check := func() (rune, string, bool) {
+		defer func() { word = word[:0] }()
+		if len(word) < 3 {
+			return 0, "", false
+		}
+		ascii := false
+		for _, r := range word {
+			if r < utf8.RuneSelf && unicode.IsLetter(r) {
+				ascii = true
+				break
+			}
+		}
+		if !ascii {
+			return 0, "", false
+		}
+		for _, r := range word {
+			if desc, ok := latinConfusables[r]; ok {
+				return r, desc, true
+			}
+		}
+		return 0, "", false
+	}
+	for _, r := range line {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
+			word = append(word, r)
+			continue
+		}
+		if r, desc, ok := check(); ok {
+			return r, desc, true
+		}
+	}
+	return check()
 }
 
 func noHomoglyphApplicableFile(path string) bool {
@@ -108,18 +149,16 @@ filesLoop:
 			if i > 0 && lineCarriesMarker(lines[i-1], noHomoglyphDisableLineMarker) {
 				continue
 			}
-			for j := 0; j < len(line); {
-				r, size := utf8.DecodeRuneInString(line[j:])
-				if desc, ok := latinConfusables[r]; ok {
-					label := fmt.Sprintf("U+%04X %s", r, desc)
-					hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, label))
-					hitsStruct = append(hitsStruct, engine.Hit{File: file, Line: i + 1, Label: label})
-					if len(hits) >= hitCap {
-						break filesLoop
-					}
-					break
+			if isLineComment(strings.TrimSpace(line)) {
+				continue
+			}
+			if r, desc, ok := homoglyphInLine(line); ok {
+				label := fmt.Sprintf("U+%04X %s", r, desc)
+				hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, label))
+				hitsStruct = append(hitsStruct, engine.Hit{File: file, Line: i + 1, Label: label})
+				if len(hits) >= hitCap {
+					break filesLoop
 				}
-				j += size
 			}
 		}
 	}
