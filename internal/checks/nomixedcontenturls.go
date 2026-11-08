@@ -43,6 +43,27 @@ var mixedContentExemptRegex = regexp.MustCompile(`(?i)^http://(` +
 	`purl\.org/.*` +
 	`)(/.*)?$`)
 
+// enclosingTagName returns the lower-cased name of the tag whose attribute
+// list contains offset at, or "" when at is not inside a tag.
+func enclosingTagName(content string, at int) string {
+	open := strings.LastIndexByte(content[:at], '<')
+	if open < 0 || strings.IndexByte(content[open:at], '>') >= 0 {
+		return ""
+	}
+	name := content[open+1:]
+	end := strings.IndexFunc(name, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == ':')
+	})
+	if end >= 0 {
+		name = name[:end]
+	}
+	return strings.ToLower(name)
+}
+
+func navigationTag(name string) bool {
+	return name == "a" || name == "area"
+}
+
 const mixedContentDisableMarker = "appframes:disable security/no-mixed-content-urls"
 const mixedContentDisableLineMarker = "appframes:disable-next-line security/no-mixed-content-urls"
 const mixedContentMaxFileBytes = 1 << 20 // 1 MiB
@@ -114,13 +135,21 @@ filesLoop:
 			continue
 		}
 		lines := strings.Split(content, "\n")
+		lineStart := 0
 		for i, line := range lines {
+			start := lineStart
+			lineStart += len(line) + 1
 			if i > 0 && lineCarriesMarker(lines[i-1], mixedContentDisableLineMarker) {
 				continue
 			}
-			for _, m := range mixedContentSrcRegex.FindAllStringSubmatch(line, -1) {
-				url := m[1]
+			for _, m := range mixedContentSrcRegex.FindAllStringSubmatchIndex(line, -1) {
+				url := line[m[2]:m[3]]
 				if mixedContentExemptRegex.MatchString(url) {
+					continue
+				}
+				// A link the user follows is a navigation, not a
+				// subresource: browsers do not block it on https pages.
+				if navigationTag(enclosingTagName(content, start+m[0])) {
 					continue
 				}
 				label := fmt.Sprintf("http:// URL in src/href attribute: %s (mixed-content; will fail on https pages)", url)

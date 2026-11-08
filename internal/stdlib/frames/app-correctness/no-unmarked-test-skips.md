@@ -25,7 +25,7 @@ selection-grade: passing
 selection-stats:
   positives: 9/9
   negatives: 5/5
-  last-run: 2026-09-27T16:23:22Z
+  last-run: 2026-11-08T14:51:21Z
 ---
 
 # Skipped and focused tests must be marked as intended
@@ -41,7 +41,11 @@ Flags tests that are switched off or that switch the rest of the suite off:
   every other failure goes unseen.
 
 Conditional skips (`skipif`, `skipIf`, `skipUnless`) are not flagged: they
-state their condition. Only test files are scanned (`*.test.*`, `*.spec.*`,
+state their condition. The same goes for a runtime skip inside an
+`if`/`else`/`case`/`except` block (Go `t.Skip`, Python `pytest.skip()`,
+`self.skipTest()`), such as "skip when git is not on PATH", "skip under
+-short", or "skip on Windows". An unconditional `t.Skip("broken on CI")`
+is still flagged. Only test files are scanned (`*.test.*`, `*.spec.*`,
 `*_test.go`, `test_*.py`, files under `test/`, `tests/`, `__tests__/`,
 `spec/`, ...), plus `#[ignore]` in any Rust file. Commented-out lines are
 ignored.

@@ -19,7 +19,7 @@ selection-grade: passing
 selection-stats:
   positives: 4/4
   negatives: 4/4
-  last-run: 2026-07-06T05:45:26Z
+  last-run: 2026-11-08T14:33:57Z
 ---
 
 # No PII in source
@@ -37,7 +37,7 @@ almost never fire:
 
 | Kind | Validation |
 |---|---|
-| Payment card number | 13-19 digits (spaces/dashes tolerated), known scheme prefix (Visa, Mastercard, Amex, Discover, JCB), passes Luhn, and is NOT a well-known publishable test number (Stripe/docs test cards report nothing) |
+| Payment card number | 13-19 digits, either unbroken or grouped the way cards are printed (`4-4-4-4`, `4-4-4-4-n`, Amex `4-6-5`, Diners `4-6-4`, spaces or dashes), standing alone (not the fraction of a decimal like `0.4485...`, not part of a hex/alphanumeric token, not a slice of a longer list of numbers), known scheme prefix (Visa, Mastercard, Amex, Discover, JCB), passes Luhn, and is NOT a well-known publishable test number (Stripe/docs test cards report nothing) |
 | IBAN | Country code with the correct national length, passes mod-97, and is NOT a well-known documentation example |
 | US SSN | `NNN-NN-NNNN` shape with valid area/group/serial, only when the line carries identifying context (`ssn`, `social security`, `tax id`, `taxpayer`) |
 
@@ -55,6 +55,11 @@ than downgraded - they are fake by design and reporting them is noise.
   `.json`, source code, and logs alike. Binary files (NUL byte in content)
   and files over 1 MiB are skipped; noise dirs (`node_modules/`, `dist/`)
   are excluded uniformly.
+- Test source files (`*_test.go`, `*.test.ts`, `test_*.py`, ...) are
+  skipped: they spell out checksum-valid values to exercise validators.
+  Fixture *data* files (`testdata/*.csv`, `fixtures/*.sql`) stay in scope -
+  a production dump copied in as a fixture is exactly the leak this frame
+  exists for.
 
 ## Failure message
 

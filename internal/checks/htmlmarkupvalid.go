@@ -32,6 +32,32 @@ var htmlForeignContentTags = map[string]bool{
 	"svg": true, "math": true, "script": true, "style": true, "template": true,
 }
 
+// htmlOptionalEnd are elements whose end tag HTML lets an author omit: the
+// parser closes them at the next sibling, the parent's end, or EOF.
+var htmlOptionalEnd = map[string]bool{
+	"html": true, "head": true, "body": true, "p": true, "li": true,
+	"dt": true, "dd": true, "tr": true, "td": true, "th": true,
+	"thead": true, "tbody": true, "tfoot": true, "colgroup": true,
+	"option": true, "optgroup": true, "rb": true, "rt": true, "rp": true,
+}
+
+// htmlImpliedClose lists, per start tag, the open elements it closes.
+var htmlImpliedClose = map[string][]string{
+	"p": {"p"}, "li": {"li"}, "dt": {"dt", "dd"}, "dd": {"dt", "dd"},
+	"tr": {"tr", "td", "th"}, "td": {"td", "th"}, "th": {"td", "th"},
+	"tbody": {"thead", "tbody", "tr", "td", "th"}, "tfoot": {"thead", "tbody", "tr", "td", "th"},
+	"option": {"option"}, "optgroup": {"option", "optgroup"}, "body": {"head"},
+}
+
+func containsString(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 const htmlMarkupValidDisableMarker = "appframes:disable web/html-markup-valid"
 const htmlMarkupValidMaxFileBytes = 1 << 20 // 1 MiB
 
@@ -81,7 +107,7 @@ filesLoop:
 		if !htmlApplicableFile(file) {
 			continue
 		}
-		if htmlTemplateFragment(ctx, file) {
+		if !htmlPageInScope(ctx, file) {
 			continue
 		}
 		if ShouldSkipPath(ctx, file) {
@@ -187,6 +213,14 @@ func walkHTMLTokens(file, body, content string) []engine.Hit {
 				foreignDepth++
 				continue
 			}
+			// A capitalised tag is a Svelte/JSX component, not an element;
+			// its children follow the framework's rules.
+			if len(raw) > 1 && raw[1] >= 'A' && raw[1] <= 'Z' {
+				continue
+			}
+			for len(stack) > 0 && containsString(htmlImpliedClose[name], stack[len(stack)-1].name) {
+				stack = stack[:len(stack)-1]
+			}
 			stack = append(stack, openTag{name: name, line: line})
 
 		case html.EndTagToken:
@@ -200,6 +234,9 @@ func walkHTMLTokens(file, body, content string) []engine.Hit {
 			}
 			if htmlVoidElements[name] {
 				// `</br>` etc. - meaningless, ignore.
+				continue
+			}
+			if len(raw) > 2 && raw[2] >= 'A' && raw[2] <= 'Z' {
 				continue
 			}
 			if len(stack) == 0 {
@@ -231,8 +268,20 @@ func walkHTMLTokens(file, body, content string) []engine.Hit {
 			}
 			// Implicit-close of intermediate tags. Report ONE entry naming
 			// the outermost orphan to avoid noise on a single typo that
-			// cascades into many false reports.
-			orphan := stack[matchIdx+1]
+			// cascades into many false reports. Elements whose end tag is
+			// optional (`<li>` closed by `</ul>`) are not orphans.
+			orphanIdx := -1
+			for i := matchIdx + 1; i < len(stack); i++ {
+				if !htmlOptionalEnd[stack[i].name] {
+					orphanIdx = i
+					break
+				}
+			}
+			if orphanIdx < 0 {
+				stack = stack[:matchIdx]
+				continue
+			}
+			orphan := stack[orphanIdx]
 			hits = append(hits, engine.Hit{
 				File: file, Line: orphan.line,
 				Label: fmt.Sprintf("<%s> on line %d not closed before </%s> on line %d", orphan.name, orphan.line, name, line),
@@ -242,6 +291,9 @@ func walkHTMLTokens(file, body, content string) []engine.Hit {
 	}
 	// Whatever remains on the stack is unclosed.
 	for _, t := range stack {
+		if htmlOptionalEnd[t.name] {
+			continue
+		}
 		hits = append(hits, engine.Hit{
 			File: file, Line: t.line,
 			Label: fmt.Sprintf("<%s> on line %d never closed", t.name, t.line),

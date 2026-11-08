@@ -131,14 +131,14 @@ func TestHTMLImgAlt_PassesWithRealAlt(t *testing.T) {
 func TestHTMLMarkupValid_FlagsUnclosedTag(t *testing.T) {
 	root := t.TempDir()
 	writeWeb(t, root, "page.html", `<section>
-  <p>hello
+  <span>hello
 </section>`)
 	got := HTMLMarkupValid(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
 	if got.Outcome != engine.OutcomeWarn {
 		t.Fatalf("outcome = %s; want WARN\nreason: %s", got.Outcome, got.Reason)
 	}
-	if !strings.Contains(got.Reason, "<p>") {
-		t.Errorf("expected <p> mention in reason; got: %s", got.Reason)
+	if !strings.Contains(got.Reason, "<span>") {
+		t.Errorf("expected <span> mention in reason; got: %s", got.Reason)
 	}
 }
 
@@ -213,6 +213,19 @@ func TestNoMixedContentURLs_BlocksHttpInSrc(t *testing.T) {
 	}
 }
 
+func TestNoMixedContentURLs_NavigationLinksAreNotMixedContent(t *testing.T) {
+	root := t.TempDir()
+	writeWeb(t, root, "refs.html", "<a class=\"ref\"\n   href=\"http://www.kotesovec.cz/books/pieces.pdf\">book</a>\n<area shape=\"rect\" href=\"http://old.host.cz/\">\n")
+	ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()}
+	if got := NoMixedContentURLs(ctx); got.Outcome != engine.OutcomePass {
+		t.Errorf("navigation links should pass; got %s %s", got.Outcome, got.Reason)
+	}
+	writeWeb(t, root, "head.html", "<link rel=\"stylesheet\"\n  href=\"http://fonts.host.cz/a.css\">\n")
+	if got := NoMixedContentURLs(ctx); got.Outcome == engine.OutcomePass {
+		t.Errorf("<link href=http://> is a subresource and must still fire")
+	}
+}
+
 func TestNoMixedContentURLs_PassesWithHttps(t *testing.T) {
 	root := t.TempDir()
 	writeWeb(t, root, "page.html", `<img src="https://cdn.example.com/logo.png" alt="">`)
@@ -281,6 +294,21 @@ func TestCFPagesHeadersBaseline_PassesWithFullBaseline(t *testing.T) {
 	got := CFPagesHeadersBaseline(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
 	if got.Outcome != engine.OutcomePass {
 		t.Errorf("outcome = %s; want PASS\nreason: %s", got.Outcome, got.Reason)
+	}
+}
+
+func TestCFPagesHeadersBaseline_FixtureSkippedAndCopiesReportedOnce(t *testing.T) {
+	root := t.TempDir()
+	partial := "/*\n  Content-Security-Policy: default-src 'self'\n  X-Frame-Options: DENY\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n"
+	writeWeb(t, root, "static/_headers", partial)
+	writeWeb(t, root, "public/_headers", partial)
+	writeWeb(t, root, "testdata/positives/_headers", "/*\n  Cache-Control: no-store\n")
+	got := CFPagesHeadersBaseline(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+	if got.Outcome != engine.OutcomeWarn {
+		t.Fatalf("outcome = %s; want WARN for the missing HSTS", got.Outcome)
+	}
+	if len(got.Hits) != 1 || !strings.Contains(got.Hits[0].Label, "Strict-Transport-Security") {
+		t.Errorf("want exactly one HSTS hit (copy deduped, fixture skipped); got %+v", got.Hits)
 	}
 }
 

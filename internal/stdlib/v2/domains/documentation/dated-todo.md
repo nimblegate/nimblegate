@@ -23,7 +23,7 @@ selection-grade: passing
 selection-stats:
   positives: 3/3
   negatives: 3/3
-  last-run: 2026-05-20T14:37:33Z
+  last-run: 2026-11-08T14:33:57Z
 ---
 
 # Naked TODOs must carry a date, owner, or issue link
@@ -56,8 +56,22 @@ The marker regex is roughly:
 \b(TODO|FIXME|HACK|XXX)\b
 ```
 
+Only a marker that is *used* as one counts, not one that is talked
+about:
+
+- In source code the marker must be the first word of a comment
+  (`// TODO`, `# FIXME`, ` * HACK`, `<!-- XXX`), outside a string
+  literal. A pattern literal, a label string, or "this is a TODO
+  checklist" mid-comment is not a marker.
+- In Markdown the marker must open a line (after any quote, bullet,
+  checkbox, heading or emphasis) or an HTML comment. Fenced code blocks
+  and inline code spans are examples and are not scanned; "No TBD/TODO"
+  mid-sentence is prose.
+- A marker glued to `/`, `|`, `-`, `_`, `.` or a quote (`TODO/FIXME`,
+  `~$XXX/month`) is a mention.
+
 A line containing a marker is acceptable when ANY of these match the
-same line within 60 characters of the marker:
+same line:
 
 - date: `\b\d{4}-\d{2}-\d{2}\b`
 - owner: `@[a-zA-Z0-9_-]+|\(\s*[a-zA-Z][a-zA-Z0-9_-]*\s*\)`
@@ -101,6 +115,8 @@ Rejected:
   ISO date + 4-digit year is the strongest cheap signal of intent.
 - Doesn't try to retire expired TODOs - that's a separate frame
   candidate (`convention/expired-todo`) for V0.6+.
-- Markdown comments (`<!-- TODO ... -->`) inside `.md` files are
-  scanned - could be noisy for design docs. If false positives stack
-  up, narrow `applies-to.files` to source-code extensions only.
+- Markdown comments (`<!-- TODO ... -->`) and line-opening markers
+  inside `.md` files are scanned; code examples in them are not.
+- String-literal detection counts quotes before the comment leader; a
+  line with an odd number of quotes in code before `//` (rare) can hide
+  a marker.

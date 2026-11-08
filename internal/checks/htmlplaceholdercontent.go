@@ -20,10 +20,41 @@ type placeholderShape struct {
 	Pattern *regexp.Regexp
 }
 
+var placeholderMarkerRe = regexp.MustCompile(`\b(?:FIXME|XXX|HACK)\b`)
+
+var placeholderNameRe = regexp.MustCompile(`(?i)\b(?:lorem\s+ipsum|localhost|127\.0\.0\.1|example\.(?:com|org|net)|insert\s+(?:text|content)\s+here)\b|\b(?:TODO|FIXME|XXX|HACK)\b`)
+
+// placeholderNameList reports a line naming two or more different kinds
+// of placeholder ("lorem ipsum, localhost URLs, FIXME markers", "TODO,
+// FIXME, HACK, and XXX"): prose about placeholders, not a leftover one.
+func placeholderNameList(line string) bool {
+	seen := map[string]bool{}
+	for _, m := range placeholderNameRe.FindAllString(line, -1) {
+		seen[strings.Join(strings.Fields(strings.ToLower(m)), " ")] = true
+	}
+	return len(seen) >= 2
+}
+
+// placeholderInLine returns the label of the placeholder on line, or "".
+func placeholderInLine(line string) string {
+	for _, shape := range placeholderShapes {
+		if shape.Pattern.MatchString(line) {
+			if placeholderNameList(line) {
+				return ""
+			}
+			return shape.Label
+		}
+	}
+	return ""
+}
+
 var placeholderShapes = []placeholderShape{
 	{
-		Label:   "Lorem Ipsum placeholder text",
-		Pattern: regexp.MustCompile(`(?i)\blorem\s+ipsum\b`),
+		Label: "Lorem Ipsum placeholder text",
+		// The filler itself ("Lorem ipsum dolor sit amet", or the two
+		// words alone as a heading/paragraph), not prose that mentions
+		// "dropping lorem ipsum in for layout".
+		Pattern: regexp.MustCompile(`(?i)\blorem\s+ipsum(?:\s+dolor\b|\s*(?:$|[<.!"']))`),
 	},
 	{
 		Label:   "INSERT TEXT HERE placeholder",
@@ -47,7 +78,7 @@ var placeholderShapes = []placeholderShape{
 	},
 	{
 		Label:   "FIXME / XXX / HACK marker in shipping content",
-		Pattern: regexp.MustCompile(`\b(?:FIXME|XXX|HACK)\b`),
+		Pattern: placeholderMarkerRe,
 	},
 	{
 		Label:   "TODO: ship marker",
@@ -111,6 +142,18 @@ filesLoop:
 		if repoDocFile(file) {
 			continue
 		}
+		rel := projectRel(ctx, file)
+		if inFixtureDir(rel) || inTestDir(rel) || inHiddenDir(rel) {
+			continue
+		}
+		// A template's {{SLOTS}} are filled by whatever renders it.
+		if strings.Contains(strings.ToLower(filepath.Base(file)), "template") {
+			continue
+		}
+		markdown := isMarkdownPath(file) || strings.EqualFold(filepath.Ext(file), ".mdoc")
+		if markdown && !markdownShips(ctx, file) {
+			continue
+		}
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}
@@ -127,18 +170,27 @@ filesLoop:
 			continue
 		}
 		lines := strings.Split(content, "\n")
-		for i, line := range lines {
+		// Code samples and scripts are not page copy: a documented
+		// `curl https://example.com/install` or a JS fallback URL is fine.
+		var scan []string
+		if markdown {
+			scan = markdownProse(content)
+		} else {
+			scan = strings.Split(htmlVisibleText(extractHTMLBody(file, content)), "\n")
+		}
+		for i := range lines {
+			if i >= len(scan) {
+				break
+			}
+			line := scan[i]
 			if i > 0 && lineCarriesMarker(lines[i-1], htmlPlaceholderDisableLineMarker) {
 				continue
 			}
-			for _, shape := range placeholderShapes {
-				if shape.Pattern.MatchString(line) {
-					hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, shape.Label))
-					hitsStruct = append(hitsStruct, engine.Hit{File: file, Line: i + 1, Label: shape.Label})
-					if len(hits) >= hitCap {
-						break filesLoop
-					}
-					break // one finding per line
+			if label := placeholderInLine(line); label != "" {
+				hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, label))
+				hitsStruct = append(hitsStruct, engine.Hit{File: file, Line: i + 1, Label: label})
+				if len(hits) >= hitCap {
+					break filesLoop
 				}
 			}
 		}

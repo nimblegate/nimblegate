@@ -71,7 +71,7 @@ func CFPagesHeadersBaseline(ctx engine.CheckContext) engine.CheckResult {
 			}
 			return nil
 		}
-		if d.Name() == "_headers" {
+		if d.Name() == "_headers" && !inFixtureDir(projectRel(ctx, path)) {
 			headersFiles = append(headersFiles, path)
 		}
 		return nil
@@ -85,6 +85,9 @@ func CFPagesHeadersBaseline(ctx engine.CheckContext) engine.CheckResult {
 
 	var hits []string
 	var hitsStruct []engine.Hit
+	// A static-site build copies static/_headers into its output dir;
+	// report the content once, at the first path the walk found.
+	seen := map[string]bool{}
 
 	for _, file := range headersFiles {
 		if ShouldSkipPath(ctx, file) {
@@ -99,6 +102,10 @@ func CFPagesHeadersBaseline(ctx engine.CheckContext) engine.CheckResult {
 			continue
 		}
 		content := string(data)
+		if seen[content] {
+			continue
+		}
+		seen[content] = true
 		if fileDisabledByMarker(content, cfPagesHeadersDisableMarker) {
 			continue
 		}

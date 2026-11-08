@@ -29,6 +29,7 @@ var templateRoots = map[string][]string{
 
 var contentRoots = map[string][]string{
 	"content": hugoConfigs,
+	"_posts":  jekyllConfigs,
 }
 
 // htmlTemplateFragment reports whether path is a site generator's template
@@ -38,7 +39,8 @@ func htmlTemplateFragment(ctx engine.CheckContext, path string) bool {
 	return underSiteDir(ctx, path, templateRoots)
 }
 
-// siteContentFile reports whether path is a Hugo content file, where a link
+// siteContentFile reports whether path is a Hugo content file (or a Jekyll
+// post), where a link
 // starting with "/" is a site address rather than a path in the repo.
 func siteContentFile(ctx engine.CheckContext, path string) bool {
 	return underSiteDir(ctx, path, contentRoots)
