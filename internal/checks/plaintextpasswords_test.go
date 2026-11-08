@@ -46,6 +46,7 @@ func TestNoPlaintextPasswords_Fires(t *testing.T) {
 		{".my.cnf", ".my.cnf", "[client]\nuser = root\npassword = Tr0ub4dor3x\n", "MySQL option file password"},
 		{"docker config", "ci/.docker/config.json", `{"auths":{"registry.internal":{"auth":"Ym90OlBhNTV3b3JkOQ=="}}}` + "\n", "Docker registry auth"},
 		{".vault-token", ".vault-token", "hvs.CAESIabcdefghijklmnopqrstuvwxyz\n", "Vault token file"},
+		{"backticked real password", "README.md", "Run `sshpass -p hunter2x ssh root@10.0.0.5`.\n", "sshpass password"},
 		{"rails master key", "config/master.key", "0123456789abcdef0123456789abcdef\n", "Rails master key"},
 		{"credential file in test dir", "tests/fixtures/.pgpass", "db.internal:5432:app:app:Tr0ub4dor3x\n", ".pgpass entry"},
 	}
@@ -94,6 +95,7 @@ func TestNoPlaintextPasswords_Passes(t *testing.T) {
 		{"fixture dir command", "fixtures/run.sh", "sshpass -p hunter2x ssh root@10.0.0.5\n"},
 		{"doc constant placeholder", "docs/setup.md", "--upstream \"http://GITEA_USER:GITEA_TOKEN@gitea.corp.io:3000/you/repo.git\"\n"},
 		{"doc ip range", "docs/setup.md", "http://bot:Tr0ub4dor3x@192.0.2.20:3000/you/repo.git\n"},
+		{"markdown flag mentions", "CHANGELOG.md", "a password handed to a command (`mysql -p<pw>`,\n  `sshpass -p`, `curl -u user:<pw>`, `PGPASSWORD=`, `docker login -p`,\n  `redis-cli -a`), and `mysql -p`. Also sshpass -p.\n"},
 		{"settings no secrets", ".claude/settings.local.json", `{"permissions":{"allow":["Bash(go test:*)","Bash(git push:*)"]}}` + "\n"},
 	}
 	for _, c := range cases {

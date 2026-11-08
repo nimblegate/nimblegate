@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
@@ -99,8 +100,10 @@ var pwFakeMarkers = []string{"fake", "dummy", "example", "placeholder", "changem
 // value: empty, an environment or template reference, a placeholder word, a
 // marked fake, or the same as the user name (postgres:postgres).
 func isPasswordPlaceholder(v, user string) bool {
-	v = strings.Trim(strings.TrimSpace(v), `'"`)
-	if v == "" {
+	// Docs quote commands in backticks and follow them with punctuation
+	// (`sshpass -p`, `mysql -p`.); what the pattern captures there is markup.
+	v = strings.TrimRight(strings.Trim(strings.TrimSpace(v), "'\"`"), ".,;:)`'\"")
+	if len(v) < 3 || !strings.ContainsFunc(v, func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }) {
 		return true
 	}
 	switch v[0] {
