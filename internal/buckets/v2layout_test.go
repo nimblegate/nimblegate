@@ -49,7 +49,7 @@ func TestV2Layout_allFramesParseCleanly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WalkDir: %v", err)
 	}
-	if count != 58 {
-		t.Errorf("walked %d frame files, want 58 (classification table)", count)
+	if count != 59 {
+		t.Errorf("walked %d frame files, want 59 (classification table)", count)
 	}
 }

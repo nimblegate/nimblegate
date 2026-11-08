@@ -148,6 +148,7 @@ func TestLoadStdlibFrames_TierMetadataPresent(t *testing.T) {
 		"security/no-database-dump-in-repo":            2,
 		"security/no-plaintext-passwords":              1,
 		"security/possible-secret":                     2,
+		"security/no-out-of-tree-references":           2,
 		"database/migration-script-explicit-env":       1,
 		"database/migration-verification-step":         1,
 		"database/sqlite-migration-idempotent-wrapper": 1,

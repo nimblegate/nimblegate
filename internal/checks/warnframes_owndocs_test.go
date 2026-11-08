@@ -41,6 +41,7 @@ var warnContentFrames = map[string]engine.CheckFunc{
 	"security/no-innerHTML-user-input":             NoInnerHTMLUserInput,
 	"security/no-mixed-content-urls":               NoMixedContentURLs,
 	"security/no-pii-in-source":                    NoPIIInSource,
+	"security/no-out-of-tree-references":           NoOutOfTreeReferences,
 	"web/html-img-alt":                             HTMLImgAlt,
 	"web/html-markup-valid":                        HTMLMarkupValid,
 	"web/html-placeholder-content":                 HTMLPlaceholderContent,

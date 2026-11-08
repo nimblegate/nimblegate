@@ -157,8 +157,28 @@ filesLoop:
 // which on the gateway is pushed content, so `../../../srv/...` must not make
 // the scan open a file outside the tree it was given.
 func resolveLocalImport(root, fromFile, importPath string) string {
-	if !strings.HasPrefix(importPath, ".") && !strings.HasPrefix(importPath, "$lib") {
+	p, res := classifyLocalImport(root, fromFile, importPath)
+	if res != importResolved {
 		return ""
+	}
+	return p
+}
+
+// importResolution is what classifyLocalImport made of an import path.
+type importResolution int
+
+const (
+	importExternal    importResolution = iota // a package or alias the scan cannot open
+	importResolved                            // a file inside root
+	importNotFound                            // local, inside root, but no such file
+	importEscapesRoot                         // local, and the path climbs out of root
+)
+
+// classifyLocalImport is resolveLocalImport with the reason it failed. An
+// escape is judged on the path alone: nothing outside root is ever opened.
+func classifyLocalImport(root, fromFile, importPath string) (string, importResolution) {
+	if !strings.HasPrefix(importPath, ".") && !strings.HasPrefix(importPath, "$lib") {
+		return "", importExternal
 	}
 	// Try the literal path first, then common SvelteKit extensions.
 	base := filepath.Dir(fromFile)
@@ -204,10 +224,13 @@ func resolveLocalImport(root, fromFile, importPath string) string {
 			continue
 		}
 		if pathExistsAsFile(c) {
-			return c
+			return c, importResolved
 		}
 	}
-	return ""
+	if strings.HasPrefix(importPath, ".") && !insideRoot(root, filepath.Join(base, importPath)) {
+		return "", importEscapesRoot
+	}
+	return "", importNotFound
 }
 
 // insideRoot reports whether p is root or below it. Both are made absolute
