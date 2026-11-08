@@ -35,6 +35,20 @@ func TestNoBOM_CSVExempt(t *testing.T) {
 	}
 }
 
+func TestNoBOM_DotNetExempt(t *testing.T) {
+	for _, rel := range []string{"src/Program.cs", "src/Module1.vb", "src/Lib.fs", "src/App.csproj", "src/App.vbproj", "src/Lib.fsproj", "App.sln"} {
+		got := runBOMCheck(t, rel, "\uFEFFusing System;\n")
+		if got.Outcome != engine.OutcomePass {
+			t.Errorf("%s: Visual Studio BOM should be tolerated; got %s reason=%s", rel, got.Outcome, got.Reason)
+		}
+	}
+	for _, rel := range []string{"build.sh", "appsettings.json", "NuGet.config", "deploy.ps1"} {
+		if got := runBOMCheck(t, rel, "\uFEFFx\n"); got.Outcome != engine.OutcomeBlock {
+			t.Errorf("%s: BOM must still block; got %s", rel, got.Outcome)
+		}
+	}
+}
+
 func TestNoBOM_NoBOMPasses(t *testing.T) {
 	body := "package main\n"
 	got := runBOMCheck(t, "main.go", body)
