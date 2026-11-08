@@ -7,6 +7,9 @@ import (
 	"testing"
 )
 
+// The zero-width runes below are deliberate fixtures.
+// appframes:disable security/no-zero-width-in-source
+
 func TestSanitizeForOutput_PassesThroughPrintableAscii(t *testing.T) {
 	in := "hello-world-123_abc"
 	if got := SanitizeForOutput(in); got != in {
