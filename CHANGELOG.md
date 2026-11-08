@@ -5,6 +5,30 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-11-09
+
+### Added
+
+- **`security/no-out-of-tree-references` frame (WARN, Core).** Records a push
+  that points outside its own repository: a symlink whose target leaves the
+  tree (for example to `/etc/passwd`) and a JS/TS/Svelte/Vue `import` that
+  climbs above the repository root. The gate already neutralised such
+  symlinks silently; the finding now lands on that push, the feed, Stats and
+  the agent API. Severity can be raised per repo; the whitelist and the
+  next-push preview apply as for any frame.
+
+### Changed
+
+- `encoding/no-bom` exempts .NET source, project and solution files (`.cs`,
+  `.vb`, `.fs`, `.csproj`, `.vbproj`, `.fsproj`, `.sln`), which Visual Studio
+  saves with a byte order mark. Other checks still scan them, and a BOM in
+  scripts and config files still blocks.
+
+### Fixed
+
+- On a dashboard without `--allow-edits`, the "+ New custom kit" and kit
+  Apply buttons are disabled instead of leading to a missing page.
+
 ## [0.7.2] - 2026-11-09
 
 ### Added
