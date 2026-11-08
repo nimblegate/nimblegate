@@ -21,7 +21,8 @@ import (
 // someone thought of.
 //
 //	NBG_SWEEP_ROOTS   comma-separated directories to walk
-//	NBG_SWEEP_FRAMES  comma-separated frame IDs, or "security" for every security/* frame
+//	NBG_SWEEP_FRAMES  comma-separated frame IDs, "security" for every security/* frame,
+//	                  or "all" for every frame except git/* (those judge push metadata)
 //	NBG_SWEEP_OUT     output file (TSV: frame, root, file:line, label); default stdout
 //
 // Only .git and node_modules are skipped: generated output (public/, dist/,
@@ -36,9 +37,11 @@ func TestFrameSweep(t *testing.T) {
 	for _, id := range strings.Split(os.Getenv("NBG_SWEEP_FRAMES"), ",") {
 		id = strings.TrimSpace(id)
 		switch {
-		case id == "security":
+		case id == "security" || id == "all":
 			for k := range all {
-				if strings.HasPrefix(k, "security/") {
+				// git/* frames judge push metadata (refs, flags), not file
+				// content, so a per-file sweep says nothing about them.
+				if (id == "all" && !strings.HasPrefix(k, "git/")) || strings.HasPrefix(k, "security/") {
 					ids = append(ids, k)
 				}
 			}
@@ -50,7 +53,7 @@ func TestFrameSweep(t *testing.T) {
 		}
 	}
 	if len(ids) == 0 {
-		t.Fatal("set NBG_SWEEP_FRAMES (frame IDs, or \"security\")")
+		t.Fatal("set NBG_SWEEP_FRAMES (frame IDs, \"security\" or \"all\")")
 	}
 	sort.Strings(ids)
 
