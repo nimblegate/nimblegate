@@ -214,16 +214,10 @@ func buildPolicyView(policyRoot, repo string, enabled []string) policyVM {
 			// Core is always shown so operators see the universal floor.
 			cats = append(cats, policyCategory{ID: string(ax.id), Display: ax.display, Subcategories: subs})
 		case v2AxisFramework:
-			// Always surface the canonical framework list so operators see
-			// the axis shape (svelte/astro/react/...) even when no frame
-			// declares one of them yet.
-			for _, fw := range canonicalFrameworks {
-				if _, ok := frameworkBuckets[fw]; !ok {
-					frameworkBuckets[fw] = nil
-				}
-			}
 			subs := buildFlatBuckets(frameworkBuckets, "framework/", displayBySub)
-			cats = append(cats, policyCategory{ID: string(ax.id), Display: ax.display, Subcategories: subs})
+			if len(subs) > 0 {
+				cats = append(cats, policyCategory{ID: string(ax.id), Display: ax.display, Subcategories: subs})
+			}
 		case v2AxisPlatform:
 			subs := buildNestedPlatformSubs(platformCross)
 			sortPolicySubsByDisplay(subs)

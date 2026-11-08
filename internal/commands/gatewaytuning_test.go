@@ -405,7 +405,7 @@ func TestBuildPolicyView_GroupsByCategory(t *testing.T) {
 	for _, c := range vm.Categories {
 		gotAxes[c.ID] = true
 	}
-	for _, want := range []string{"core", "framework", "domain"} {
+	for _, want := range []string{"core", "domain"} {
 		if !gotAxes[want] {
 			t.Errorf("expected v2 axis %q in view; got: %v", want, gotAxes)
 		}
@@ -434,25 +434,6 @@ func TestBuildPolicyView_GroupsByCategory(t *testing.T) {
 	}
 	if len(seenAt) != 1 || seenAt[0] != "platform/cloudflare/cf-pages" {
 		t.Errorf("cf-pages-headers-baseline classification = %v, want exactly [platform/cloudflare/cf-pages]", seenAt)
-	}
-}
-
-// TestBuildPolicyView_FrameworkAlwaysVisible: under v2 the Framework axis
-// is always shown so operators can see the axis exists, even when no
-// frames currently declare framework (today every frame has framework=[]).
-func TestBuildPolicyView_FrameworkAlwaysVisible(t *testing.T) {
-	tmp := t.TempDir()
-	writeTestPolicyConfig(t, tmp, nil, nil)
-	vm := buildPolicyView(tmp, "you/myapp", nil)
-	found := false
-	for _, c := range vm.Categories {
-		if c.ID == "framework" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("framework axis missing: should always render, even empty")
 	}
 }
 
