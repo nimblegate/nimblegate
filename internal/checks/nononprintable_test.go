@@ -51,6 +51,7 @@ func TestNoNonPrintable_BinaryContentSkipped(t *testing.T) {
 		"site/app.js.br":       "\x1b\x03\x00\xf8\xa5\x40",
 		"lib/jspdf.umd.min.js": "var a=\"\xc2\x8a\";\n",
 		"testdata/bell.txt":    "ding \x07\n",
+		"tests/invalid/control/bare-null.toml": "a = \x00\n",
 	}
 	for rel, body := range cases {
 		if got := runNonPrintableCheck(t, rel, body); got.Outcome != engine.OutcomePass {

@@ -68,7 +68,7 @@ filesLoop:
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}
-		if binaryExtensions[strings.ToLower(filepath.Ext(file))] || isMinifiedPath(file) || inFixtureDir(projectRel(ctx, file)) {
+		if binaryExtensions[strings.ToLower(filepath.Ext(file))] || isMinifiedPath(file) || inFixtureDir(projectRel(ctx, file)) || inTestDir(projectRel(ctx, file)) {
 			continue
 		}
 		info, err := os.Stat(file)
