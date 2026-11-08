@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -79,6 +80,51 @@ func enDashCodeRegions(line string, inFence bool) []string {
 func enDashFenceToggle(line string) bool {
 	t := strings.TrimSpace(line)
 	return strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~")
+}
+
+// enDashMentionRe names the dash characters themselves: a paragraph that
+// does so is explaining them, and its inline code spans are examples.
+var enDashMentionRe = regexp.MustCompile(`(?i)\b(en|em)[- ]dash|U\+201[34]`)
+
+// enDashDiscussingParagraphs marks, per line, whether the line sits in a
+// prose paragraph (blank-line delimited, outside fences) that mentions
+// en/em dashes by name.
+func enDashDiscussingParagraphs(lines []string) []bool {
+	out := make([]bool, len(lines))
+	inFence := false
+	start := -1
+	flush := func(end int) {
+		if start < 0 {
+			return
+		}
+		mention := false
+		for k := start; k < end; k++ {
+			if enDashMentionRe.MatchString(lines[k]) {
+				mention = true
+				break
+			}
+		}
+		for k := start; k < end; k++ {
+			out[k] = mention
+		}
+		start = -1
+	}
+	for i, line := range lines {
+		if enDashFenceToggle(line) {
+			flush(i)
+			inFence = !inFence
+			continue
+		}
+		if inFence || strings.TrimSpace(line) == "" {
+			flush(i)
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+	}
+	flush(len(lines))
+	return out
 }
 
 func enDashApplicableFile(path string) bool {
@@ -160,6 +206,10 @@ filesLoop:
 		markdown := enDashMarkdownFile(file)
 		inFence := false
 		lines := strings.Split(content, "\n")
+		var aboutDashes []bool
+		if markdown {
+			aboutDashes = enDashDiscussingParagraphs(lines)
+		}
 		for i, line := range lines {
 			if markdown && enDashFenceToggle(line) {
 				inFence = !inFence
@@ -170,6 +220,9 @@ filesLoop:
 			}
 			scan := line
 			if markdown {
+				if !inFence && aboutDashes[i] {
+					continue
+				}
 				regions := enDashCodeRegions(line, inFence)
 				if len(regions) == 0 {
 					continue
@@ -183,16 +236,14 @@ filesLoop:
 				if r != 0x2013 && r != 0x2014 {
 					continue
 				}
-				// Adjacent to a letter on either side counts as a flag-like
-				// substitution. Prose ("foo – bar") is ignored.
-				var prev, next rune
-				if j > 0 {
-					prev = runes[j-1]
-				}
+				// A corrupted flag puts the dash in front of the flag name
+				// (`–verbose`). A dash followed by anything else is
+				// prose ("foo – bar") or a range (`0.2s–0.3s`).
+				var next rune
 				if j+1 < len(runes) {
 					next = runes[j+1]
 				}
-				if !unicode.IsLetter(prev) && !unicode.IsLetter(next) {
+				if !unicode.IsLetter(next) {
 					continue
 				}
 				name := "U+2013 en-dash (likely meant `--`)"
@@ -218,7 +269,7 @@ filesLoop:
 	}
 	res.Outcome = engine.OutcomeBlock
 	res.Reason = "en/em-dash adjacent to alphabetic char (likely `--` paste corruption): " + strings.Join(hits, "; ")
-	res.Fix = "replace `–` and `-` with `--`: `sed -i 's/–/--/g; s/-/--/g' <file>`"
+	res.Fix = "replace the en/em-dash with `--`: `sed -i 's/\\xe2\\x80\\x93/--/g; s/\\xe2\\x80\\x94/--/g' <file>` (GNU sed)"
 	res.Hits = hitsStruct
 	return res
 }
