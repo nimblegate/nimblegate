@@ -32,7 +32,7 @@ enabled = [
 # .private lives in exclude (a directory NAME) rather than exclude-paths: only
 # the name list reaches the regex linters, so a path glob would leave them
 # scanning private business docs.
-exclude = [".git", "node_modules", "dist", "build", ".appframes", "bin", ".private", ".superpowers"]
+exclude = [".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit", "bin", ".private", ".superpowers", ".claude"]
 
 [linters]
   [linters.no-em-dash]

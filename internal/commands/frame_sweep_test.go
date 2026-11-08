@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"nimblegate/internal/checks"
 	"nimblegate/internal/engine"
 )
 
@@ -25,8 +26,8 @@ import (
 //	                  or "all" for every frame except git/* (those judge push metadata)
 //	NBG_SWEEP_OUT     output file (TSV: frame, root, file:line, label); default stdout
 //
-// Only .git and node_modules are skipped: generated output (public/, dist/,
-// build/) is scanned because the gate scans whatever a push carries.
+// Directories are skipped exactly as the gate skips them by default, so
+// generated output the gate does scan (public/, a docs site) is included.
 func TestFrameSweep(t *testing.T) {
 	roots := os.Getenv("NBG_SWEEP_ROOTS")
 	if roots == "" {
@@ -66,7 +67,17 @@ func TestFrameSweep(t *testing.T) {
 		defer f.Close()
 		out = f
 	}
-	skip := map[string]bool{".git": true, "node_modules": true}
+	// Default: the directories the gate itself skips (checks.DefaultExcludes),
+	// so the sweep measures what a push would see. NBG_SWEEP_RAW=1 walks
+	// everything except .git.
+	excl := checks.DefaultExcludes()
+	if os.Getenv("NBG_SWEEP_RAW") == "1" {
+		excl = []string{".git"}
+	}
+	skip := map[string]bool{}
+	for _, d := range excl {
+		skip[d] = true
+	}
 	for _, root := range strings.Split(roots, ",") {
 		files := 0
 		_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -83,7 +94,7 @@ func TestFrameSweep(t *testing.T) {
 				return nil
 			}
 			files++
-			ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ChangedFiles: []string{p}, ExcludedDirs: []string{".git"}}
+			ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ChangedFiles: []string{p}, ExcludedDirs: excl}
 			for _, id := range ids {
 				for _, h := range all[id](ctx).Hits {
 					fmt.Fprintf(out, "%s\t%s\t%s:%d\t%s\n", id, root, strings.TrimPrefix(h.File, root+"/"), h.Line, h.Label)

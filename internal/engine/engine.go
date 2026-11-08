@@ -166,7 +166,7 @@ func (e *Engine) ExcludedDirs() []string {
 // defaultExcludedDirs mirrors internal/checks.DefaultExcludes(). Duplicated
 // here so the engine package doesn't import internal/checks (cycle).
 func defaultExcludedDirs() []string {
-	return []string{".git", "node_modules", "dist", "build", ".appframes"}
+	return []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
 }
 
 // isFrameEnabled returns true if id matches any pattern in enabled. Patterns
