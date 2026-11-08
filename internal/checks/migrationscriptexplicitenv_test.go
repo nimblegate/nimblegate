@@ -119,6 +119,17 @@ heroku login
 	}
 }
 
+// TestMigrationScript_FlagOnContinuationLine: the env flag of a long
+// invocation sits on a `\` continuation line.
+func TestMigrationScript_FlagOnContinuationLine(t *testing.T) {
+	root := t.TempDir()
+	writeScript(t, root, "setup.sh", "#!/usr/bin/env bash\ngcloud iam service-accounts create sa \\\n  --display-name=x \\\n  --project=\"$P\"\nkubectl apply -f m.yaml \\\n  -n web\n")
+	got := MigrationScriptExplicitEnv(engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()})
+	if got.Outcome != engine.OutcomeBlock || len(got.Hits) != 1 || got.Hits[0].Line != 5 {
+		t.Errorf("want one BLOCK hit on line 5 (kubectl), got %s %+v", got.Outcome, got.Hits)
+	}
+}
+
 func TestMigrationScript_NonMultiEnvCLIIgnored(t *testing.T) {
 	root := t.TempDir()
 	writeScript(t, root, "build.sh", `#!/usr/bin/env bash

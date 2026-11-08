@@ -281,6 +281,10 @@ filesLoop:
 			}
 			// CLI invocation found. If the SAME line carries an explicit env
 			// flag, treat the script as handled.
+			// A long invocation puts its flags on `\` continuation lines.
+			for k := i; k+1 < len(lines) && strings.HasSuffix(strings.TrimRight(lines[k], " \t\r"), `\`); k++ {
+				line += " " + lines[k+1]
+			}
 			if envFlagPresentRegex.MatchString(line) {
 				continue
 			}
