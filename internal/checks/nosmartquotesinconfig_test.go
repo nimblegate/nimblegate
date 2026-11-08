@@ -27,6 +27,17 @@ func TestNoSmartQuotesInConfig_TOMLBlocks(t *testing.T) {
 	}
 }
 
+// TestNoSmartQuotesInConfig_JSON: curly quotes as delimiters break the
+// parse and fire; inside string values of valid JSON they are content.
+func TestNoSmartQuotesInConfig_JSON(t *testing.T) {
+	if got := runSmartQuotesCheck(t, "app.json", "{“name”: “app”}\n"); got.Outcome != engine.OutcomeBlock {
+		t.Errorf("curly delimiters: outcome = %s, want BLOCK", got.Outcome)
+	}
+	if got := runSmartQuotesCheck(t, "search.json", `[{"title":"It’s “quoted” prose"}]`); got.Outcome != engine.OutcomePass {
+		t.Errorf("curly quotes in string values: outcome = %s, want PASS; reason=%s", got.Outcome, got.Reason)
+	}
+}
+
 func TestNoSmartQuotesInConfig_YAMLBlocks(t *testing.T) {
 	body := "name: ‘alice’\n"
 	got := runSmartQuotesCheck(t, "vals.yaml", body)

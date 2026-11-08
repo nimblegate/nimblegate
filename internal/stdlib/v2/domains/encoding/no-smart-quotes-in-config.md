@@ -27,8 +27,9 @@ pattern: smart-quotes
 lifecycle: active
 selection-grade: passing
 selection-stats:
-  positives: 1/1
-  negatives: 1/1
+  positives: 2/2
+  negatives: 3/3
+  last-run: 2026-11-08T14:37:12Z
 ---
 
 # No smart / curly quotes in config
@@ -63,3 +64,11 @@ Replace with ASCII `'` or `"`. On the command line:
 ```
 sed -i 's/[\xE2\x80\x98\xE2\x80\x99]/'\''/g; s/[\xE2\x80\x9C\xE2\x80\x9D]/"/g' <file>
 ```
+
+## Never fires
+
+- **JSON that parses.** In valid JSON every curly quote sits inside a string
+  value (a search index, translated copy) where it is content; a curly quote
+  used as a delimiter breaks the parse and fires. YAML, TOML, `.env` and
+  `.ini` are always scanned: a curly-quoted YAML value parses but keeps the
+  curly characters in the value.
