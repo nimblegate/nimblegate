@@ -93,6 +93,32 @@ kubectl apply -f manifests/noindex.yaml
 	}
 }
 
+// TestMigrationScript_EnvlessSubcommandsPass: login, tool config and local
+// tooling subcommands touch no environment; a resource command in the same
+// script still fires.
+func TestMigrationScript_EnvlessSubcommandsPass(t *testing.T) {
+	body := `#!/usr/bin/env bash
+gcloud auth activate-service-account --key-file="$KEY"
+gcloud config set project "$PROJECT_ID"
+gcloud -q components update
+kubectl config use-context prod
+heroku login
+`
+	ctx := func(root string) engine.CheckContext {
+		return engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ExcludedDirs: DefaultExcludes()}
+	}
+	root := t.TempDir()
+	writeScript(t, root, "ci-setup.sh", body)
+	if got := MigrationScriptExplicitEnv(ctx(root)); got.Outcome != engine.OutcomePass {
+		t.Errorf("outcome = %s; want PASS\nreason: %s", got.Outcome, got.Reason)
+	}
+	root = t.TempDir()
+	writeScript(t, root, "ci-setup.sh", body+"gcloud builds submit --tag gcr.io/x\n")
+	if got := MigrationScriptExplicitEnv(ctx(root)); got.Outcome != engine.OutcomeBlock || len(got.Hits) != 1 {
+		t.Errorf("outcome = %s hits=%+v; want one BLOCK hit", got.Outcome, got.Hits)
+	}
+}
+
 func TestMigrationScript_NonMultiEnvCLIIgnored(t *testing.T) {
 	root := t.TempDir()
 	writeScript(t, root, "build.sh", `#!/usr/bin/env bash

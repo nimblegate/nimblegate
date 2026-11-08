@@ -21,11 +21,11 @@ lifecycle: active
 selection-grade: passing
 selection-stats:
   positives: 2/2
-  negatives: 4/4
-  last-run: 2026-05-24T00:00:00Z
+  negatives: 5/5
+  last-run: 2026-11-08T14:37:12Z
 ---
 
-# command-safety/migration-script-explicit-env
+# Migration scripts must name the target environment
 
 Reject bash scripts that invoke a multi-env CLI (wrangler, gcloud, kubectl, vercel, flyctl, supabase, firebase, heroku) without an explicit env-scope flag - when the script also has a defaulted `${1:-...}` env variable that resolves to empty.
 
@@ -43,6 +43,7 @@ The invocation then silently routes to the CLI's local / current-context environ
 ## What this does NOT catch (precision)
 
 - **`wrangler` deploy commands.** Only the data-plane subcommands (`d1`, `kv`, `r2`) have a local-vs-remote default. `wrangler pages deploy`, `wrangler deploy` (Workers), `versions`, `tail`, etc. always act on the remote - there is no local mode, so an env flag is meaningless. The frame skips wrangler lines whose subcommand isn't `d1`/`kv`/`r2`.
+- **Subcommands that touch no environment.** Login, CLI-config and local-tooling subcommands carry no env scope: `gcloud auth|config|components|info|version|init|help|topic`, `kubectl config|version|completion|plugin|help`, `vercel login|logout|whoami|help|telemetry`, `fly`/`flyctl auth|version|help`, `supabase login|logout|init|help|start|stop|status`, `firebase login|logout|init|help`, `heroku login|logout|auth|help|version|plugins|update`. CI bootstrap scripts run these constantly (`gcloud auth activate-service-account`, `gcloud config set project "$P"`).
 - **Validated scope variables.** If the script validates a variable against env-flag literals before use - e.g. `if [[ "$SCOPE" != "--local" && "$SCOPE" != "--remote" ]]; then exit 1; fi` - then passing `$SCOPE` to the CLI IS an explicit flag (indirect), and the frame treats it as handled. This is the exact safe pattern the Fix below recommends; the frame must not block its own recommended fix.
 
 ## Fix
