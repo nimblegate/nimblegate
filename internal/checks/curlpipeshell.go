@@ -127,6 +127,11 @@ filesLoop:
 			if i > 0 && lineCarriesMarker(lines[i-1], curlPipeShellDisableLineMarker) {
 				continue
 			}
+			// A comment line runs nothing: installers document their own
+			// `curl ... | bash` usage in the header.
+			if strings.HasPrefix(strings.TrimSpace(line), "#") {
+				continue
+			}
 			for _, shape := range curlPipeShapes {
 				if shape.Pattern.MatchString(line) {
 					hits = append(hits, fmt.Sprintf("%s:%d - %s", file, i+1, shape.Label))
