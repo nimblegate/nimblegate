@@ -4,6 +4,7 @@ package commands
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"html/template"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"nimblegate/internal/gateway"
 	"nimblegate/internal/kits"
@@ -48,6 +50,8 @@ type nextPushView struct {
 	Repo     string
 	Observe  bool
 	OOB      bool
+	Pending  bool // placeholder that loads the preview from /policy/preview/next
+	ScanRec  bool // a recommendation is pending: the fill also updates the banner
 	Res      gateway.PreviewResult
 	ShortRev string
 	Findings previewFindingsView
@@ -150,6 +154,69 @@ func policyPreviews(policyRoot, reposRoot, repo string, enabled []string, allowE
 	return &v, &res
 }
 
+// scanPreviewView is the scan banner's before/after line.
+type scanPreviewView struct {
+	After *gateway.PreviewResult
+	Now   *nextPushView
+	OOB   bool
+}
+
+// pendingNextPush is the placeholder the page renders at once; the browser
+// then fetches the computed section, so a scan never delays the page.
+func pendingNextPush(repo string, scanRec bool) *nextPushView {
+	if repo == "" {
+		return nil
+	}
+	return &nextPushView{Repo: repo, Pending: true, ScanRec: scanRec}
+}
+
+// previewNext serves the computed preview section for /policy and, when a
+// recommendation is pending, the banner's before/after line out of band.
+// Read-only, so it is available wherever /policy is.
+func (h previewHandlers) previewNext(w http.ResponseWriter, r *http.Request) {
+	repo := r.URL.Query().Get("repo")
+	if !validRepoName(repo) {
+		http.Error(w, "invalid repo", http.StatusBadRequest)
+		return
+	}
+	fp, _ := gateway.LoadFramePolicy(h.policyRoot, repo)
+	rec := loadScanRec(h.policyRoot, repo)
+	now, after := policyPreviews(h.policyRoot, h.reposRoot, repo, fp.Enabled, h.allowEdits, rec)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if now == nil {
+		fmt.Fprint(w, `<section class="frame gw-next-push" id="gw-next-push"><h3 class="gw-section-head">Next push preview</h3><p class="sub">Preview unavailable for this repo.</p></section>`)
+		return
+	}
+	_ = policyTmpl.ExecuteTemplate(w, "nextPush", now)
+	if rec != nil {
+		_ = policyTmpl.ExecuteTemplate(w, "scanPreview", scanPreviewView{After: after, Now: now, OOB: true})
+	}
+}
+
+// warmPreviews keeps the preview cache current so /policy finds results
+// ready: every interval it previews each repo's stored policy (and a pending
+// recommendation). Cache hits cost a rev lookup and a policy hash, so an idle
+// gateway does almost nothing; a new push or policy change is scanned once.
+func warmPreviews(ctx context.Context, policyRoot, reposRoot string, interval time.Duration) {
+	t := time.NewTimer(5 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		for _, repo := range listGatewayRepos(policyRoot) {
+			if ctx.Err() != nil {
+				return
+			}
+			fp, _ := gateway.LoadFramePolicy(policyRoot, repo)
+			policyPreviews(policyRoot, reposRoot, repo, fp.Enabled, false, loadScanRec(policyRoot, repo))
+		}
+		t.Reset(interval)
+	}
+}
+
 // validExactPath accepts a tree-relative path that a whitelist entry matches as
 // exactly that one file: no glob metacharacters, no traversal, no line breaks.
 func validExactPath(p string) bool {
@@ -174,6 +241,7 @@ type previewHandlers struct {
 	policyRoot string
 	reposRoot  string
 	token      string
+	allowEdits bool
 }
 
 // whitelistThis adds one exact-path whitelist entry for a finding shown in a
@@ -384,6 +452,7 @@ func switchToObserveIfAsked(w http.ResponseWriter, r *http.Request, policyRoot, 
 func init() {
 	t := policyTmpl
 	template.Must(t.New("previewFindings").Parse(`{{if .Rows}}<details class="gw-np-findings"><summary>Findings ({{.Total}})</summary><table class="fr"><tr><td class="k">severity</td><td class="k">frame</td><td class="k">file:line</td><td class="k">label</td><td class="k"></td></tr>{{range .Rows}}<tr><td>{{.Severity}}{{if .New}} <b class="warn">new</b>{{end}}</td><td><code>{{.Frame}}</code></td><td>{{if .Loc}}<code>{{.Loc}}</code>{{else}}-{{end}}</td><td>{{.Label}}</td><td>{{if .CanWhitelist}}<form class="gw-np-wl" hx-post="/policy/preview/whitelist"><input type="hidden" name="repo" value="{{$.Repo}}"><input type="hidden" name="frame" value="{{.Frame}}"><input type="hidden" name="path" value="{{.File}}"><input type="hidden" name="back" value="{{$.Back}}"><input type="text" name="reason" required placeholder="reason (required)"> <button type="submit">Whitelist this</button></form>{{end}}</td></tr>{{end}}</table>{{if .Truncated}}<p class="sub">Showing the first {{len .Rows}} of {{.Total}}.</p>{{end}}</details>{{end}}`))
-	template.Must(t.New("nextPush").Parse(`<section class="frame gw-next-push" id="gw-next-push"{{if .OOB}} hx-swap-oob="outerHTML"{{end}}><h3 class="gw-section-head">Next push preview</h3>{{with .Res}}{{if .Disabled}}<p>Gating is off for this repo: the next push is relayed without a check.</p>{{else if .NoCode}}<p>No pushed code yet: the preview runs once the repo has a commit.</p>{{else if .NoGatedRef}}<p>No pushed branch matches this repo's protected refs yet, so there is nothing to preview against.</p>{{else}}<p>With this policy, the next push would: <b>block {{.BlockCount}}</b>, warn {{.WarnCount}}{{if .ScanError}}. The scan failed, so the push would be rejected.{{end}}</p><p class="sub">Checked against <code>{{.Ref}}</code> at <code>{{$.ShortRev}}</code> (latest pushed code), with the gateway-held whitelist and scan settings, the way the gate runs it.{{if $.Observe}} Observe mode: blocks are recorded and the push is relayed anyway.{{end}}</p>{{if .ScanError}}<p class="warn">{{.ScanError}}</p>{{end}}{{template "previewFindings" $.Findings}}{{end}}{{end}}</section>`))
+	template.Must(t.New("nextPush").Parse(`{{if .Pending}}<section class="frame gw-next-push" id="gw-next-push"{{if .OOB}} hx-swap-oob="outerHTML"{{end}} hx-get="/policy/preview/next?repo={{.Repo}}" hx-trigger="load" hx-swap="outerHTML"><h3 class="gw-section-head">Next push preview</h3><p class="sub">Checking the latest pushed code with this policy...</p></section>{{else}}<section class="frame gw-next-push" id="gw-next-push"{{if .OOB}} hx-swap-oob="outerHTML"{{end}}><h3 class="gw-section-head">Next push preview</h3>{{with .Res}}{{if .Disabled}}<p>Gating is off for this repo: the next push is relayed without a check.</p>{{else if .NoCode}}<p>No pushed code yet: the preview runs once the repo has a commit.</p>{{else if .NoGatedRef}}<p>No pushed branch matches this repo's protected refs yet, so there is nothing to preview against.</p>{{else}}<p>With this policy, the next push would: <b>block {{.BlockCount}}</b>, warn {{.WarnCount}}{{if .ScanError}}. The scan failed, so the push would be rejected.{{end}}</p><p class="sub">Checked against <code>{{.Ref}}</code> at <code>{{$.ShortRev}}</code> (latest pushed code), with the gateway-held whitelist and scan settings, the way the gate runs it.{{if $.Observe}} Observe mode: blocks are recorded and the push is relayed anyway.{{end}}</p>{{if .ScanError}}<p class="warn">{{.ScanError}}</p>{{end}}{{template "previewFindings" $.Findings}}{{end}}{{end}}</section>{{end}}`))
+	template.Must(t.New("scanPreview").Parse(`<div class="gw-scan-preview" id="gw-scan-preview"{{if .OOB}} hx-swap-oob="outerHTML"{{end}}>{{with .After}}{{if .Rev}}With the recommendation applied, the next push would: <b>block {{.BlockCount}}</b>, warn {{.WarnCount}}{{if .ScanError}} (the scan failed, so it would be rejected){{end}}{{with $.Now}}{{if .Res.Rev}} - now: block {{.Res.BlockCount}}, warn {{.Res.WarnCount}}{{end}}{{end}}{{end}}{{else}}<span class="sub">Checking what the recommendation would change...</span>{{end}}</div>`))
 	template.Must(t.New("previewConfirm").Parse(`<h2 class="gw-pagehead">{{.Title}}</h2><p class="gw-pagedesc">Repo <strong>{{.Repo}}</strong>. Nothing changes until you press Apply.</p><section class="frame gw-next-push">{{if .Unavailable}}<p>{{.Unavailable}}</p>{{else}}<p>Next push, checked against <code>{{.After.Ref}}</code> at <code>{{.ShortRev}}</code>:</p><table class="fr"><tr><td class="k"></td><td class="k">now</td><td class="k">after apply</td></tr><tr><td>block</td><td>{{.Before.BlockCount}}</td><td><b>{{.After.BlockCount}}</b></td></tr><tr><td>warn</td><td>{{.Before.WarnCount}}</td><td>{{.After.WarnCount}}</td></tr></table>{{if .After.ScanError}}<p class="warn">The scan failed, so the push would be rejected: {{.After.ScanError}}</p>{{end}}{{if .After.WouldReject}}<p class="warn">{{if .Observe}}This repo is in observe mode: these blocks are recorded and the push is relayed anyway.{{else}}This repo enforces: after applying, the next push is rejected until these are fixed or whitelisted.{{end}}</p>{{end}}{{template "previewFindings" .Findings}}{{end}}</section><div class="gw-scan-actions"><form hx-post="{{.ApplyURL}}" style="display:inline">{{range .Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}<button type="submit">Apply</button></form>{{if .OfferObserve}}<form hx-post="{{.ApplyURL}}" style="display:inline">{{range .Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}<input type="hidden" name="observe" value="1"><button type="submit">Apply and switch {{.Repo}} to observe mode</button></form>{{end}}<a href="/policy?repo={{.Repo}}">Cancel</a></div>`))
 }

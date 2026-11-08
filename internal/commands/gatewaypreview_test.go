@@ -3,10 +3,12 @@
 package commands
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -239,5 +241,61 @@ func TestPolicyPage_previewCountsIncludeCoreAndEscapeFindings(t *testing.T) {
 	}
 	if !strings.Contains(body, "&lt;script&gt;x&lt;/script&gt;.yml") {
 		t.Error("escaped file name missing")
+	}
+}
+
+func TestPolicyPage_previewLoadsAsync(t *testing.T) {
+	policyRoot, reposRoot := previewRepoFixture(t, []string{kubeFrame})
+	rec := &ScanRecommendation{ScannedAt: "2026-11-01T00:00:00Z", RecommendedGroups: []RecommendedGroup{{Name: "core", Always: true}}}
+
+	vm := buildPolicyView(policyRoot, "demo", []string{kubeFrame})
+	w := httptest.NewRecorder()
+	if err := renderPolicyPage(w, vm, policyPageOpts{AllowEdits: true, CSRFToken: "tok", Repos: []string{"demo"}, PolicyRoot: policyRoot, ScanRec: rec, NextPush: pendingNextPush("demo", true)}); err != nil {
+		t.Fatal(err)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `hx-get="/policy/preview/next?repo=demo"`) || !strings.Contains(body, `hx-trigger="load"`) {
+		t.Errorf("page must render a self-loading preview placeholder; got:\n%s", body)
+	}
+	if strings.Contains(body, "With this policy, the next push would:") {
+		t.Error("page rendered computed counts instead of the placeholder")
+	}
+	if !strings.Contains(body, `id="gw-scan-preview"`) {
+		t.Error("banner placeholder missing")
+	}
+
+	recJSON, _ := json.Marshal(rec)
+	if err := os.WriteFile(filepath.Join(policyRoot, "demo", "scan-recommendation.json"), recJSON, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := previewHandlers{policyRoot: policyRoot, reposRoot: reposRoot, token: "tok", allowEdits: true}
+	w = httptest.NewRecorder()
+	h.previewNext(w, httptest.NewRequest(http.MethodGet, "/policy/preview/next?repo=demo", nil))
+	body = w.Body.String()
+	if !regexp.MustCompile(`With this policy, the next push would: <b>block [1-9]`).MatchString(body) {
+		t.Errorf("fill must carry the computed block count; got:\n%s", body)
+	}
+	if !strings.Contains(body, `id="gw-scan-preview" hx-swap-oob="outerHTML"`) || !strings.Contains(body, "With the recommendation applied") {
+		t.Errorf("fill must update the banner out of band; got:\n%s", body)
+	}
+
+	w = httptest.NewRecorder()
+	h.previewNext(w, httptest.NewRequest(http.MethodGet, "/policy/preview/next?repo=../x", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("bad repo name = %d, want 400", w.Code)
+	}
+}
+
+func TestToggleFrame_previewRefreshIsAsync(t *testing.T) {
+	policyRoot, reposRoot := previewRepoFixture(t, []string{kubeFrame})
+	h := policyHandlers{policyRoot: policyRoot, token: "tok", reposRoot: reposRoot}
+	w := httptest.NewRecorder()
+	h.toggleFrame(w, authoringReq(t, "/policy/frames/toggle", url.Values{"repo": {"demo"}, "id": {"git/no-bypass-pre-commit"}, "enabled": {"1"}}, "tok"))
+	body := w.Body.String()
+	if !strings.Contains(body, `id="gw-next-push" hx-swap-oob="outerHTML" hx-get="/policy/preview/next?repo=demo"`) {
+		t.Errorf("toggle must swap in a self-loading placeholder; got:\n%s", body)
+	}
+	if strings.Contains(body, "the next push would:") {
+		t.Error("toggle computed the preview synchronously")
 	}
 }
