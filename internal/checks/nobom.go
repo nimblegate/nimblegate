@@ -20,15 +20,22 @@ const noBOMMaxFileBytes = 1 << 20
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 // noBOMSkipExtensions are file extensions where a leading BOM is
-// tolerated (Excel-emitted CSV/TSV is the only realistic case).
+// tolerated: Excel-emitted CSV/TSV, and .NET source, project and solution
+// files, which Visual Studio saves with a BOM and its toolchain expects.
 var noBOMSkipExtensions = map[string]bool{
-	".csv": true,
-	".tsv": true,
+	".csv":    true,
+	".tsv":    true,
+	".cs":     true,
+	".vb":     true,
+	".fs":     true,
+	".csproj": true,
+	".vbproj": true,
+	".fsproj": true,
+	".sln":    true,
 }
 
-// NoBOM flags files that begin with EF BB BF (UTF-8 BOM). CSV/TSV are
-// skipped because Excel writes a BOM by default and the files often
-// round-trip through it.
+// NoBOM flags files that begin with EF BB BF (UTF-8 BOM), except the
+// noBOMSkipExtensions types whose tools write one by default.
 func NoBOM(ctx engine.CheckContext) engine.CheckResult {
 	res := engine.CheckResult{
 		FrameID:  "encoding/no-bom",
@@ -99,7 +106,7 @@ func NoBOM(ctx engine.CheckContext) engine.CheckResult {
 	}
 	res.Outcome = engine.OutcomeBlock
 	res.Reason = "UTF-8 BOM at file start (breaks shebangs / JSON parsers / migrations): " + strings.Join(hits, "; ")
-	res.Fix = "strip the BOM: `sed -i '1s/^\\xEF\\xBB\\xBF//' <file>` or save the file as UTF-8 without BOM. CSV/TSV are already exempt; for other files that legitimately need a BOM, add `# appframes:disable encoding/no-bom`"
+	res.Fix = "strip the BOM: `sed -i '1s/^\\xEF\\xBB\\xBF//' <file>` or save the file as UTF-8 without BOM. CSV/TSV and .NET source/project/solution files are already exempt; for other files that legitimately need a BOM, add `# appframes:disable encoding/no-bom`"
 	res.Hits = hitsStruct
 	return res
 }
