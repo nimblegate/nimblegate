@@ -5,6 +5,26 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-11-10
+
+### Fixed
+
+- **A policy whose entries match no frame no longer passes silently.** An
+  `enabled` entry that names no frame (a typo, or the `@group` syntax removed
+  in v0.1.0) was ignored, and a list where nothing matched ran no checks at
+  all, so every push was accepted. Now every push records a
+  `policy/unknown-entries` WARN naming the entries, a non-empty list that
+  matches nothing rejects the push ("repository policy enables no checks";
+  recorded and relayed in observe mode), the Policy page shows a banner, and
+  `nimblegate check` warns and exits non-zero when nothing resolves. An empty
+  list still means every frame.
+- The empty feed, the SSH keys page, its help and the container hints showed
+  push addresses that do not work (`git@<host>:2222/<repo>.git` reads 2222 as
+  part of the path). They now show `ssh://git@<host>:2222/~/<repo>.git` for
+  the Docker image and the full-path form for bare-metal installs.
+- The demo seed enabled frames with the removed `@group` syntax, so the demo
+  repos ran no real checks; it now applies kits.
+
 ## [0.7.3] - 2026-11-09
 
 ### Added
