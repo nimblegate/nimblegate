@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:7900:7900"              # dashboard on host loopback only
-      - "2222:22"                          # devs push to ssh://git@<host>:2222/<repo>.git
+      - "2222:22"                          # devs push to ssh://git@<host>:2222/~/<repo>.git
     volumes:
       - gw-repos:/srv/gateway/repos        # bare gated repos (size disk to these)
       - gw-cfg:/srv/gateway/cfg            # per-repo policy + credentials + audit

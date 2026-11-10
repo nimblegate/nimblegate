@@ -145,8 +145,13 @@ func Check(args []string) int {
 	// nothing, so the user sees a finding they believed was silenced. Validate
 	// against every frame that EXISTS, not the enabled set: suppressing a frame
 	// this repo has switched off is legitimate.
-	engine.FormatMarkerWarnings(os.Stdout, checks.UnknownDisableMarkers(ctx, allKnownIDsWithLinters(stdlibFrames, projectFrames, e)))
-	exit := engine.FormatResults(os.Stdout, filtered)
+	known := allKnownIDsWithLinters(stdlibFrames, projectFrames, e)
+	engine.FormatMarkerWarnings(os.Stdout, checks.UnknownDisableMarkers(ctx, known))
+	// Shown and counted like a finding (a list resolving to nothing exits
+	// non-zero), but kept out of the task ledger below: it is config to fix,
+	// not code.
+	shown := append(append([]engine.CheckResult{}, filtered...), engine.PolicyEntriesResults(e.EnabledExpanded, known)...)
+	exit := engine.FormatResults(os.Stdout, shown)
 
 	// Phase 1 Slice 4: surface lifecycle-filtered frames as a one-line
 	// notice. The contract: non-gated frames are loaded (so history /

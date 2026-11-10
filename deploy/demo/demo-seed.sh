@@ -73,18 +73,23 @@ rec_overlap() {
     "$(ago "$mins")" "$repo" "$ref" "$ref" "$sha" "$ref" "$other" "$files" "$sha" "$other_sha" >> "$ROOT/$repo/audit.log"
 }
 
+# args: repo  upstream  kits (space-separated)  extra frame ids (TOML list body, may be empty)
 seed_repo() {
-  local repo="$1" upstream="$2" frames="$3"
+  local repo="$1" upstream="$2" kits="$3" extra="$4" k ui=""
   mkdir -p "$ROOT/$repo"
-  printf 'upstream-url = "%s"\nenabled = true\nprotected-refs = ["refs/heads/*"]\n' "$upstream" > "$ROOT/$repo/gateway.toml"
-  printf '[frames]\nenabled = [%s]\n' "$frames" > "$ROOT/$repo/appframes.toml"
+  printf '[frames]\nenabled = [%s]\n' "$extra" > "$ROOT/$repo/appframes.toml"
+  for k in $kits; do
+    (cd "$ROOT/$repo" && nimblegate kits apply "$k" >/dev/null)
+    ui="$ui${ui:+, }\"$k\""
+  done
+  printf 'upstream-url = "%s"\nenabled = true\nprotected-refs = ["refs/heads/*"]\n\n[ui]\napplied_kits = [%s]\n' "$upstream" "$ui" > "$ROOT/$repo/gateway.toml"
   : > "$ROOT/$repo/audit.log"
 }
 
 NONE='[]'
 
 # ---- acme-storefront: e-commerce, the credential + force-push story ----
-seed_repo "acme-storefront" "git@git.example.com:acme/storefront.git" '"@tier-1", "@web", "@security-strict", "app-correctness/no-unmarked-test-skips", "app-correctness/no-placeholder-tests", "app-correctness/no-test-special-casing", "app-correctness/no-noop-test-script", "app-correctness/no-weakened-ci", "app-correctness/no-blanket-lint-disable"'
+seed_repo "acme-storefront" "git@git.example.com:acme/storefront.git" "core web-app security-strict agent-shortcuts" ""
 rec acme-storefront 7   refs/heads/feat-checkout true false "$NONE" "$NONE" '[]'
 rec acme-storefront 34  refs/heads/main false false \
   '[{"id":"security/no-hardcoded-credentials","severity":"BLOCK","message":"config/payments.js:14 - Stripe secret key (live)"}]' \
@@ -122,7 +127,7 @@ rec_overlap acme-storefront 4 refs/heads/agent/claude/checkout-tax "$TAX2" \
 
 # ---- payments-api: backend, the private-key + migration story ----
 [ -n "$REPOS" ] && bare_repo payments-api cmd/api/main.go migrations/008_payouts.sql README.md
-seed_repo "payments-api" "git@git.example.com:acme/payments-api.git" '"@tier-1", "@migrations", "@security-strict"'
+seed_repo "payments-api" "git@git.example.com:acme/payments-api.git" "core security-strict" '"database/migration-script-explicit-env", "database/migration-verification-step", "database/schema-vs-code-drift", "database/sqlite-migration-idempotent-wrapper"'
 cat >> "$ROOT/payments-api/appframes.toml" <<'LINTERS'
 
 [linters]
@@ -150,8 +155,8 @@ rec payments-api 880 refs/heads/main true false \
 
 # ---- marketing-site: static/web, observe-mode + rm-rf story ----
 [ -n "$REPOS" ] && bare_repo marketing-site index.html deploy.sh
-seed_repo "marketing-site" "git@git.example.com:acme/marketing-site.git" '"@tier-1", "@web", "@cf-pages"'
-echo 'observe = true' >> "$ROOT/marketing-site/gateway.toml"
+seed_repo "marketing-site" "git@git.example.com:acme/marketing-site.git" "core web-app cf-pages-project" ""
+awk '{print} /^enabled = true$/{print "observe = true"}' "$ROOT/marketing-site/gateway.toml" > "$ROOT/marketing-site/gateway.toml.new" && mv "$ROOT/marketing-site/gateway.toml.new" "$ROOT/marketing-site/gateway.toml"
 rec marketing-site 12  refs/heads/main true false "$NONE" "$NONE" '[]'
 rec marketing-site 58  refs/heads/redesign true true \
   '[{"id":"web/html-required-meta","severity":"WARN","message":"index.html - missing meta description"}]' \

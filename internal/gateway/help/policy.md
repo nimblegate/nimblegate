@@ -20,6 +20,7 @@ Tick which frames nimblegate runs against pushes to the active repo. A frame is 
 - **Tick individual frames**: every kit's frames are visible in the browse tree, grouped by the v2 axes: **Core / Domain / Framework / Platform**. Cloudflare nests Cf Pages and Cf D1 as children; HTML sits under Domain (not Framework, since HTML cross-cuts every web framework). Ticking the same frame anywhere updates every browse path that shows it.
 - **New custom kit**: save your own named selection for one-click reuse later. Custom kits appear at the top of the browse tree.
 - **Override severity**: per-frame BLOCK ↔ WARN ↔ INFO when the default doesn't fit your context.
+- **Unknown entries banner**: when `[frames] enabled` holds entries that match no frame (a typo, a renamed frame, or the removed `@group` syntax), a warning above the page lists them. Each push then records a `policy/unknown-entries` WARN; if no entry matches anything, the policy enables no checks and every push to a gated ref is rejected until it names a frame. For `@group` entries, `nimblegate lint` shows the kit to apply.
 - **Currently enabled frames**: collapsed summary at the top of the page; click to expand the list grouped per axis. The number in parentheses is the unique-enabled count across all kits and individual ticks.
 
 ## Frame vs custom linter: which to use

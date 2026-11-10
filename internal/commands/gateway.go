@@ -77,11 +77,15 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 	// the post-enablement engine registry) - the whitelist is allowed to
 	// reference frames that aren't currently enabled (they may get enabled
 	// later via kit apply, and the suppression should already be in place).
-	wl, err := whitelist.LoadFromProject(root, allKnownIDsWithLinters(stdlibFrames, projectFrames, e), time.Now().UTC())
+	known := allKnownIDsWithLinters(stdlibFrames, projectFrames, e)
+	wl, err := whitelist.LoadFromProject(root, known, time.Now().UTC())
 	if err != nil {
 		return nil, nil, fmt.Errorf("whitelist: %w", err)
 	}
 	filtered, suppressed := engine.ApplyWhitelist(results, wl, root)
+	// Added after the whitelist pass: a policy that names no frame is a
+	// gateway-config problem, not a finding in the pushed code to exempt.
+	filtered = append(filtered, engine.PolicyEntriesResults(e.EnabledExpanded, known)...)
 	return filtered, suppressed, nil
 }
 
