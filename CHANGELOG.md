@@ -5,6 +5,16 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-11-11
+
+### Changed
+
+- The Docker image's SSH banner is now a two-line hint ("if the next line says
+  Permission denied, add this machine's public key on the gateway dashboard's
+  SSH Keys page"). sshd shows it before authentication on every connection,
+  so the old nine-line version printed "SSH key authentication required" and
+  "Retry your push" above every successful push too.
+
 ## [0.7.4] - 2026-11-10
 
 ### Fixed
