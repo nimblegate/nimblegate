@@ -52,28 +52,13 @@ PermitTunnel no
 Banner /etc/ssh/nimblegate-banner
 EOF
 
-# Pre-auth banner - sshd sends this before the auth challenge, so any
-# git push (or interactive ssh attempt) sees it even when authentication
-# fails. The dashboard host:port shown here is the in-container binding;
-# operators who remapped via NIMBLEGATE_DASHBOARD_PORT in compose see the
-# in-container port (developers reach the dashboard via the host mapping
-# they were given separately).
+# Pre-auth banner - sshd sends it before authentication on EVERY connection,
+# successful pushes included, and cannot vary it by outcome. So it is two
+# lines worded as a conditional hint, naming no key path or address (the
+# developer's key file and the dashboard's mapped port are not known here).
 cat > /etc/ssh/nimblegate-banner <<'EOF'
-
-  nimblegate gateway - SSH key authentication required.
-
-  If the line below says "Permission denied (publickey)", your dev
-  box's SSH public key isn't registered with this gateway yet:
-
-    1. On your dev box, get your public key:
-         cat ~/.ssh/id_ed25519.pub
-
-    2. Open the gateway dashboard's SSH Keys page and paste the
-       key, give it a label, click Add:
-         http://<gateway-host>:7900/ssh-keys
-
-    3. Retry your push.
-
+nimblegate: if the next line says "Permission denied", add this machine's
+public key on the gateway dashboard's SSH Keys page.
 EOF
 chmod 644 /etc/ssh/nimblegate-banner
 
