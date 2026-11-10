@@ -115,7 +115,7 @@ cat <<'EOF'
            git remote set-url origin nimblegate:<repo>.git
            git push   # nimblegate gates the push, relays on accept
        (Without an ssh config entry, use:
-          GIT_SSH_COMMAND="ssh -p 2222" git push ssh://git@<host>:2222/<repo>.git)
+          GIT_SSH_COMMAND="ssh -p 2222" git push ssh://git@<host>:2222/~/<repo>.git)
 
   Logs to watch (on the HOST):
     docker logs <container> | grep nbg-setup       - current setup token

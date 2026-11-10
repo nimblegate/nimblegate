@@ -446,7 +446,7 @@ var sshKeysContentTmpl = func() *template.Template {
 <div class="gw-sshkeys">
   <h2 class="gw-pagehead">SSH keys</h2>
   <p class="gw-pagedesc">
-    Keys authorized to push to the gateway via <code>git@&lt;host&gt;:&lt;repo&gt;.git</code>. Stored on the persistent ssh volume; sshd reads this file directly so revocation is instant.
+    Keys authorized to push to the gateway over SSH: <code>ssh://git@&lt;host&gt;:2222/~/&lt;repo&gt;.git</code> on the Docker image, <code>ssh://git@&lt;host&gt;/srv/gateway/repos/&lt;repo&gt;.git</code> on a bare-metal install. Stored on the persistent ssh volume; sshd reads this file directly so revocation is instant.
   </p>
 
   {{if .Error}}<div class="gw-sshkey-error" style="margin:0 0 14px;padding:9px 12px;background:var(--gw-error-bg);border:1px solid var(--gw-block-border);color:var(--gw-error-text);border-radius:6px;font-size:13px">{{icon "warn"}} {{.Error}}</div>{{end}}

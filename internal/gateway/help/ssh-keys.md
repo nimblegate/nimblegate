@@ -27,6 +27,6 @@ The first time a key pushes to a repo, the gateway records it as "seen". Subsequ
 
 - The PRIVATE key never goes here. Only the `.pub` half.
 - ed25519 is recommended; RSA ≥ 3072 also fine. ECDSA accepted but not recommended.
-- Set the remote URL on the agent side: `ssh://git@<host>:2222/<repo>.git`.
+- Set the remote URL on the agent side. Docker image: `ssh://git@<host>:2222/~/<repo>.git` (keep the `~/`). Bare-metal install: `ssh://git@<host>/srv/gateway/repos/<repo>.git` (port 22, full path). Health -> Diagnostics prints the exact URL for each repo.
 
 For depth: [Quick start](https://nimblegate.com/docs/quick-start).
