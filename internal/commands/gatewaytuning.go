@@ -24,11 +24,14 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"nimblegate/internal/config"
+	"nimblegate/internal/engine"
+	"nimblegate/internal/frames"
 	"nimblegate/internal/gateway"
 	"nimblegate/internal/gateway/roi"
 	"nimblegate/internal/gwicons"
 	"nimblegate/internal/kits"
 	"nimblegate/internal/linters"
+	"nimblegate/internal/paths"
 	"nimblegate/internal/stdlib"
 	"nimblegate/internal/whitelist"
 )
@@ -630,9 +633,11 @@ var policyTmpl = func() *template.Template {
 	template.Must(t.New("editRepoForm").Parse(`<details class="frame gw-edit-repo"><summary class="gw-section-head">+ Edit existing repo in gateway</summary>{{if .Repos}}<form><label>Repo: <select name="repo" hx-get="/policy" hx-target="body" hx-swap="outerHTML"><option value="">(pick a repo to edit)</option>{{range .Repos}}<option value="{{.}}"{{if eq . $.Repo}} selected{{end}}>{{.}}</option>{{end}}</select></label></form>{{if .Repo}}<p class="warn">{{icon "warn"}} You&#39;re editing live config for <b>{{.Repo}}</b>. Frame toggle changes take effect on next push to this repo.</p>{{end}}{{else}}<p class="sub">No repos registered yet. Add one above.</p>{{end}}</details>`))
 	template.Must(t.New("repoPicker").Parse(`<div class="gw-repo-picker">{{if .Repos}}<form style="display:inline"><label for="gw-policy-repo" style="font-size:12px;color:var(--gw-text-muted);margin-right:6px">Editing:</label><select name="repo" id="gw-policy-repo" data-policy-tab="{{.ActiveTab}}" onchange="if(this.value==='__repos'){window.location='/repos'}else if(this.value){var t=this.dataset.policyTab||'';var q='/policy?repo='+encodeURIComponent(this.value);if(t&&t!=='frames')q+='&tab='+encodeURIComponent(t);window.location=q}">{{$cur := .Repo}}{{range .Repos}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}<option value="__repos">Manage repos →</option></select></form>{{else}}<div class="frame gw-policy-empty"><p class="sub">No repos registered yet. <a href="/repos" style="color:var(--gw-accent)">Add one in Repos</a></p></div>{{end}}</div>`))
 	template.Must(t.New("justRegisteredBanner").Parse(`{{if .JustRegistered}}<div class="gw-justregistered">{{icon "ok"}} <strong>{{.JustRegistered}}</strong> registered. Core kit applied. Refine selection below or go back to <a href="/repos">Repos</a>.</div>{{end}}`))
+	template.Must(t.New("unknownEntriesBanner").Parse(`{{if .UnknownEntries}}<div class="warn gw-unknown-entries">{{icon "warn"}} {{if .UnknownNone}}<b>This policy enables no checks.</b> Every push to a gated ref is rejected until [frames] enabled names a frame. {{end}}[frames] enabled entries that match no frame: {{range $i, $e := .UnknownEntries}}{{if $i}}, {{end}}<code>{{$e}}</code>{{end}}.{{if not .UnknownNone}} They select nothing; each push records a warning.{{end}}{{if .UnknownGroup}} The @group syntax was removed: <code>nimblegate lint</code> shows the kit to apply, or apply a kit below.{{end}}</div>{{end}}`))
 	template.Must(t.New("pageHeader").Parse(`{{if .Notice}}<div class="warn">{{icon "warn"}} {{.Notice}}</div>{{end}}
 <h2 class="gw-pagehead">Policy</h2>
 <p class="gw-pagedesc">Pick a repo to edit its frame policy. Manage repos at <a href="/repos" style="color:var(--gw-accent)">Repos</a>.</p>
+{{template "unknownEntriesBanner" .}}
 {{template "justRegisteredBanner" .}}
 {{template "scanBanner" .}}
 {{with .NextPush}}{{template "nextPush" .}}{{end}}`))
@@ -664,6 +669,9 @@ type policyPageData struct {
 	TimeEstimates  []effectiveTimeEstimate // per-tier hours (override or default) for the editor
 	NextPush       *nextPushView
 	ScanRecAfter   *gateway.PreviewResult
+	UnknownEntries []string // sanitised [frames] enabled entries that resolve to no frame
+	UnknownNone    bool     // the non-empty list resolves to nothing: the gate rejects every push
+	UnknownGroup   bool     // some entry uses the removed @group syntax
 }
 
 // renderPolicyPage writes the /policy page content fragment (without shell chrome)
@@ -720,6 +728,10 @@ func renderPolicyPage(w io.Writer, vm policyVM, opts policyPageOpts) error {
 		if te, err := resolveTimeEstimates(opts.PolicyRoot, vm.Repo); err == nil {
 			data.TimeEstimates = te
 		}
+		unknown, none := engine.UnknownEnabledEntries(vm.Enabled, policyKnownIDs(opts.PolicyRoot, vm.Repo))
+		data.UnknownEntries = engine.PolicyEntryLabels(unknown)
+		data.UnknownNone = none
+		data.UnknownGroup = engine.HasGroupEntry(unknown)
 	}
 
 	// Section 1: page notice + heading + just-registered banner + scan banner.
@@ -1789,6 +1801,18 @@ func whitelistKnownIDs(policyRoot, repo string) map[string]bool {
 		for _, id := range linters.EnabledIDs(cfg.Linters) {
 			known[id] = true
 		}
+	}
+	return known
+}
+
+// policyKnownIDs is the catalog the gate resolves [frames] enabled against:
+// whitelistKnownIDs plus the frames held in the repo's gateway policy dir,
+// which the gate overlays into every scanned tree.
+func policyKnownIDs(policyRoot, repo string) map[string]bool {
+	known := whitelistKnownIDs(policyRoot, repo)
+	projectFrames, _ := frames.LoadFromDir(paths.AppframesDir(filepath.Join(policyRoot, repo)))
+	for _, f := range projectFrames {
+		known[f.ID()] = true
 	}
 	return known
 }
