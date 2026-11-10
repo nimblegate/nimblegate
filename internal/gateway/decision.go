@@ -63,6 +63,14 @@ func Decide(p Policy, refs []RefUpdate, resultsByRef map[string][]engine.CheckRe
 				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res), Origin: res.Origin})
 				continue
 			}
+			// The detail names the gateway-held policy and the CLI to fix it,
+			// so the pusher gets a line any host's policy reject could print.
+			if res.FrameID == engine.PolicyEntriesID && res.Outcome == engine.OutcomeBlock {
+				reject = true
+				msgs = append(msgs, fmt.Sprintf("%s: repository policy enables no checks", r.Name))
+				findings = append(findings, Finding{ID: res.FrameID, Severity: sev, Message: findingMessage(res), Origin: res.Origin})
+				continue
+			}
 			switch res.Outcome {
 			case engine.OutcomeBlock, engine.OutcomeError:
 				reject = true
