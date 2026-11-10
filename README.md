@@ -2,6 +2,8 @@
 
 > Git push guardrails for AI agents: block unsafe pushes consistently, forward safe ones, record every decision.
 
+Source-available under [PolyForm Noncommercial 1.0.0](LICENSE): free for non-commercial use; commercial use needs a [license](COMMERCIAL.md).
+
 **Status:** [![latest release](https://img.shields.io/github/v/release/nimblegate/nimblegate?label=release&color=555)](https://github.com/nimblegate/nimblegate/releases/latest) · used in production since early 2026
 
 nimblegate sits **between your AI agent and your real git host**. Every push your
