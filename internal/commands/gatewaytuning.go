@@ -55,13 +55,14 @@ func csrfOK(r *http.Request, token string) bool {
 // Categories lists the canonical taxonomy in order, with empty categories omitted.
 // BuiltinKits is the Quick-start row of pre-defined starter kits.
 type policyVM struct {
-	ReadOnly    bool // dashboard without --allow-edits: edit-only views do not exist
-	Repo        string
-	Enabled     []string        // flat list, source of truth
-	AppliedKits []string        // built-in kit names currently applied
-	UserKits    []policyUserKit // user-defined custom kits
-	Categories  []policyCategory
-	BuiltinKits []policyKitInfo // for the Quick-start row
+	ReadOnly     bool // dashboard without --allow-edits: edit-only views do not exist
+	Repo         string
+	Enabled      []string        // flat list, source of truth
+	AppliedKits  []string        // built-in kit names currently applied
+	UserKits     []policyUserKit // user-defined custom kits
+	Categories   []policyCategory
+	BuiltinKits  []policyKitInfo // for the Quick-start row
+	NewKitFrames []kitNewFrames  // applied kits that gained frames since this repo applied them
 }
 
 type policyCategory struct {
@@ -261,12 +262,13 @@ func buildPolicyView(policyRoot, repo string, enabled []string) policyVM {
 	}
 
 	return policyVM{
-		Repo:        repo,
-		Enabled:     enabled,
-		AppliedKits: readAppliedKits(policyRoot, repo),
-		UserKits:    readUserKits(policyRoot, repo, enabledSet),
-		Categories:  cats,
-		BuiltinKits: builtins,
+		Repo:         repo,
+		Enabled:      enabled,
+		AppliedKits:  readAppliedKits(policyRoot, repo),
+		UserKits:     readUserKits(policyRoot, repo, enabledSet),
+		Categories:   cats,
+		BuiltinKits:  builtins,
+		NewKitFrames: newKitFrames(policyRoot, repo),
 	}
 }
 
@@ -465,6 +467,7 @@ type configFile struct {
 	} `toml:"frames"`
 	UI struct {
 		AppliedKits []string      `toml:"applied_kits"`
+		SeenFrames  []string      `toml:"seen_frames"`
 		UserKits    []userKitTOML `toml:"user_kits"`
 	} `toml:"ui"`
 }
@@ -495,12 +498,32 @@ func writeFullConfig(path string, cfg *configFile) error {
 		fmt.Fprintf(&b, "%q", n)
 	}
 	b.WriteString("]\n")
+	if len(cfg.UI.SeenFrames) > 0 {
+		b.WriteString("seen_frames = [")
+		for i, id := range cfg.UI.SeenFrames {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%q", id)
+		}
+		b.WriteString("]\n")
+	}
 	for _, uk := range cfg.UI.UserKits {
 		fmt.Fprintf(&b, "\n[[ui.user_kits]]\nname = %q\nframes = [\n", uk.Name)
 		for _, f := range uk.Frames {
 			fmt.Fprintf(&b, "    %q,\n", f)
 		}
 		b.WriteString("]\n")
+	}
+	// Keep severity overrides, custom linters, time estimates and anything
+	// else this writer does not own.
+	if old, err := os.ReadFile(path); err == nil {
+		if extra := gateway.ForeignTOMLBlocks(string(old), func(t string) bool {
+			return t == "frames" || t == "ui" || strings.HasPrefix(t, "ui.")
+		}); extra != "" {
+			b.WriteString("\n")
+			b.WriteString(strings.TrimLeft(extra, "\n"))
+		}
 	}
 	return atomicWriteFile(path, []byte(b.String()))
 }
@@ -962,6 +985,7 @@ func renderFrameSelection(w io.Writer, vm policyVM) error {
   <div class="gw-policy-kits">
     `, htmlEsc(vm.Repo))
 
+	renderKitUpdateNotice(w, vm)
 	renderAppliedKitsRow(w, vm)
 	fmt.Fprint(w, `
     `)
@@ -1714,11 +1738,28 @@ func addAppliedKit(cfgPath, name string) error {
 	_ = toml.Unmarshal(data, &cfg)
 	for _, existing := range cfg.UI.AppliedKits {
 		if existing == name {
-			return nil
+			return markKitSeen(cfgPath, name)
 		}
 	}
 	cfg.UI.AppliedKits = append(cfg.UI.AppliedKits, name)
-	return rewriteAppliedKits(cfgPath, cfg.UI.AppliedKits)
+	if err := rewriteAppliedKits(cfgPath, cfg.UI.AppliedKits); err != nil {
+		return err
+	}
+	return markKitSeen(cfgPath, name)
+}
+
+// markKitSeen records every frame of a built-in kit as offered to the repo,
+// so the new-frames notice only lists frames a later release adds.
+func markKitSeen(cfgPath, name string) error {
+	ks, err := kits.LoadStdlib()
+	if err != nil {
+		return nil
+	}
+	k, ok := ks.Get(name)
+	if !ok {
+		return nil
+	}
+	return markFramesSeen(cfgPath, k.Frames)
 }
 
 func removeAppliedKit(cfgPath, name string) error {

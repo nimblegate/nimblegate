@@ -53,6 +53,9 @@ type healthData struct {
 	// nothing - this line only appears when something is actually wrong. It is
 	// the only signal an observe-mode operator gets that scanning stopped.
 	ScanFailures24h int
+
+	// Repos whose applied kits gained frames since they applied them.
+	KitUpdateRepos  []string
 	ScanFailureLast string // detail of the most recent one
 
 	// Memory pressure (PSI), the signal that arrives before the OOM killer
@@ -147,6 +150,11 @@ func collectHealth(policyRoot, reposRoot string, startTime time.Time, now time.T
 	}
 
 	collectStagingHealth(&d, policyRoot, reposRoot, now)
+	for _, repo := range listGatewayRepos(policyRoot) {
+		if len(newKitFrames(policyRoot, repo)) > 0 {
+			d.KitUpdateRepos = append(d.KitUpdateRepos, repo)
+		}
+	}
 
 	// Memory pressure: how much wall-clock time tasks spent stalled waiting on
 	// memory. Free-memory arithmetic cannot answer this - a box with little
@@ -366,7 +374,7 @@ var healthTmpl = template.Must(template.New("health").Funcs(template.FuncMap{"ic
 {{if .WhitelistIssues}}<dt>Whitelist</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{range .WhitelistIssues}}{{.}}<br>{{end}}</dd>{{end}}
 {{if .StagingStatus}}<dt>Scan staging</dt><dd>{{if ne .StagingStatus "-"}}<span class="gw-health-status-{{.StagingStatus}}">{{icon .StagingStatus}}</span> {{end}}{{if .StagingDir}}<code>{{.StagingDir}}</code> - {{end}}{{.StagingDetail}}</dd>{{end}}
 {{if .MemPressureStatus}}<dt>Memory pressure</dt><dd>{{if eq .MemPressureStatus "-"}}{{.MemPressureDetail}}{{else}}<span class="gw-health-status-{{.MemPressureStatus}}">{{icon .MemPressureStatus}}</span> {{.MemPressureDetail}}{{end}}</dd>{{end}}
-{{if gt .ScanFailures24h 0}}<dt>Gate scans</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{.ScanFailures24h}} push(es) could not be scanned in 24h{{if .ScanFailureLast}} - {{.ScanFailureLast}}{{end}}</dd>{{end}}
+{{if .KitUpdateRepos}}<dt>Kit updates</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{len .KitUpdateRepos}} repo(s) can add new kit frames: {{range $i, $r := .KitUpdateRepos}}{{if $i}}, {{end}}<a href="/policy?repo={{$r}}">{{$r}}</a>{{end}}</dd>{{end}}{{if gt .ScanFailures24h 0}}<dt>Gate scans</dt><dd><span class="gw-health-status-warn">{{icon "warn"}}</span> {{.ScanFailures24h}} push(es) could not be scanned in 24h{{if .ScanFailureLast}} - {{.ScanFailureLast}}{{end}}</dd>{{end}}
 {{if .SkeletonChecked}}<dt>Repo connection</dt><dd>{{if eq .SkeletonIssuesTotal 0}}<span class="gw-health-status-ok">{{icon "ok"}}</span> all {{.SkeletonReposTotal}} repo(s) connected{{else}}<span class="gw-health-status-warn">{{icon "warn"}}</span> {{.SkeletonIssuesTotal}} issue(s) across {{.SkeletonReposIssues}} repo(s){{if gt .SkeletonBlocking 0}}, {{.SkeletonBlocking}} blocking{{end}}, see <a href="/repos" style="color:var(--gw-accent)">Repos</a> to fix{{end}}</dd>{{end}}
 {{with .Maintenance}}
 <dt>Maintenance</dt><dd><span class="gw-health-status-ok">{{icon "ok"}}</span> gc every {{.Interval}}, last sweep {{.LastSweepAgo}} ({{.RepoCount}} repo(s){{if gt .ErrorCount 0}}, {{icon "warn"}} {{.ErrorCount}} error(s){{end}}); next in {{.NextSweepIn}}

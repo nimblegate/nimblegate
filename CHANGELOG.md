@@ -23,9 +23,21 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   never do, and values are never echoed. Part of the Core kit (now 21 frames)
   and every kit built on it.
 
-  **Existing repos:** applying a kit writes its frames into the repo's policy,
-  so repos that already have Core get the new frame only when you apply the
-  kit again (Policy page, Apply Core) or tick the frame.
+- **New kit frames are shown after an upgrade.** When a release adds frames
+  to a kit a repo applied, the Policy page lists them with **Preview and add**
+  (the usual confirm view, enabling only the new frames) and **Dismiss**; the
+  Repos page shows a badge and Health a line for each such repo. Nothing is
+  enabled on upgrade, and frames you unticked yourself are never offered
+  again. After upgrading to 0.7.6, repos with Core, Web app, the Cloudflare
+  kits or Security strict show `security/no-secret-in-client-env` this way.
+
+### Fixed
+
+- **Changing a frame's severity, saving a custom linter or saving time
+  estimates no longer wipes the repo's applied and custom kits,** and creating
+  or deleting a custom kit no longer drops severity overrides, custom linters
+  and time estimates. Each writer rewrote the whole policy file with only the
+  sections it knew; both now keep the rest as it was.
 
 ### Security
 

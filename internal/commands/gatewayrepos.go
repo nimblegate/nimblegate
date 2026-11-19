@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,6 +40,7 @@ type repoRow struct {
 	FrameCount    int
 	Issues        []gateway.SkeletonIssue // skeleton verify findings; empty = fully wired
 	RelayFailing  bool                    // latest relay outcome for this repo was a failure
+	NewKitFrames  int                     // frames added to its applied kits since it applied them
 }
 
 // renderReposHTTP is the HTTP entry point for GET /repos.
@@ -89,6 +91,7 @@ func renderReposPage(w io.Writer, opts reposPageOpts) error {
 		if err == nil {
 			row.FrameCount = len(fp.Enabled)
 		}
+		row.NewKitFrames = countNewKitFrames(newKitFrames(opts.PolicyRoot, name))
 		if opts.ReposRoot != "" {
 			issues, _ := (gateway.Skeleton{PolicyRoot: opts.PolicyRoot, ReposRoot: opts.ReposRoot}).Verify(name)
 			row.Issues = issues
@@ -195,6 +198,10 @@ func renderRepoTable(w io.Writer, rows []repoRow, opts reposPageOpts) {
 		}
 		if row.Observe {
 			fmt.Fprint(w, `<span class="gw-repo-badge observe">observe</span>`)
+		}
+		if row.NewKitFrames > 0 {
+			fmt.Fprintf(w, `<a class="gw-repo-badge kit-new" href="/policy?repo=%s" title="Kits this repo applied gained frames in a newer version. Open its policy to review them; nothing is enabled until you add them.">%d new kit %s</a>`,
+				url.QueryEscape(row.Name), row.NewKitFrames, plural(row.NewKitFrames, "frame", "frames"))
 		}
 		if row.RelayFailing {
 			fmt.Fprint(w, `<span class="gw-repo-badge" style="background:var(--gw-block-bg,#3a1414);color:var(--gw-block-text,#ff9b9b);border:1px solid var(--gw-block-border,#7a3030)" title="The gateway accepted pushes but the most recent relay to the upstream FAILED - pushes are not reaching your real host. Run nimblegate gateway doctor for the cause.">relay failing</span>`)

@@ -77,5 +77,6 @@ The CLI `gateway add` imports by default too; pass `--no-import` to register wit
 - The credential is for the gateway's forward leg (pushing to the real upstream), not for your agent. Your agent authenticates with SSH at port 2222.
 - The push path is **flat**: `<name>.git`, no `owner/` namespace. An upstream like `git@host:owner/repo.git` is just `<name>.git` on the gateway; the `owner/` prefix exists only on the upstream side.
 - First push triggers an auto-scan that recommends additional kits on [Policy](/policy).
+- A **new kit frames** badge means a kit the repo applied gained frames in a newer version. It links to the repo's Policy page, where you can preview and add them or dismiss the notice.
 
 For depth: [Quick start](https://nimblegate.com/docs/quick-start).

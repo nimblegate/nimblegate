@@ -381,6 +381,9 @@ func gatewayDashboard(args []string) int {
 		mux.HandleFunc("/policy/kits/apply", ph.applyKit)
 		pv := previewHandlers{policyRoot: *policyRoot, reposRoot: *reposRoot, token: token, allowEdits: true}
 		mux.HandleFunc("/policy/kits/preview", pv.kitConfirm)
+		mux.HandleFunc("/policy/kits/preview-new", pv.newFramesConfirm)
+		mux.HandleFunc("/policy/kits/add-new", ph.addNewKitFrames)
+		mux.HandleFunc("/policy/kits/dismiss-new", ph.dismissNewKitFrames)
 		mux.HandleFunc("/policy/repo/scan-preview", pv.scanConfirm)
 		mux.HandleFunc("/policy/preview/whitelist", pv.whitelistThis)
 		mux.HandleFunc("/policy/kits/clear", ph.clearKit)
