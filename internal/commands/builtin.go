@@ -39,6 +39,7 @@ func BuiltinCheckFuncs() map[string]engine.CheckFunc {
 		"security/no-kubeconfig-in-repo":               checks.NoKubeconfigInRepo,
 		"security/no-database-dump-in-repo":            checks.NoDatabaseDumpInRepo,
 		"security/no-plaintext-passwords":              checks.NoPlaintextPasswords,
+		"security/no-secret-in-client-env":             checks.NoSecretInClientEnv,
 		"security/possible-secret":                     checks.PossibleSecret,
 		"security/no-out-of-tree-references":           checks.NoOutOfTreeReferences,
 		"encoding/no-bom":                              checks.NoBOM,

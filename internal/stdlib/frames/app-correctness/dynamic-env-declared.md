@@ -43,7 +43,7 @@ The combination of:
 PUBLIC_API_URL=https://api.example.com
 
 # Dashboard-only declaration (vars set in the CF Pages dashboard)
-# DASHBOARD-ONLY: PUBLIC_SECRET_TOKEN
+# DASHBOARD-ONLY: PUBLIC_SENTRY_DSN
 ```
 
 The second style is the documented convention for "this var exists in production but is set in the dashboard rather than committed." Acknowledging the var in `.env.example` is the gate - local `.env` alone is the trap.
