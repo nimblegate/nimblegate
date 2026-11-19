@@ -185,11 +185,11 @@ func TestExtractEnvExampleVars(t *testing.T) {
 PUBLIC_API_URL=https://example.com
 DATABASE_URL=
 
-# DASHBOARD-ONLY: PUBLIC_SECRET_TOKEN
+# DASHBOARD-ONLY: PUBLIC_SENTRY_DSN
 # DASHBOARD-ONLY: PUBLIC_FEATURE_FLAG
 `
 	got := extractEnvExampleVars(content)
-	wantSet := map[string]bool{"PUBLIC_API_URL": true, "DATABASE_URL": true, "PUBLIC_SECRET_TOKEN": true, "PUBLIC_FEATURE_FLAG": true}
+	wantSet := map[string]bool{"PUBLIC_API_URL": true, "DATABASE_URL": true, "PUBLIC_SENTRY_DSN": true, "PUBLIC_FEATURE_FLAG": true}
 	if len(got) != 4 {
 		t.Errorf("got %d vars; want 4: %v", len(got), got)
 	}

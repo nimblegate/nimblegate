@@ -22,8 +22,8 @@ func TestBuildV2FrameMap_walksEntireV2Tree(t *testing.T) {
 	// tfstate, kubeconfig, database dump) brings it to 50; the agent-shortcut
 	// frames (2026-09-28: test skips, weakened CI, blanket lint disables,
 	// placeholder tests, test special-casing, no-op test scripts) to 56; plaintext-passwords + possible-secret to 58; out-of-tree-references to 59.
-	if got := len(m.IDToBucket); got != 59 {
-		t.Errorf("V2FrameMap has %d entries, want 59 (classification table)", got)
+	if got := len(m.IDToBucket); got != 60 {
+		t.Errorf("V2FrameMap has %d entries, want 60 (classification table)", got)
 	}
 }
 

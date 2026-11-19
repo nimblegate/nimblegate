@@ -198,7 +198,7 @@ func extractWranglerVars(content string) []string {
 // Both styles count:
 //
 //	PUBLIC_API=https://api.example.com
-//	# DASHBOARD-ONLY: PUBLIC_SECRET_TOKEN
+//	# DASHBOARD-ONLY: PUBLIC_SENTRY_DSN
 //
 // The second form is the documented convention for dashboard-set vars
 // (the local fallback isn't useful, but declaring "this var exists" is).
