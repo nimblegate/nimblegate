@@ -5,6 +5,44 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-11-19
+
+### Added
+
+- **`security/no-secret-in-client-env` frame (BLOCK).** Blocks server-only
+  secrets given a variable name the framework copies into the browser bundle:
+  `VITE_`, `NEXT_PUBLIC_`, `PUBLIC_` (SvelteKit, Astro), `REACT_APP_`,
+  `EXPO_PUBLIC_` and `NUXT_PUBLIC_`. A gitignored `.env` does not help there:
+  the build ships the value to every visitor. The key itself never reaches
+  git, but its name does, so the push is stopped where code reads it
+  (`import.meta.env.VITE_OPENAI_API_KEY`, `$env/static/public` imports) or
+  config defines it (`.env.example`, Dockerfile `ARG`, CI and compose env).
+  Only unambiguous names fire (`SECRET`, `PRIVATE`, `SERVICE_ROLE`,
+  `PASSWORD`, `DATABASE_URL`, or an OpenAI, Anthropic, Resend, SendGrid,
+  Twilio, Mailgun or Postmark key); publishable and anon keys, docs and tests
+  never do, and values are never echoed. Part of the Core kit (now 21 frames)
+  and every kit built on it.
+
+- **New kit frames are shown after an upgrade.** When a release adds frames
+  to a kit a repo applied, the Policy page lists them with **Preview and add**
+  (the usual confirm view, enabling only the new frames) and **Dismiss**; the
+  Repos page shows a badge and Health a line for each such repo. Nothing is
+  enabled on upgrade, and frames you unticked yourself are never offered
+  again. After upgrading to 0.7.6, repos with Core, Web app, the Cloudflare
+  kits or Security strict show `security/no-secret-in-client-env` this way.
+
+### Fixed
+
+- **Changing a frame's severity, saving a custom linter or saving time
+  estimates no longer wipes the repo's applied and custom kits,** and creating
+  or deleting a custom kit no longer drops severity overrides, custom linters
+  and time estimates. Each writer rewrote the whole policy file with only the
+  sections it knew; both now keep the rest as it was.
+
+### Security
+
+- **Built with Go 1.27.4,** which fixes GO-2026-6859 in `net/http`.
+
 ## [0.7.5] - 2026-11-11
 
 ### Changed

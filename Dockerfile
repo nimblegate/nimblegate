@@ -13,7 +13,7 @@
 ARG S6_OVERLAY_VERSION=3.2.0.2
 
 # ---------- build stage: compile the nimblegate binary ----------
-FROM golang:1.27-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS build
+FROM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS build
 
 # git: used for `git rev-parse` during version stamping if invoked.
 RUN apk add --no-cache git

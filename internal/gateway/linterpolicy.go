@@ -169,6 +169,15 @@ func writePolicyTOML(policyRoot, repo string, fp FramePolicy, lp LinterPolicy, t
 		b.Write(buf.Bytes())
 	}
 
+	// Keep the tables this writer does not own ([ui] applied and custom kits,
+	// seen frames, anything a newer version adds) as they are on disk.
+	if old, err := os.ReadFile(framePolicyPath(policyRoot, repo)); err == nil {
+		if extra := ForeignTOMLBlocks(string(old), policyOwnedTable); extra != "" {
+			b.WriteString("\n")
+			b.WriteString(strings.TrimLeft(extra, "\n"))
+		}
+	}
+
 	tmp, err := os.CreateTemp(dir, ".appframes.toml.*")
 	if err != nil {
 		return err
@@ -184,4 +193,10 @@ func writePolicyTOML(policyRoot, repo string, fp FramePolicy, lp LinterPolicy, t
 		return err
 	}
 	return os.Rename(tmpName, framePolicyPath(policyRoot, repo))
+}
+
+// policyOwnedTable reports the tables writePolicyTOML writes itself.
+func policyOwnedTable(name string) bool {
+	return name == "frames" || strings.HasPrefix(name, "frames.") ||
+		name == "time-estimates" || name == "linters" || strings.HasPrefix(name, "linters.")
 }

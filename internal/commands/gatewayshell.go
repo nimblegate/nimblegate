@@ -377,6 +377,10 @@ const gwShellStyle = `<style>
  .gw-kit-apply,.gw-kit-new{background:var(--gw-bg-control);border:1px solid var(--gw-border);color:var(--gw-text);padding:3px 10px;border-radius:4px;font-size:12px;cursor:pointer}
  .gw-kit-apply:hover:not([disabled]),.gw-kit-new:hover{background:var(--gw-bg-panel);border-color:var(--gw-border-hover)}
  .gw-kit-apply[disabled]{opacity:.55;cursor:default}
+ .gw-kit-dismiss{background:none;border:1px solid var(--gw-border);color:var(--gw-text-dim,var(--gw-text));padding:3px 10px;border-radius:4px;font-size:12px;cursor:pointer;margin-left:6px}
+ .gw-kit-update{border:1px solid var(--gw-warn-bg);border-left-width:4px;border-radius:4px;padding:8px 12px;margin:0 0 10px}
+ .gw-kit-update p{margin:4px 0}
+ .gw-kit-update ul{margin:4px 0 8px;padding-left:20px}
 
  .gw-policy-browse{margin-top:16px;border-top:1px solid var(--gw-border-soft);padding:14px 16px 0}
  .gw-cat{margin:12px 0;border:1px solid var(--gw-border);border-radius:4px;background:var(--gw-bg-panel)}
@@ -449,6 +453,7 @@ const gwShellStyle = `<style>
  .gw-repos-table .gw-repos-actions>details>summary{cursor:pointer;font-size:12px;color:var(--gw-text-soft)}
  .gw-repo-badge{display:inline-block;font-size:10px;padding:1px 7px;border-radius:10px;margin-right:3px;letter-spacing:.3px}
  .gw-repo-badge.on{background:var(--gw-ok-bg-soft,rgba(0,200,100,.12));color:var(--gw-ok-text,#4cbb87);border:1px solid var(--gw-ok-accent,#4cbb87)}
+ .gw-repo-badge.kit-new{background:var(--gw-warn-bg);color:var(--gw-warn-text);border:1px solid var(--gw-warn-bg);text-decoration:none}
  .gw-repo-badge.observe{background:var(--gw-warn-bg);color:var(--gw-warn-text);border:1px solid var(--gw-warn-bg)}
  .gw-repo-badge.cred{background:var(--gw-bg-control);color:var(--gw-text-soft);border:1px solid var(--gw-border)}
  /* cred-na: "credential n/a (SSH)" - SSH relay uses the gateway's global
