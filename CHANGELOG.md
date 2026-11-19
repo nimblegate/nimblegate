@@ -5,6 +5,32 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-11-19
+
+### Added
+
+- **`security/no-secret-in-client-env` frame (BLOCK).** Blocks server-only
+  secrets given a variable name the framework copies into the browser bundle:
+  `VITE_`, `NEXT_PUBLIC_`, `PUBLIC_` (SvelteKit, Astro), `REACT_APP_`,
+  `EXPO_PUBLIC_` and `NUXT_PUBLIC_`. A gitignored `.env` does not help there:
+  the build ships the value to every visitor. The key itself never reaches
+  git, but its name does, so the push is stopped where code reads it
+  (`import.meta.env.VITE_OPENAI_API_KEY`, `$env/static/public` imports) or
+  config defines it (`.env.example`, Dockerfile `ARG`, CI and compose env).
+  Only unambiguous names fire (`SECRET`, `PRIVATE`, `SERVICE_ROLE`,
+  `PASSWORD`, `DATABASE_URL`, or an OpenAI, Anthropic, Resend, SendGrid,
+  Twilio, Mailgun or Postmark key); publishable and anon keys, docs and tests
+  never do, and values are never echoed. Part of the Core kit (now 21 frames)
+  and every kit built on it.
+
+  **Existing repos:** applying a kit writes its frames into the repo's policy,
+  so repos that already have Core get the new frame only when you apply the
+  kit again (Policy page, Apply Core) or tick the frame.
+
+### Security
+
+- **Built with Go 1.27.4,** which fixes GO-2026-6859 in `net/http`.
+
 ## [0.7.5] - 2026-11-11
 
 ### Changed
