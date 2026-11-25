@@ -134,14 +134,14 @@ exec ` + spec.Name + ` "$@"
 	commitArm := ""
 	if spec.CommitNoVerify {
 		commitArm = `    commit)
-        # Intercept --no-verify (or -n) - that flag silently skips the
-        # pre-commit hook, which is one of nimblegate's load-bearing gates.
-        # Regular ` + "`git commit`" + ` (without --no-verify) passes through so the
-        # pre-commit hook fires normally.
+        # Route a commit through nimblegate when any argument could skip the
+        # pre-commit hook: -n alone or bundled (-nm), --no-verify or an
+        # abbreviation, or a global -c (core.hooksPath). The frame parses the
+        # command the way git does and decides; over-routing only costs time.
         for arg in "$@"; do
             case "$arg" in
-                --no-verify|-n)
-                    exec nimblegate ` + spec.Route + ` "$@"
+                --no-v*|-n*|-[!-]*n*|-c|--config-env|--config-env=*)
+                    exec nimblegate ` + spec.Route + ` -- "$@"
                     ;;
             esac
         done
@@ -149,9 +149,15 @@ exec ` + spec.Name + ` "$@"
         ;;
 `
 	}
-	return header + `case "$1" in
+	dispatch := `case "$1" in`
+	route := `exec nimblegate ` + spec.Route + ` "$@"`
+	if spec.Name == "git" {
+		dispatch = gitVerbLoop + `case "$verb" in`
+		route = `exec nimblegate ` + spec.Route + ` -- "$@"`
+	}
+	return header + dispatch + `
     ` + caseLine + `)
-        exec nimblegate ` + spec.Route + ` "$@"
+        ` + route + `
         ;;
 ` + commitArm + `    *)
         exec ` + spec.Name + ` "$@"
@@ -159,6 +165,21 @@ exec ` + spec.Name + ` "$@"
 esac
 `
 }
+
+// gitVerbLoop finds git's subcommand the way git does: past global options
+// and their values (git -C dir push), so a leading option cannot hide a
+// verb from the dispatch below. Sets $verb ("" if none).
+const gitVerbLoop = `verb=
+skip=
+for arg in "$@"; do
+    if [ -n "$skip" ]; then skip=; continue; fi
+    case "$arg" in
+        -C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--list-cmds|--attr-source) skip=1 ;;
+        -*) ;;
+        *) verb=$arg; break ;;
+    esac
+done
+`
 
 // InstallShims writes the shim scripts to ~/.appframes/shims/. Idempotent:
 // re-running overwrites existing shims with current content. Returns the

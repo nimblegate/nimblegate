@@ -38,27 +38,9 @@ func UpstreamURLHasEmbeddedToken(u string) bool {
 	return urlUserinfoRe.MatchString(u)
 }
 
-// authedURL injects cred as a token into upstreamURL when both are non-empty
-// and the URL uses http(s). For non-http schemes (file://, ssh://) the URL is
-// returned unchanged - ssh URLs auth via the host's key store, not tokens.
-//
-// http:// is supported in addition to https:// for LAN gitea / on-prem setups
-// where TLS termination happens upstream or isn't needed. The injected
-// credential travels in cleartext on http; callers should prefer https.
-func authedURL(upstreamURL, cred string) string {
-	if cred == "" {
-		return upstreamURL
-	}
-	for _, scheme := range []string{"https://", "http://"} {
-		if strings.HasPrefix(upstreamURL, scheme) {
-			return scheme + cred + "@" + strings.TrimPrefix(upstreamURL, scheme)
-		}
-	}
-	return upstreamURL
-}
-
 // Relay pushes the given ref updates from the gateway bare repo (gitDir) to the
-// upstream. cred, when non-empty and the URL is http(s), is injected as a token.
+// upstream. cred, when non-empty and the URL is http(s), reaches git through
+// the environment (upstreamGitEnv), never the command line.
 // Returns an error if any ref fails to push (caller surfaces it + flags
 // out-of-sync). Deletions (NewRev == zeroRev) are relayed as upstream deletes.
 func Relay(upstreamURL, cred, gitDir string, refs []RefUpdate) error {
@@ -82,7 +64,6 @@ func Relay(upstreamURL, cred, gitDir string, refs []RefUpdate) error {
 			return fmt.Errorf("relay refused: ref %s rev %s does not match gated repo state %s", r.Name, r.NewRev, got)
 		}
 	}
-	url := authedURL(upstreamURL, cred)
 	var specs []string
 	for _, r := range refs {
 		if r.IsDelete() {
@@ -94,8 +75,9 @@ func Relay(upstreamURL, cred, gitDir string, refs []RefUpdate) error {
 	if len(specs) == 0 {
 		return nil
 	}
-	args := append([]string{"--git-dir", gitDir, "push", url}, specs...)
+	args := append([]string{"--git-dir", gitDir, "push", "--", upstreamURL}, specs...)
 	cmd := exec.Command("git", args...)
+	cmd.Env = upstreamGitEnv(upstreamURL, cred)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		// This error reaches the pusher's terminal via post-receive - an
 		// agent's context - so no credential may survive in it under any

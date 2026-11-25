@@ -33,10 +33,20 @@ const (
 func ShellSnippet(shell string) string {
 	return BeginMarker + `
 # git: route destructive verbs through nimblegate; pass everything else through.
+# The verb is found past global options (git -C dir push), the same way git does.
 git() {
-    case "$1" in
+    local verb= skip= arg
+    for arg in "$@"; do
+        if [ -n "$skip" ]; then skip=; continue; fi
+        case "$arg" in
+            -C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--list-cmds|--attr-source) skip=1 ;;
+            -*) ;;
+            *) verb=$arg; break ;;
+        esac
+    done
+    case "$verb" in
         push|reset|branch|clean|rebase|filter-branch|filter-repo|stash)
-            command nimblegate git "$@"
+            command nimblegate git -- "$@"
             ;;
         *)
             command git "$@"

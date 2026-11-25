@@ -258,3 +258,53 @@ func TestRunDoctor_relayAccessSeesTheDetectedProfile(t *testing.T) {
 	}
 	t.Errorf("no Relay access check in a bare-metal report:\n%+v", rep.Checks)
 }
+
+func TestDoctorCheckCredentialOwner(t *testing.T) {
+	bare, policyRoot, sockDir := t.TempDir(), t.TempDir(), t.TempDir()
+	sock := filepath.Join(sockDir, "relay.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Skipf("unix sockets unavailable: %v", err)
+	}
+	defer ln.Close()
+	if err := os.MkdirAll(filepath.Join(bare, "hooks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hook := filepath.Join(bare, "hooks", "post-receive")
+	dir := filepath.Join(policyRoot, "demo")
+	if err := os.MkdirAll(dir, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	cred := filepath.Join(dir, "credential")
+	run := func() []DoctorCheck {
+		var got []DoctorCheck
+		doctorCheckCredentialOwner(func(c DoctorCheck) { got = append(got, c) }, DoctorConfig{PolicyRoot: policyRoot}, "demo", bare)
+		return got
+	}
+
+	// Inline relay (no socket in the hook): git reads the credential by design.
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexec x\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cred, []byte("tok"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if got := run(); len(got) != 0 {
+		t.Errorf("inline relay: want no check, got %+v", got)
+	}
+
+	// Separated relay; the socket is ours, so this process is the relay user.
+	if err := os.WriteFile(hook, []byte(fmt.Sprintf("#!/bin/sh\nexport NBG_RELAY_SOCKET=%q\nexec x\n", sock)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := run()
+	if len(got) != 1 || got[0].Status != DoctorWarn || !strings.Contains(got[0].Fix, "chmod 0600 "+cred) {
+		t.Fatalf("group-readable credential: want WARN with chmod 0600 fix, got %+v", got)
+	}
+	if err := os.Chmod(cred, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := run(); len(got) != 1 || got[0].Status != DoctorOK {
+		t.Errorf("0600 relay-owned credential: want OK, got %+v", got)
+	}
+}
