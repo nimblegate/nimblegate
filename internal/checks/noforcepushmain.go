@@ -7,7 +7,6 @@ import (
 
 	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
-	"nimblegate/internal/gitargs"
 )
 
 // protectedBranches are the branch names blocked from being force-pushed.
@@ -20,7 +19,7 @@ func NoForcePushMain(ctx engine.CheckContext) engine.CheckResult {
 		Category: frames.CategoryGitSafety,
 	}
 
-	_, verb, args, ok := gitargs.Command(ctx.Command)
+	_, verb, args, ok := gitCommand(ctx)
 	if !ok || verb != "push" {
 		res.Outcome = engine.OutcomeSkip
 		return res

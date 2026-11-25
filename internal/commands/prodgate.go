@@ -19,7 +19,7 @@ func isGitPush(opts interceptOptions) bool {
 	if opts.cmdName != "git" {
 		return false
 	}
-	_, verb, _ := gitargs.Split(opts.cmdArgs)
+	_, verb, _ := gitargs.Resolve("", opts.cmdArgs)
 	return verb == "push"
 }
 

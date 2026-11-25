@@ -33,7 +33,7 @@ includes `--force`, `-f` alone or bundled (`-fu`), abbreviations (`--forc`),
 `--force-with-lease`, `--force-if-includes`, and a `+` refspec (`+main`,
 `+HEAD:main`); the target is read from the refspec's destination
 (`HEAD:main`, `HEAD:refs/heads/main`). Global options before `push`
-(`git -C dir push`) do not hide it.
+(`git -C dir push`) and git aliases (`alias.pf = "push --force"`) do not hide it.
 
 ## Override
 
