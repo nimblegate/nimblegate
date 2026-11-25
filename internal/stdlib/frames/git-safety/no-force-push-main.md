@@ -28,9 +28,12 @@ history.
 
 ## When it fires
 
-When `git push --force` (or `-f`, or `--force-with-lease` without an explicit
-target) is invoked from any folder, and the resolved target branch is in the
-protected list.
+When `git push` forces and the target branch is in the protected list. Forcing
+includes `--force`, `-f` alone or bundled (`-fu`), abbreviations (`--forc`),
+`--force-with-lease`, `--force-if-includes`, and a `+` refspec (`+main`,
+`+HEAD:main`); the target is read from the refspec's destination
+(`HEAD:main`, `HEAD:refs/heads/main`). Global options before `push`
+(`git -C dir push`) do not hide it.
 
 ## Override
 

@@ -112,3 +112,9 @@ terminator; reflected dashboard output is HTML-escaped; and redirect targets are
 confined to local paths. CodeQL findings against these paths that persist after
 a rescan are barrier-not-recognized false positives and may be dismissed with
 that rationale.
+
+## Acknowledgements
+
+- **@arhuman (KwalitAI)** - the upstream token was visible in the process list
+  of the git commands the relay runs, and several `git commit` spellings
+  skipped the pre-commit hook unnoticed (fixed in 0.7.7).
