@@ -5,6 +5,34 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-11-25
+
+### Security
+
+- **The upstream token no longer appears on any command line.** The relay,
+  the 5-minute reconcile and the add/sync mirror passed the http(s) upstream
+  credential to `git` inside the URL, where any local account on the gateway
+  host can read it from the process list (`/proc/<pid>/cmdline`), defeating
+  the privilege-separated relay. It now reaches git only through the child's
+  environment, via a credential helper scoped to the upstream URL, so a
+  redirect to another host gets nothing and no configured helper stores it.
+  The request the upstream sees is unchanged. **If your gateway host has other
+  local accounts, rotate your upstream tokens.** `gateway doctor` now warns
+  when a repo relays through the relay service but its `credential` file is
+  readable by more than the relay user (a credential saved from the dashboard
+  is written as the dashboard's user). Reported by @arhuman (KwalitAI).
+- **Every `git commit` form that skips the pre-commit hook is caught.**
+  `git/no-bypass-pre-commit` and the strict git shim matched only the exact
+  words `--no-verify` and `-n`, so `-nm msg`, `--no-veri`,
+  `git -C dir commit --no-verify` and `git -c core.hooksPath=... commit`
+  skipped the hook unblocked and unlogged. One parser now reads the command
+  the way git does: global options before the verb, bundled short flags,
+  abbreviated long options. The same fix applies to `git/no-force-push-main`
+  (`git -C dir push`, `-fu`, `--forc`, `+main` and `HEAD:main` refspecs) and
+  `git/no-amend-pushed-commits`. Strict-mode users: run
+  `nimblegate shell install --strict` again to regenerate the shims.
+  Reported by @arhuman (KwalitAI).
+
 ## [0.7.6] - 2026-11-19
 
 ### Added

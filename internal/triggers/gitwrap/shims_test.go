@@ -4,6 +4,7 @@ package gitwrap
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ func TestRenderShim_GitVerbCases(t *testing.T) {
 	})
 	for _, want := range []string{
 		"#!/bin/sh",
-		`exec nimblegate git "$@"`, // routes destructive verbs to nimblegate git
+		`exec nimblegate git -- "$@"`, // routes destructive verbs to nimblegate git
 		"push|reset|branch",
 		`exec git "$@"`, // fast path for non-destructive
 		"SHIM_DIR=",
@@ -186,7 +187,7 @@ func TestUninstallShims_PreservesUnknownFiles(t *testing.T) {
 }
 
 func TestRenderShimForName(t *testing.T) {
-	if got := RenderShimForName("git"); !strings.Contains(got, `exec nimblegate git "$@"`) {
+	if got := RenderShimForName("git"); !strings.Contains(got, `exec nimblegate git -- "$@"`) {
 		t.Errorf("RenderShimForName(\"git\") missing routing line; got:\n%s", got)
 	}
 	if got := RenderShimForName("does-not-exist"); got != "" {
@@ -203,6 +204,65 @@ func TestShimNames_MatchesSpecs(t *testing.T) {
 	for _, n := range names {
 		if !want[n] {
 			t.Errorf("unexpected shim name %q", n)
+		}
+	}
+}
+
+// TestGitShim_RoutesWhatGitWouldRun runs the real generated git shim with
+// stub nimblegate and git binaries and checks which one each command reaches.
+func TestGitShim_RoutesWhatGitWouldRun(t *testing.T) {
+	var spec shimSpec
+	for _, s := range shimSpecs {
+		if s.Name == "git" {
+			spec = s
+		}
+	}
+	shimDir, binDir := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(renderShim(spec)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"git", "nimblegate"} {
+		stub := "#!/bin/sh\necho " + name + " \"$@\"\n"
+		if err := os.WriteFile(filepath.Join(binDir, name), []byte(stub), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := func(args ...string) string {
+		cmd := exec.Command(filepath.Join(shimDir, "git"), args...)
+		cmd.Env = append(os.Environ(), "PATH="+shimDir+":"+binDir+":/usr/bin:/bin")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("shim %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	toNimblegate := [][]string{
+		{"push", "origin", "main"},
+		{"-C", "/r", "push", "--force"},
+		{"-c", "user.name=x", "push"},
+		{"--git-dir", "/r/.git", "reset", "--hard"},
+		{"commit", "--no-verify", "-m", "x"},
+		{"commit", "-nm", "x"},
+		{"commit", "--no-veri", "-m", "x"},
+		{"-C", "/r", "commit", "-n", "-m", "x"},
+		{"-c", "core.hooksPath=/dev/null", "commit", "-m", "x"},
+	}
+	for _, args := range toNimblegate {
+		if got := run(args...); !strings.HasPrefix(got, "nimblegate git -- "+strings.Join(args, " ")) {
+			t.Errorf("git %v reached %q, want nimblegate git -- ...", args, got)
+		}
+	}
+	toGit := [][]string{
+		{"status"},
+		{"-C", "/r", "status"},
+		{"-C", "push", "status"}, // a directory named push is not the verb
+		{"commit", "-m", "x"},
+		{"commit", "-am", "x"},
+		{"log", "-n", "3"},
+	}
+	for _, args := range toGit {
+		if got := run(args...); got != "git "+strings.Join(args, " ") {
+			t.Errorf("git %v reached %q, want the real git", args, got)
 		}
 	}
 }

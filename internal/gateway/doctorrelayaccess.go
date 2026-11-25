@@ -233,3 +233,36 @@ func relayAccessFix(fi os.FileInfo, path string, id relayIdentity) string {
 	}
 	return fmt.Sprintf("chgrp %s %s && chmod %s %s", group, path, mode, path)
 }
+
+// doctorCheckCredentialOwner warns when a repo routes its pushes through the
+// relay service but its credential file is not the relay user's alone. The
+// separation exists to keep the token from the push-facing git user; a
+// credential the dashboard (running as git) wrote, or one left group- or
+// world-readable, hands it back.
+func doctorCheckCredentialOwner(add func(DoctorCheck), cfg DoctorConfig, repo, bareDir string) {
+	sock := relaySocketFromHook(bareDir)
+	if sock == "" {
+		return
+	}
+	path := filepath.Join(cfg.PolicyRoot, repo, "credential")
+	fi, err := os.Stat(path)
+	if err != nil {
+		return
+	}
+	id, err := relayUserFromSocket(sock)
+	if err != nil {
+		return
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return
+	}
+	if st.Uid == id.uid && fi.Mode().Perm()&0o077 == 0 {
+		add(DoctorCheck{Repo: repo, Name: "Credential owner", Status: DoctorOK,
+			Reason: fmt.Sprintf("only the relay user %s can read the upstream credential", id.name)})
+		return
+	}
+	add(DoctorCheck{Repo: repo, Name: "Credential owner", Status: DoctorWarn,
+		Reason: fmt.Sprintf("pushes relay through %s, but %s is owned by uid %d with mode %o, so more than the relay user %s can read the upstream token (a credential saved from the dashboard is written as the dashboard's user)", sock, path, st.Uid, fi.Mode().Perm(), id.name),
+		Fix:    fmt.Sprintf("chown %s %s && chmod 0600 %s", id.name, path, path)})
+}

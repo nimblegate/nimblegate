@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"nimblegate/internal/engine"
+	"nimblegate/internal/gitargs"
 	"nimblegate/internal/tasks"
 	"nimblegate/internal/whitelist"
 )
@@ -15,7 +16,11 @@ import (
 // isGitPush reports whether this intercepted invocation is `git push …` - the
 // production boundary where the dangerous-findings gate applies.
 func isGitPush(opts interceptOptions) bool {
-	return opts.cmdName == "git" && len(opts.cmdArgs) > 0 && opts.cmdArgs[0] == "push"
+	if opts.cmdName != "git" {
+		return false
+	}
+	_, verb, _ := gitargs.Split(opts.cmdArgs)
+	return verb == "push"
 }
 
 // filterBlocking returns the findings that should block a push: severity BLOCK

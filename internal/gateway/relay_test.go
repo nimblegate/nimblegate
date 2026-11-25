@@ -10,26 +10,6 @@ import (
 	"testing"
 )
 
-func TestAuthedURL(t *testing.T) {
-	cases := []struct {
-		name, url, cred, want string
-	}{
-		{"https with cred", "https://host/foo.git", "tok123", "https://tok123@host/foo.git"},
-		{"http with cred (lan gitea)", "http://192.0.2.20:3000/you/nimblegate.git", "tok123", "http://tok123@192.0.2.20:3000/you/nimblegate.git"},
-		{"https no cred", "https://host/foo.git", "", "https://host/foo.git"},
-		{"http no cred", "http://host/foo.git", "", "http://host/foo.git"},
-		{"ssh with cred (cred ignored)", "ssh://git@host/foo.git", "tok123", "ssh://git@host/foo.git"},
-		{"file with cred (cred ignored)", "file:///tmp/foo.git", "tok123", "file:///tmp/foo.git"},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := authedURL(c.url, c.cred); got != c.want {
-				t.Errorf("authedURL(%q, %q) = %q, want %q", c.url, c.cred, got, c.want)
-			}
-		})
-	}
-}
-
 func TestRedactCred(t *testing.T) {
 	result := redactCred("pushing to https://ghp_abc@host", "ghp_abc")
 	if strings.Contains(result, "ghp_abc") {

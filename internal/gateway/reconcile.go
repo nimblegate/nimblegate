@@ -25,7 +25,7 @@ func reconcileRepo(bareDir, upstreamURL, cred string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("read gated repo heads: %w", err)
 	}
-	remote, err := remoteHeads(authedURL(upstreamURL, cred))
+	remote, err := remoteHeads(upstreamURL, cred)
 	if err != nil {
 		return 0, fmt.Errorf("read upstream heads: %s", redactURLUserinfo(redactCred(err.Error(), cred)))
 	}
@@ -54,8 +54,10 @@ func localHeads(gitDir string) (map[string]string, error) {
 }
 
 // remoteHeads maps refs/heads/* -> sha at a remote via ls-remote.
-func remoteHeads(authedURL string) (map[string]string, error) {
-	out, err := exec.Command("git", "ls-remote", "--heads", "--", authedURL).Output()
+func remoteHeads(upstreamURL, cred string) (map[string]string, error) {
+	cmd := exec.Command("git", "ls-remote", "--heads", "--", upstreamURL)
+	cmd.Env = upstreamGitEnv(upstreamURL, cred)
+	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}

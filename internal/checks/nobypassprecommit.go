@@ -3,14 +3,15 @@
 package checks
 
 import (
-	"strings"
-
 	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
+	"nimblegate/internal/gitargs"
 )
 
-// NoBypassPreCommit blocks `git commit --no-verify` (and the short form
-// `-n`). `--no-verify` is git's escape hatch to skip the pre-commit hook
+// NoBypassPreCommit blocks every `git commit` form that skips the
+// pre-commit hook: --no-verify and its abbreviations, -n alone or bundled
+// (-nm), global options before the verb (git -C dir commit -n), and
+// -c core.hooksPath (see gitargs.CommitSkipsHooks). `--no-verify` is git's escape hatch to skip the pre-commit hook
 // - which is also how nimblegate runs its pre-commit-trigger frames.
 // Allowing silent bypass defeats the load-bearing guarantee.
 //
@@ -26,23 +27,17 @@ func NoBypassPreCommit(ctx engine.CheckContext) engine.CheckResult {
 		FrameID:  "git/no-bypass-pre-commit",
 		Category: frames.CategoryGitSafety,
 	}
-	cmd := ctx.Command
-	// Only relevant for `git commit` invocations. The shim already
-	// routes here only when --no-verify is present, but this frame can
-	// also fire from CLI invocations (`nimblegate git commit --no-verify`)
-	// so we re-check the args here.
-	if !strings.HasPrefix(cmd, "git commit") {
+	globals, verb, rest, ok := gitargs.Command(ctx.Command)
+	if !ok || verb != "commit" {
 		res.Outcome = engine.OutcomePass
 		return res
 	}
-	for _, f := range strings.Fields(cmd) {
-		if f == "--no-verify" || f == "-n" {
-			res.Outcome = engine.OutcomeBlock
-			res.Reason = "git commit invoked with --no-verify (or -n) - this skips the pre-commit hook, including all nimblegate gates. Silent bypass is what this frame exists to prevent."
-			res.Fix = "remove --no-verify from your commit command. If the bypass is genuinely needed for this one commit (the hook is broken, an emergency, etc.), record it explicitly:\n  nimblegate git --force-yes --reason=\"specific-justification\" commit --no-verify ...\nThis logs the bypass in the audit log. Vague reasons (\"test\", \"fix\") will be flagged by `nimblegate audit analyze`."
-			res.Hits = []engine.Hit{{File: "(commit command)", Line: 0, Label: "git commit --no-verify"}}
-			return res
-		}
+	if arg, skips := gitargs.CommitSkipsHooks(globals, rest); skips {
+		res.Outcome = engine.OutcomeBlock
+		res.Reason = "git commit invoked with " + arg + " - this skips the pre-commit hook, including all nimblegate gates. Silent bypass is what this frame exists to prevent."
+		res.Fix = "remove " + arg + " from your commit command. If the bypass is genuinely needed for this one commit (the hook is broken, an emergency, etc.), record it explicitly:\n  nimblegate git --force-yes --reason=\"specific-justification\" commit --no-verify ...\nThis logs the bypass in the audit log. Vague reasons (\"test\", \"fix\") will be flagged by `nimblegate audit analyze`."
+		res.Hits = []engine.Hit{{File: "(commit command)", Line: 0, Label: "git commit " + arg}}
+		return res
 	}
 	res.Outcome = engine.OutcomePass
 	return res

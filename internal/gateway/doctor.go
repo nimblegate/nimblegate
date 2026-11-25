@@ -371,6 +371,7 @@ func doctorCheckRepo(rep *DoctorReport, add func(DoctorCheck), cfg DoctorConfig,
 	} else {
 		add(DoctorCheck{Repo: name, Name: "Bare repo", Status: DoctorOK, Reason: barePath})
 		doctorCheckRelayAccess(add, cfg, name, barePath)
+		doctorCheckCredentialOwner(add, cfg, name, barePath)
 		doctorCheckObjectValidation(add, name, barePath)
 		connIdx = len(rep.Repos)
 		rep.Repos = append(rep.Repos, DoctorRepoConn{

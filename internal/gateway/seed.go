@@ -31,8 +31,8 @@ type SeedResult struct {
 // git plumbing by hand. It is a no-op (Refs 0, no error) when the upstream is
 // empty or unset, which is the normal case for a brand-new repo.
 //
-// cred, when non-empty and the URL is http(s), is injected as a token the same
-// way Relay does; ssh URLs authenticate via the gateway host's key. After the
+// cred, when non-empty and the URL is http(s), reaches git through the
+// environment the same way Relay does; ssh URLs authenticate via the gateway host's key. After the
 // fetch, the bare repo's HEAD is repointed at the upstream's default branch so
 // `git clone` from the gateway checks out files instead of landing on a
 // dangling ref. Errors never leak the credential - output is redacted the same
@@ -44,21 +44,16 @@ func SeedFromUpstream(bareDir, upstreamURL, cred string) (SeedResult, error) {
 	if !ValidUpstreamURL(upstreamURL) {
 		return SeedResult{}, fmt.Errorf("seed: invalid upstream URL %q", redactURLUserinfo(upstreamURL))
 	}
-	url := authedURL(upstreamURL, cred)
 	// Mirror heads + tags into the bare. Force (+) so a re-run converges on the
 	// upstream's commits rather than failing on non-fast-forward. Built inline
 	// rather than via gitBare so the "--" terminator sits at the exec call with
 	// the URL; GIT_ALLOW_PROTOCOL restricts transports to ones that cannot run
 	// commands.
-	cmd := exec.Command("git", "fetch", "--", url,
+	cmd := exec.Command("git", "fetch", "--", upstreamURL,
 		"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*")
 	cmd.Dir = bareDir
-	cmd.Env = append(os.Environ(),
-		"GIT_ALLOW_PROTOCOL=file:git:http:https:ssh",
-		"GIT_CONFIG_COUNT=1",
-		"GIT_CONFIG_KEY_0=safe.directory",
-		"GIT_CONFIG_VALUE_0="+bareDir,
-	)
+	cmd.Env = append(upstreamGitEnv(upstreamURL, cred, [2]string{"safe.directory", bareDir}),
+		"GIT_ALLOW_PROTOCOL=file:git:http:https:ssh")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		msg := redactURLUserinfo(redactCred(string(out), cred))
 		return SeedResult{}, fmt.Errorf("seed from %s failed: %w\n%s",
@@ -168,8 +163,9 @@ func remoteDefaultBranch(upstreamURL, cred string) string {
 	if !safeUpstreamURL(upstreamURL) {
 		return ""
 	}
-	url := authedURL(upstreamURL, cred)
-	out, err := exec.Command("git", "ls-remote", "--symref", "--", url, "HEAD").Output()
+	cmd := exec.Command("git", "ls-remote", "--symref", "--", upstreamURL, "HEAD")
+	cmd.Env = upstreamGitEnv(upstreamURL, cred)
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}

@@ -71,3 +71,24 @@ func TestNoBypassPreCommit_NoFalsePositiveOnMessageText(t *testing.T) {
 	// commit messages rarely contain the literal token "--no-verify" as a
 	// standalone word.
 }
+
+func TestNoBypassPreCommit_FormsGitAccepts(t *testing.T) {
+	// Each of these skipped a rejecting pre-commit hook in real git (2.47).
+	for _, cmd := range []string{
+		"git commit -nm msg",
+		"git commit --no-veri -m msg",
+		"git -C /tmp/r commit --no-verify -m msg",
+		"git -c core.hooksPath=/dev/null commit -m msg",
+	} {
+		got := NoBypassPreCommit(engine.CheckContext{Trigger: engine.TriggerGitWrap, Command: cmd})
+		if got.Outcome != engine.OutcomeBlock {
+			t.Errorf("%q: outcome = %s, want BLOCK", cmd, got.Outcome)
+		}
+	}
+	for _, cmd := range []string{"git commit -mn", "git commit -m -n", "git -C /tmp/r commit -m x"} {
+		got := NoBypassPreCommit(engine.CheckContext{Trigger: engine.TriggerGitWrap, Command: cmd})
+		if got.Outcome == engine.OutcomeBlock {
+			t.Errorf("%q: outcome = BLOCK, want PASS", cmd)
+		}
+	}
+}

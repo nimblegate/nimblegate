@@ -22,19 +22,21 @@ selection-stats:
 
 # Commits must not skip hooks with --no-verify
 
-Reject `git commit --no-verify` (and the short form `-n`). `--no-verify` is git's built-in mechanism to skip the pre-commit hook - which is exactly how nimblegate runs its pre-commit-trigger frames. Allowing silent bypass defeats the load-bearing guarantee.
+Reject `git commit --no-verify` and every other spelling git accepts for it: the short form `-n`, alone or bundled (`-nm "msg"`), abbreviations such as `--no-veri`, global options before the verb (`git -C dir commit -n`), and `git -c core.hooksPath=... commit`, which points git at an empty hooks directory. The command is read the way git reads it, so a message or pathspec that happens to contain `-n` is not flagged. `--no-verify` is git's built-in mechanism to skip the pre-commit hook - which is exactly how nimblegate runs its pre-commit-trigger frames. Allowing silent bypass defeats the load-bearing guarantee.
 
 ## Why this exists
 
 In any agent-driven or human-driven workflow, the pre-commit hook is the *one* gate that fires regardless of how the commit happens - IDE, terminal, agent Bash tool, automation script. `--no-verify` is the universal escape hatch that skips it. Without this frame, anyone (or anything) who knows about the flag can route around every nimblegate gate by just typing it.
 
-The shim at `~/.appframes/shims/git` already intercepts `git commit` when `--no-verify` is in the args; this frame is what then BLOCKs the operation. Together they close the silent-bypass route:
+The shim at `~/.appframes/shims/git` routes `git commit` through nimblegate when any argument could skip the hook (`-n`, a bundle containing `n`, `--no-v...`, or a global `-c`); this frame then parses the command and BLOCKs the ones that do. After upgrading, run `nimblegate shell install --strict` again so the shim has the current rules. Together they close the silent-bypass route:
 
 | Path | Without this frame | With this frame |
 |------|--------------------|-----------------|
 | `git commit --no-verify` from interactive shell | Skips hook silently | Shim catches → frame BLOCKs |
 | `git commit --no-verify` from agent Bash tool | Skips hook silently | Shim catches → frame BLOCKs |
 | `git commit --no-verify` from IDE | Skips hook silently | Shim catches → frame BLOCKs |
+| `git commit -nm "msg"`, `--no-veri`, `git -C dir commit -n` | Skips hook silently | Shim catches → frame BLOCKs |
+| `git -c core.hooksPath=/dev/null commit` | Skips hook silently | Shim catches → frame BLOCKs |
 | `/usr/bin/git commit --no-verify` (absolute path) | Skips hook | Skips hook AND shim (operator-only action; left as bypass-with-evidence) |
 
 ## What still works around it (deliberately)
