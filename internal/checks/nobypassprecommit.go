@@ -27,7 +27,7 @@ func NoBypassPreCommit(ctx engine.CheckContext) engine.CheckResult {
 		FrameID:  "git/no-bypass-pre-commit",
 		Category: frames.CategoryGitSafety,
 	}
-	globals, verb, rest, ok := gitargs.Command(ctx.Command)
+	globals, verb, rest, ok := gitCommand(ctx)
 	if !ok || verb != "commit" {
 		res.Outcome = engine.OutcomePass
 		return res

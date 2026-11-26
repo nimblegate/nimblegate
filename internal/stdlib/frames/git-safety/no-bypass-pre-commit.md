@@ -22,7 +22,7 @@ selection-stats:
 
 # Commits must not skip hooks with --no-verify
 
-Reject `git commit --no-verify` and every other spelling git accepts for it: the short form `-n`, alone or bundled (`-nm "msg"`), abbreviations such as `--no-veri`, global options before the verb (`git -C dir commit -n`), and `git -c core.hooksPath=... commit`, which points git at an empty hooks directory. The command is read the way git reads it, so a message or pathspec that happens to contain `-n` is not flagged. `--no-verify` is git's built-in mechanism to skip the pre-commit hook - which is exactly how nimblegate runs its pre-commit-trigger frames. Allowing silent bypass defeats the load-bearing guarantee.
+Reject `git commit --no-verify` and every other spelling git accepts for it: the short form `-n`, alone or bundled (`-nm "msg"`), abbreviations such as `--no-veri`, global options before the verb (`git -C dir commit -n`), `git -c core.hooksPath=... commit`, which points git at an empty hooks directory, and git aliases that do any of these (`alias.ci = "commit -n"`, `git -c alias.ci=... ci`, `!git commit --no-verify`), resolved the way git resolves them. The command is read the way git reads it, so a message or pathspec that happens to contain `-n` is not flagged. `--no-verify` is git's built-in mechanism to skip the pre-commit hook - which is exactly how nimblegate runs its pre-commit-trigger frames. Allowing silent bypass defeats the load-bearing guarantee.
 
 ## Why this exists
 
@@ -37,6 +37,7 @@ The shim at `~/.appframes/shims/git` routes `git commit` through nimblegate when
 | `git commit --no-verify` from IDE | Skips hook silently | Shim catches → frame BLOCKs |
 | `git commit -nm "msg"`, `--no-veri`, `git -C dir commit -n` | Skips hook silently | Shim catches → frame BLOCKs |
 | `git -c core.hooksPath=/dev/null commit` | Skips hook silently | Shim catches → frame BLOCKs |
+| `git ci -m x` with `alias.ci = "commit -n"` | Skips hook silently | Shim routes the alias → frame resolves it and BLOCKs |
 | `/usr/bin/git commit --no-verify` (absolute path) | Skips hook | Skips hook AND shim (operator-only action; left as bypass-with-evidence) |
 
 ## What still works around it (deliberately)

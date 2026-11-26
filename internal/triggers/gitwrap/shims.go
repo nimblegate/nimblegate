@@ -151,35 +151,64 @@ exec ` + spec.Name + ` "$@"
 	}
 	dispatch := `case "$1" in`
 	route := `exec nimblegate ` + spec.Route + ` "$@"`
+	fallthroughArm := `    *)
+        exec ` + spec.Name + ` "$@"
+        ;;
+`
 	if spec.Name == "git" {
 		dispatch = gitVerbLoop + `case "$verb" in`
 		route = `exec nimblegate ` + spec.Route + ` -- "$@"`
+		fallthroughArm = `    *)
+        # An alias can stand for any verb above (alias.ci = "commit -n").
+        # Git never expands an alias named like a builtin, so common builtins
+        # skip the lookup; any other verb that git knows as an alias, or one
+        # defined with -c alias.*, goes to nimblegate, which resolves it.
+        case "$verb" in
+            ""|` + gitHotBuiltins + `) ;;
+            *)
+                if [ -n "$aliasc" ]; then exec nimblegate ` + spec.Route + ` -- "$@"; fi
+                if [ -n "$cdir" ]; then a=$(git -C "$cdir" config --get "alias.$verb" 2>/dev/null); else a=$(git config --get "alias.$verb" 2>/dev/null); fi
+                if [ -n "$a" ]; then exec nimblegate ` + spec.Route + ` -- "$@"; fi
+                ;;
+        esac
+        exec git "$@"
+        ;;
+`
 	}
 	return header + dispatch + `
     ` + caseLine + `)
         ` + route + `
         ;;
-` + commitArm + `    *)
-        exec ` + spec.Name + ` "$@"
-        ;;
-esac
+` + commitArm + fallthroughArm + `esac
 `
 }
 
 // gitVerbLoop finds git's subcommand the way git does: past global options
 // and their values (git -C dir push), so a leading option cannot hide a
-// verb from the dispatch below. Sets $verb ("" if none).
+// verb from the dispatch below. Sets $verb ("" if none), $cdir (the last
+// -C, for the alias lookup) and $aliasc (an alias defined with -c).
 const gitVerbLoop = `verb=
 skip=
+cdir=
+aliasc=
 for arg in "$@"; do
-    if [ -n "$skip" ]; then skip=; continue; fi
+    case "$skip" in
+        -C) cdir=$arg; skip=; continue ;;
+        -c|--config-env) case "$arg" in [Aa][Ll][Ii][Aa][Ss].*) aliasc=1 ;; esac; skip=; continue ;;
+        ?*) skip=; continue ;;
+    esac
     case "$arg" in
-        -C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--list-cmds|--attr-source) skip=1 ;;
+        -C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--list-cmds|--attr-source) skip=$arg ;;
+        --config-env=[Aa][Ll][Ii][Aa][Ss].*) aliasc=1 ;;
         -*) ;;
         *) verb=$arg; break ;;
     esac
 done
 `
+
+// gitHotBuiltins are builtins agents run constantly. Git ignores aliases
+// with these names, so the shim skips the alias lookup for them.
+const gitHotBuiltins = "status|log|diff|show|add|fetch|pull|checkout|switch|restore|rev-parse|ls-files|ls-remote|config|remote|tag|merge|cherry-pick|blame|grep|init|clone|worktree|describe|cat-file|for-each-ref|show-ref|symbolic-ref|rev-list|merge-base|mv|rm|apply|am|format-patch|bisect|notes|submodule|gc|reflog|shortlog|version|help|var|hash-object|update-index"
 
 // InstallShims writes the shim scripts to ~/.appframes/shims/. Idempotent:
 // re-running overwrites existing shims with current content. Returns the

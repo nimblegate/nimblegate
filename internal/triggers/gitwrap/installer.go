@@ -34,16 +34,32 @@ func ShellSnippet(shell string) string {
 	return BeginMarker + `
 # git: route destructive verbs through nimblegate; pass everything else through.
 # The verb is found past global options (git -C dir push), the same way git does.
+# An alias (alias.p = "push --force") is resolved by nimblegate; only verbs
+# git knows as an alias are routed, and git never aliases a builtin name.
 git() {
-    local verb= skip= arg
+    local verb= skip= arg cdir= aliasc= a=
     for arg in "$@"; do
-        if [ -n "$skip" ]; then skip=; continue; fi
+        case "$skip" in
+            -C) cdir=$arg; skip=; continue ;;
+            -c|--config-env) case "$arg" in [Aa][Ll][Ii][Aa][Ss].*) aliasc=1 ;; esac; skip=; continue ;;
+            ?*) skip=; continue ;;
+        esac
         case "$arg" in
-            -C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--list-cmds|--attr-source) skip=1 ;;
+            -C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--list-cmds|--attr-source) skip=$arg ;;
+            --config-env=[Aa][Ll][Ii][Aa][Ss].*) aliasc=1 ;;
             -*) ;;
             *) verb=$arg; break ;;
         esac
     done
+    case "$verb" in
+        ""|commit|status|log|diff|show|add|fetch|pull|checkout|switch|restore|rev-parse|ls-files|ls-remote|config|remote|tag|merge|cherry-pick|blame|grep|init|clone|worktree|describe|cat-file|for-each-ref|show-ref|symbolic-ref|rev-list|merge-base|mv|rm|apply|am|format-patch|bisect|notes|submodule|gc|reflog|shortlog|version|help|var|hash-object|update-index) ;;
+        push|reset|branch|clean|rebase|filter-branch|filter-repo|stash) ;;
+        *)
+            if [ -n "$aliasc" ]; then command nimblegate git -- "$@"; return; fi
+            if [ -n "$cdir" ]; then a=$(command git -C "$cdir" config --get "alias.$verb" 2>/dev/null); else a=$(command git config --get "alias.$verb" 2>/dev/null); fi
+            if [ -n "$a" ]; then command nimblegate git -- "$@"; return; fi
+            ;;
+    esac
     case "$verb" in
         push|reset|branch|clean|rebase|filter-branch|filter-repo|stash)
             command nimblegate git -- "$@"

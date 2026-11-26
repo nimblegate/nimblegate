@@ -221,8 +221,19 @@ func TestGitShim_RoutesWhatGitWouldRun(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(renderShim(spec)), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not installed")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	for _, name := range []string{"git", "nimblegate"} {
+		// The git stub answers `config` (the shim's alias lookup) with the
+		// real git and echoes everything else.
 		stub := "#!/bin/sh\necho " + name + " \"$@\"\n"
+		if name == "git" {
+			stub = "#!/bin/sh\nfor a in \"$@\"; do [ \"$a\" = config ] && exec " + realGit + " \"$@\"; done\necho git \"$@\"\n"
+		}
 		if err := os.WriteFile(filepath.Join(binDir, name), []byte(stub), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -252,6 +263,26 @@ func TestGitShim_RoutesWhatGitWouldRun(t *testing.T) {
 			t.Errorf("git %v reached %q, want nimblegate git -- ...", args, got)
 		}
 	}
+	// Aliases: a repo alias and a -c alias reach nimblegate, which resolves
+	// them; an alias named like a builtin never does, since git ignores it.
+	repo := t.TempDir()
+	for _, a := range [][]string{{"init", "-q", repo}, {"-C", repo, "config", "alias.ci", "commit -n"}, {"-C", repo, "config", "alias.status", "commit -n"}} {
+		if out, err := exec.Command("/usr/bin/env", append([]string{"git"}, a...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", a, err, out)
+		}
+	}
+	for _, args := range [][]string{
+		{"-C", repo, "ci", "-m", "x"},
+		{"-c", "alias.zz=commit -n", "zz", "-m", "x"},
+	} {
+		if got := run(args...); !strings.HasPrefix(got, "nimblegate git -- ") {
+			t.Errorf("git %v reached %q, want nimblegate", args, got)
+		}
+	}
+	if got := run("-C", repo, "status"); got != "git -C "+repo+" status" {
+		t.Errorf("builtin-named alias routed: %q", got)
+	}
+
 	toGit := [][]string{
 		{"status"},
 		{"-C", "/r", "status"},

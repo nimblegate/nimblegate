@@ -3,6 +3,7 @@
 package checks
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -90,5 +91,33 @@ func TestNoBypassPreCommit_FormsGitAccepts(t *testing.T) {
 		if got.Outcome == engine.OutcomeBlock {
 			t.Errorf("%q: outcome = BLOCK, want PASS", cmd)
 		}
+	}
+}
+
+// The frame reads the argv as received: a message containing -n stays one
+// argument, while a git alias that skips the hook is resolved and blocked.
+func TestNoBypassPreCommit_ArgvAndAliases(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for _, args := range [][]string{{"init", "-q", dir}, {"-C", dir, "config", "alias.ci", "commit -n"}} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run := func(args ...string) engine.CheckOutcome {
+		return NoBypassPreCommit(engine.CheckContext{
+			Trigger: engine.TriggerGitWrap, ProjectRoot: dir, WorkingDir: dir,
+			Command: "git " + strings.Join(args, " "), Args: args,
+		}).Outcome
+	}
+	if got := run("commit", "-m", "fix -n handling"); got == engine.OutcomeBlock {
+		t.Errorf("message containing -n was blocked")
+	}
+	if got := run("ci", "-m", "x"); got != engine.OutcomeBlock {
+		t.Errorf("alias ci = commit -n: outcome %s, want BLOCK", got)
+	}
+	if got := run("-c", "alias.zz=commit --no-verify", "zz", "-m", "x"); got != engine.OutcomeBlock {
+		t.Errorf("-c alias: outcome %s, want BLOCK", got)
 	}
 }
