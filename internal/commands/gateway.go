@@ -40,6 +40,7 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 	projectFrames, _ := frames.LoadFromDir(paths.AppframesDir(root))
 	gatedStdlib, _ := filterGated(stdlibFrames)
 	gatedProject, _ := filterGated(projectFrames)
+	gatedProject, unboundProject := splitUnboundProject(gatedProject)
 
 	e, err := engine.New(engine.Options{
 		ProjectRoot:   root,
@@ -86,6 +87,7 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 	// Added after the whitelist pass: a policy that names no frame is a
 	// gateway-config problem, not a finding in the pushed code to exempt.
 	filtered = append(filtered, engine.PolicyEntriesResults(e.EnabledExpanded, known)...)
+	filtered = append(filtered, unboundProjectResults(unboundProject, e.EnabledExpanded)...)
 	return filtered, suppressed, nil
 }
 
