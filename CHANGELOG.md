@@ -5,6 +5,64 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-11-27
+
+### Security
+
+- **Secrets in earlier commits of a push are caught.** The gate checked only
+  the final tree, but a push relays every commit it carries, so a key added in
+  one commit and deleted in the next reached upstream history. The secret
+  frames (private keys, credentials, possible-secret, `.env`, kubeconfig,
+  terraform state, database dumps, plaintext passwords, client-env secrets)
+  now also check the file versions the push's new commits hold and its final
+  tree does not. The rejection names the commit and says to remove it from
+  history. Commits the gateway already holds, including upstream history
+  imported at registration, are not rescanned. Old versions are scanned in
+  parallel chunks (`history_workers` under `[gateway]`, default half the CPUs,
+  at most 4) within the existing `scan_timeout`; a new history too large for
+  it is rejected as `push/history-too-large` with a push-in-parts hint, so
+  nothing is relayed unscanned. Observe mode records and relays as before.
+- **Dashboard:** "Reset loop" is only served with `--allow-edits` and always
+  checks the CSRF token (in read-only mode any POST could clear loop state),
+  and its forms now send the token. The login rate limit no longer trusts
+  `X-Forwarded-For` unless the peer is listed in the new `--trusted-proxy`
+  flag, so rotating that header no longer gives unlimited guesses. The
+  `repo` parameter of `/auto-pr/config` is validated.
+
+### Fixed
+
+- **Auto-PR loop guardrails apply.** An exhausted loop no longer tags the bot
+  (also not through the previous-attempts list), and the notification payload
+  carries `loop.exhausted`. The cooldown is enforced: a reject during it is
+  held and posted when it ends, or dropped if a fix lands first. An open loop
+  follows `max-attempts` changes, and exhausted loops can be reset.
+- **Auto-PR delivery:** a retried record no longer counts as another attempt;
+  the webhook fires even when the PR comment fails; queue files are locked
+  against the hook and dashboard rewriting them at once; the pre-receive hook
+  attempts delivery inline (3 s cap) and the daemon retries; webhook URL and
+  secret are read at delivery time, so fixing them and pressing "Retry now"
+  works and the secret is not stored in queue files; `observe-pr-comments`,
+  `include-pr-assignees` and per-repo `[notification.delivery]` settings are
+  honoured; a 401/403/404 (including a token that may not read comments)
+  goes to the deadletter at once instead of retrying for hours; "Retry now"
+  reports requeue errors; the feed tells delivered from dropped records;
+  GitHub and Gitea comment and PR lookups read past the first page.
+- **Deadletter, audit and maintenance sweeps include registered repos**
+  (their activation symlinks were skipped).
+- **Scan-ignore:** `[scan] exclude-paths` and `.appframes-ignore` now also
+  apply to custom regex linters, and a trailing-slash pattern (`sample-data/`)
+  matches the directory.
+- **Whitelist** entries stay active through their `expires` day.
+- **`audit analyze`** counts each distinct non-whitelisted BLOCK finding once
+  for time-prevented estimates and reports whitelisted ones separately.
+- **CLI:** `enable` accepts project frame IDs and refuses wildcard and
+  `@group` targets (`check` still expands existing wildcards, with a
+  deprecation notice); `kits create` rejects unknown frame IDs; `lint` rejects
+  unknown triggers and names markdown-only project frames, which `check` and
+  the gateway report as one WARN instead of an error; `init` prints the right
+  dashboard command.
+- Dashboard help pages and the docs match what the code does.
+
 ## [0.7.7] - 2026-11-25
 
 ### Security
