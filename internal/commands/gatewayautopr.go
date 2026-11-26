@@ -461,7 +461,7 @@ var autoPRTmpl = template.Must(template.New("autopr").Funcs(template.FuncMap{"ic
 {{if .ActiveLoops}}
 <div class="autopr-filter">
 <input type="search" id="autopr-loop-filter" placeholder="Filter by repo or PR #" oninput="autoPRFilterLoops(this.value)" autocomplete="off">
-<span class="autopr-filter-count" id="autopr-loop-count">{{len .ActiveLoops}} loops</span>
+<span class="autopr-filter-count" id="autopr-loop-count">{{len .ActiveLoops}} loop{{if ne (len .ActiveLoops) 1}}s{{end}}</span>
 </div>
 <div class="autopr-loops" id="autopr-loop-list">
 {{range .ActiveLoops}}
