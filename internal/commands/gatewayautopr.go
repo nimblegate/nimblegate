@@ -174,7 +174,7 @@ func deliveryErrorHint(lastError string) string {
 	}
 	switch {
 	case strings.Contains(lastError, "403"):
-		return "The upstream token can't post PR/MR comments (HTTP 403). GitHub: a classic token with the repo scope, or fine-grained with Contents: Read and write + Pull requests: Read + Issues: Read and write (PR comments use the Issues API). Gitea: write:repository + read:repository + write:issue. GitLab: the api scope (full - no narrower scope allows MR comments). Fix the token, then click Retry now."
+		return "The upstream token can't read or post PR comments (HTTP 403). GitHub: a classic token with the repo scope, or fine-grained with Contents: Read and write + Pull requests: Read + Issues: Read and write (PR comments use the Issues API). Gitea: write:repository + write:issue (write:issue also grants reading comments). Fix the token, then click Retry now."
 	case strings.Contains(lastError, "404"):
 		return "Upstream returned 404 - repo or PR not found. Check the upstream URL and that an open PR exists for the branch, then Retry now."
 	case strings.Contains(lastError, "401"):

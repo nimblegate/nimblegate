@@ -230,7 +230,7 @@ func findSticky(ctx context.Context, adapter upstream.Upstream, pr *upstream.Pul
 	if id != "" {
 		c, err := adapter.FindStickyComment(ctx, pr, id)
 		if err != nil {
-			return nil, fmt.Errorf("%w: find sticky comment: %v", upstream.ErrTransient, err)
+			return nil, stickyLookupErr("find sticky comment", err)
 		}
 		if c != nil {
 			return c, nil
@@ -238,9 +238,19 @@ func findSticky(ctx context.Context, adapter upstream.Upstream, pr *upstream.Pul
 	}
 	c, err := adapter.ScanForMarker(ctx, pr, "<!-- nimblegate-data:")
 	if err != nil {
-		return nil, fmt.Errorf("%w: scan for sticky comment: %v", upstream.ErrTransient, err)
+		return nil, stickyLookupErr("scan for sticky comment", err)
 	}
 	return c, nil
+}
+
+// stickyLookupErr keeps a permanent lookup failure (a token that may not read
+// comments) permanent so it deadletters at once; anything else is retried
+// rather than creating a duplicate comment.
+func stickyLookupErr(op string, err error) error {
+	if errors.Is(err, upstream.ErrPermanent) {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return fmt.Errorf("%w: %s: %v", upstream.ErrTransient, op, err)
 }
 
 // WebhookTarget is a repo's webhook URL + auth as configured in gateway.toml.

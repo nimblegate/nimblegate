@@ -126,6 +126,23 @@ func TestDeliverOne_StickyLookupErrorDoesNotCreate(t *testing.T) {
 	}
 }
 
+// A token that may not read comments (403) is permanent: the record must
+// deadletter at once instead of retrying for hours, and no comment is created.
+func TestDeliverOne_StickyLookupForbiddenIsPermanent(t *testing.T) {
+	stub := upstream.NewStub()
+	stub.AddPR("repo", "refs/heads/main", &upstream.PullRequest{Number: 7})
+	o := faultyOrchestrator(t, &faultyUpstream{Stub: stub, scanErr: fmt.Errorf("%w: HTTP 403", upstream.ErrPermanent)})
+	rec := baseRec("evt_403", "repo", "https://upstream.test/repo", "refs/heads/main")
+
+	err := o.DeliverOne(context.Background(), rec)
+	if !isPermanent(err) {
+		t.Fatalf("a 403 on the comment lookup must be permanent, got %v", err)
+	}
+	if got := stub.Comments(7); len(got) != 0 {
+		t.Fatalf("no comment may be created after a failed lookup, got %d", len(got))
+	}
+}
+
 // include-pr-assignees = false: nobody is auto-tagged.
 func TestDeliverOne_OmitPRPeople(t *testing.T) {
 	stub := upstream.NewStub()
