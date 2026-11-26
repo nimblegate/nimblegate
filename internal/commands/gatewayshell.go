@@ -702,6 +702,21 @@ func gatewayMode(policyRoot, repo string) string {
 // buildChrome assembles the chrome view for a page. section is one of
 // feed|stats|frames|policy|ssh-keys; activeRepo is the (validated) ?repo=
 // value or "".
+// selectedRepo is the top bar's repo filter (?repo=), or "" for all repos when
+// it is absent, malformed or not a registered repo.
+func selectedRepo(r *http.Request, policyRoot string) string {
+	repo := r.URL.Query().Get("repo")
+	if repo == "" || !validRepoName(repo) {
+		return ""
+	}
+	for _, name := range listGatewayRepos(policyRoot) {
+		if name == repo {
+			return repo
+		}
+	}
+	return ""
+}
+
 func buildChrome(section, activeRepo, policyRoot string) chromeData {
 	lic, _ := gateway.LoadLicense(policyRoot)
 	return chromeData{

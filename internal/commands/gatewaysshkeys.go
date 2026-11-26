@@ -285,7 +285,7 @@ func (h *sshKeyHandlers) list(w http.ResponseWriter, r *http.Request, allowEdits
 		Scoped:     h.scoped,
 		CSRFToken:  h.token,
 		Error:      errMsg,
-		Chrome:     buildChrome("ssh-keys", "", policyRoot),
+		Chrome:     buildChrome("ssh-keys", selectedRepo(r, policyRoot), policyRoot),
 	}
 	if h.scoped {
 		data.Repos = listGatewayRepos(h.policyRoot)

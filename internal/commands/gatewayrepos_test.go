@@ -4,6 +4,8 @@ package commands
 
 import (
 	"bytes"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -256,5 +258,39 @@ func TestReposPage_CredentialNotApplicableForLocalPath(t *testing.T) {
 	}
 	if strings.Contains(body, "credential unset") {
 		t.Error("a local-path upstream must not be flagged 'credential unset'")
+	}
+}
+
+// The top bar's repo selector narrows the Repos list to that repo.
+func TestReposPage_RepoFilterShowsOnlySelected(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedReposTestRepo(t, policyRoot, reposRoot, "alpha", "https://git.example.com/alpha.git")
+	seedReposTestRepo(t, policyRoot, reposRoot, "beta", "https://git.example.com/beta.git")
+
+	body := renderReposBody(t, reposPageOpts{PolicyRoot: policyRoot, Repo: "beta"})
+	if !strings.Contains(body, "https://git.example.com/beta.git") {
+		t.Error("selected repo missing")
+	}
+	if strings.Contains(body, "https://git.example.com/alpha.git") {
+		t.Error("unselected repo still listed")
+	}
+}
+
+func TestSelectedRepo_OnlyRegisteredNames(t *testing.T) {
+	tmp := t.TempDir()
+	policyRoot := filepath.Join(tmp, "policy")
+	reposRoot := filepath.Join(tmp, "repos")
+	_ = os.MkdirAll(policyRoot, 0o755)
+	_ = os.MkdirAll(reposRoot, 0o755)
+	seedReposTestRepo(t, policyRoot, reposRoot, "alpha", "https://git.example.com/alpha.git")
+	for q, want := range map[string]string{"alpha": "alpha", "": "", "nope": "", "../alpha": ""} {
+		r := httptest.NewRequest("GET", "/repos?repo="+url.QueryEscape(q), nil)
+		if got := selectedRepo(r, policyRoot); got != want {
+			t.Errorf("selectedRepo(%q) = %q, want %q", q, got, want)
+		}
 	}
 }

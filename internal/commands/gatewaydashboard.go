@@ -345,7 +345,8 @@ func gatewayDashboard(args []string) int {
 			CSRFToken:      token,
 			PolicyRoot:     *policyRoot,
 			ReposRoot:      *reposRoot,
-			Chrome:         buildChrome("repos", "", *policyRoot),
+			Repo:           selectedRepo(r, *policyRoot),
+			Chrome:         buildChrome("repos", selectedRepo(r, *policyRoot), *policyRoot),
 			ArchivedNotice: archived,
 		})
 	})

@@ -18,6 +18,7 @@ import (
 
 // reposPageOpts carries per-request context for the /repos page renderer.
 type reposPageOpts struct {
+	Repo       string // top-bar filter; "" = all repos
 	AllowEdits bool
 	CSRFToken  string
 	PolicyRoot string
@@ -69,6 +70,9 @@ func renderReposPage(w io.Writer, opts reposPageOpts) error {
 
 	var rows []repoRow
 	for _, name := range activeRepos {
+		if opts.Repo != "" && name != opts.Repo {
+			continue
+		}
 		// The backstop records its own outcome: a failing pass flips the badge
 		// even with no push since, and a clean pass after a failed branch push
 		// clears it, since the upstream then holds what that push carried.
