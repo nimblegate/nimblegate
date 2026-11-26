@@ -53,7 +53,7 @@ The form has a **Start from a pattern** dropdown above the inputs: a small libra
 The form takes:
 
 - **Name**: lowercase letters / digits / dashes, e.g. `internal-secret`.
-- **File patterns**: comma-separated globs, e.g. `*.go, src/**/*.ts`.
+- **File patterns**: comma-separated globs matched against the file name or its repo path, e.g. `*.go, src/*.ts` (`**` is not special here).
 - **Regex**: the pattern that flags a finding.
 - **Severity**: `WARN` (default), `INFO`, or `BLOCK`.
 

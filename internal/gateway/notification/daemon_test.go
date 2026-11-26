@@ -35,6 +35,7 @@ func buildDaemonHarness(t *testing.T, repo string, fixedNow time.Time) (*Daemon,
 		Webhook:    webhook.NewClient(),
 		Render:     func(n Notification) string { return "BODY: " + n.EventID },
 		PolicyRoot: policyRoot,
+		Now:        func() time.Time { return fixedNow },
 	}
 	d := &Daemon{
 		PolicyRoot:   policyRoot,

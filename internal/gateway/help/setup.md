@@ -12,12 +12,12 @@ The very first time the gateway starts with no admin user, it generates a **setu
 ## What setup actually does
 
 - Creates the admin user (bcrypt-hashed password).
-- Consumes the setup token (one-time use; further setup-page visits redirect to login once a user exists).
-- Records a "setup-claimed" event in [Events](/events).
+- Consumes the setup token (one-time use; deletes `_setup_token`). Once an admin exists, `/setup` returns 404.
+- Redirects you to the login page. No event is recorded in [Events](/events).
 
 ## Common gotchas
 
 - The token **persists across container restarts** until consumed; log lines marked `still-pending` mean the same unclaimed token from a prior boot. A fresh token only gets generated when there are zero users AND no token file yet.
-- If you lose the password, the recovery path is to delete the auth DB so the gateway re-enters the no-users state, which generates a fresh token on next start. See [Login](/login)'s help.
+- If you lose the password, the recovery path is to delete the auth DB (`<policy-root>/_auth.db` plus its `-shm`/`-wal` files) and restart the dashboard: with no users it generates a fresh token. See [Login](/login)'s help.
 
 For depth: [Quick start](https://nimblegate.com/docs/quick-start).

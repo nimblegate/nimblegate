@@ -28,7 +28,6 @@ When a row has an active loop, the rightmost column shows a small **Reset** butt
 
 ## Common gotchas
 
-- A `?` next to "last seen" means the SSH key is unfamiliar: first-push TOFU is in effect.
 - Findings show against the policy as-of when the push started; later policy changes don't backfill the row.
 - The Reset button is only useful when a loop is wedged; most loops drain on their own as the agent fixes and re-pushes.
 - Notification chip absence ≠ the rail is off. Pushes that landed before the rail was enabled won't have it; only newly-rejected pushes get the chip.
@@ -42,12 +41,12 @@ To look further back, use **Load older** at the bottom - it pages back through
 retained history.
 
 History does not grow forever. The maintenance loop trims old records on its
-interval (see Settings → maintenance):
+interval (`[maintenance]` in `<policy-root>/gateway.toml`, weekly by default):
 
-- **Accept** records are kept for `accept_retention` (default 30 days).
-- **Reject / observed** records are kept for `reject_retention` (default: forever)
-  - the gateway never auto-deletes evidence of a blocked push.
-- The gateway-wide event log is trimmed at `events_retention` (default 30 days).
+- **Accept** records are kept for `[maintenance.audit] accept_retention` (default `720h`, 30 days).
+- **Reject / observed** records are kept for `[maintenance.audit] reject_retention` (default `0`: forever)
+  - the gateway never auto-deletes evidence of a blocked push unless you set it.
+- The gateway-wide event log is trimmed at `[maintenance.events] retention` (default `720h`, 30 days).
 
 Unreadable log lines are never dropped by trimming.
 
