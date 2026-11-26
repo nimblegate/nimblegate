@@ -195,3 +195,14 @@ func TestDeliverOne_WebhookRetryDoesNotAdvanceLoop(t *testing.T) {
 		t.Errorf("successful retry advanced the loop: attempts=%d, want 3", s.Loop.AttemptCount)
 	}
 }
+
+func TestTransition_FollowsChangedMaxAttempts(t *testing.T) {
+	cfg := LoopConfig{MaxAttempts: 5, DefaultMention: "@nimblegate-bot"}
+	s := Transition(nil, RejectEvent{}, cfg)
+	s = Transition(&s, RejectEvent{}, cfg)
+	cfg.MaxAttempts = 3
+	s = Transition(&s, RejectEvent{}, cfg)
+	if s.Loop.MaxAttempts != 3 || !s.Loop.Exhausted {
+		t.Errorf("after lowering max-attempts to 3 at attempt 3: max=%d exhausted=%v, want 3/true", s.Loop.MaxAttempts, s.Loop.Exhausted)
+	}
+}

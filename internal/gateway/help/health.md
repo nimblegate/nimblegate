@@ -34,12 +34,12 @@ Watching them separately catches per-side failures: webhook 100% but comments 0%
 
 ## What deadletter means
 
-A record is moved to `pr-comment-deadletter.jsonl` after `delivery.max-attempts` (default 20) consecutive failures, usually because the webhook URL is wrong, the auth secret was rotated, the upstream is permanently 401-ing, or the PR no longer exists. The daemon stops retrying it, so a single broken config doesn't bury the queue. **Investigate** lets you inspect the record + the last error; fix the root cause (Auto-PR · Setup) and the next pushes drain normally.
+A record is moved to `pr-comment-deadletter.jsonl` after the repo's `delivery.max-attempts` (default 20) failed attempts, or at once on a permanent error: an upstream or webhook 4xx such as 401/403/404 (a GitHub rate-limit 403 is still retried), an upstream with no adapter, or an undecodable response. The daemon stops retrying it, so a single broken config doesn't bury the queue. **Investigate** lets you inspect the record + the last error; fix the root cause (Auto-PR · Setup) and the next pushes drain normally.
 
 ## Common gotchas
 
 - A long "last drain" with zero queue depth just means nothing has been rejected recently; it's not an alarm.
-- Deadletter doesn't shrink automatically. Once you've fixed the root cause, you can manually replay the file or delete it; see the depth link.
+- Deadletter doesn't shrink until the maintenance loop prunes entries older than `[maintenance.deadletter] retention` (default 30 days). Once you've fixed the root cause, use **Retry now** on Auto-PR → Repos to re-queue them.
 - Disk-free is measured at the policy root, not `/`. A separate volume for `/srv/gateway` is a sensible deploy choice.
 
 For depth: [Notifications: operations](https://nimblegate.com/docs/notifications#operations).

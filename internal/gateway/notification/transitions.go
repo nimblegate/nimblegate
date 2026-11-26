@@ -69,6 +69,7 @@ func Transition(prev *PRState, ev RejectEvent, cfg LoopConfig) PRState {
 	// Subsequent reject: advance attempt count first.
 	next := *prev
 	next.Loop.AttemptCount++
+	next.Loop.MaxAttempts = cfg.MaxAttempts
 	if next.Loop.MaxAttempts == 0 {
 		next.Loop.MaxAttempts = cfg.MaxAttempts
 	}

@@ -13,7 +13,7 @@ Live decision stream: one row per push the gateway has handled. The table has fo
 The status cell stacks information vertically. Each push always shows the decision; the rest are conditional.
 
 - **:icon-accept: accept / :icon-reject: REJECT**: top-line outcome.
-- **Notification chip**: appears when the notification rail was engaged. :icon-notif: delivered / :icon-pending: queued / :icon-warn: deadlettered. Hover for the message.
+- **Notification chip**: appears when the notification rail was engaged. :icon-notif: delivered / :icon-pending: queued / :icon-warn: deadlettered / dropped (superseded by a clean push before delivery) / unknown (left the queue with no recorded outcome). Hover for the message.
 - **Findings list**: one pill per fired frame: `BLOCK security/no-private-keys-in-repo`. Click any pill to expand its reason. The pill color matches severity.
 - **linter tag**: a small outlined `linter` tag beside a finding means the verdict came from a linter configured in this gateway's policy, not from a stdlib frame. It matters because configured linters are namespaced under `app-correctness/` alongside real catalog frames, so the ID alone cannot tell them apart - and a linter has no frame documentation and stops existing the moment the config drops it, which is what makes a stale whitelist entry naming one reject every push. The tag is stamped when the push is judged, so old rows stay accurate after a linter is removed. It appears on suppressed pills too - on a repo whose corpora are broadly whitelisted, a linter's hits may never survive as findings, and that is exactly where knowing the source matters.
 - **N suppressed pill**: the hits the gateway whitelist exempted on this push, collapsed behind a count so a repo with broadly whitelisted corpora does not stretch the row. Click it for the list: severity, frame, file and matched label per entry. It is drawn outside the BLOCK/WARN geometry, dashed and muted, because it did not affect the decision - the push was judged as if these hits never fired. The operator's reason for the exemption lives in the whitelist itself, on the repo's Policy page. Suppressions are recorded on every push, so a whitelist entry can never quietly stop mattering.
@@ -24,7 +24,7 @@ The status cell stacks information vertically. Each push always shows the decisi
 
 ## Reset column
 
-When a row has an active loop, the rightmost column shows a small **Reset** button. Clicking it confirms then deletes the per-PR state file. The next push to that PR starts fresh at attempt 1/N with the default bot. It does **not** clear notifications already sent to the upstream.
+When a row has an active or exhausted loop and the dashboard runs with `--allow-edits`, the rightmost column shows a small **Reset** button. Clicking it confirms then deletes the per-PR state file. The next push to that PR starts fresh at attempt 1/N with the default bot. It does **not** clear notifications already sent to the upstream.
 
 ## Common gotchas
 

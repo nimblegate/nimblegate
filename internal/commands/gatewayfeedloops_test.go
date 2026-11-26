@@ -308,3 +308,14 @@ func TestApplyNotifOff(t *testing.T) {
 		t.Error("accept rows must never get the nudge")
 	}
 }
+
+func TestResetLoopForms_SendCSRFHeader(t *testing.T) {
+	vm := gateway.ViewModel{CSRFToken: "tok123", Rows: []gateway.DecisionRow{{Repo: "demo", ActiveLoop: &gateway.ActiveLoopView{PRNumber: 7, ResetURL: "/feed/reset-loop?repo=demo&pr=7"}}}}
+	var b strings.Builder
+	if err := gwTmpl.ExecuteTemplate(&b, "rows", vm); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), `hx-headers='{"X-CSRF-Token":"tok123"}'`) {
+		t.Errorf("feed Reset form does not send the CSRF header:\n%s", b.String())
+	}
+}

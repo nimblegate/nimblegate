@@ -167,6 +167,8 @@ type ViewModel struct {
 	Repos   []string
 	Rows    []DecisionRow
 	Filter  Filter
+	// CSRFToken is sent by the inline Reset forms; empty without --allow-edits.
+	CSRFToken string
 }
 
 // frameFromMessage pulls the bracketed frame id out of an audit message like
