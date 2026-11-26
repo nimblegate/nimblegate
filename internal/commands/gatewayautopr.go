@@ -512,6 +512,29 @@ func renderAutoPR(w *bytes.Buffer, data autoPRData) error {
 // "activity" (recent activity feed) | "setup" (per-repo edit form). Inline
 // styles keep the component self-contained (the shell embeds them with the
 // page body).
+// filterRepo narrows every per-repo list to the top bar's selected repo.
+func (d *autoPRData) filterRepo(repo string) {
+	var repos []autoPRRepo
+	for _, x := range d.Repos {
+		if x.Name == repo {
+			repos = append(repos, x)
+		}
+	}
+	var loops []autoPRLoop
+	for _, x := range d.ActiveLoops {
+		if x.Repo == repo {
+			loops = append(loops, x)
+		}
+	}
+	var events []autoPREvent
+	for _, x := range d.RecentActivity {
+		if x.Repo == repo {
+			events = append(events, x)
+		}
+	}
+	d.Repos, d.ActiveLoops, d.RecentActivity = repos, loops, events
+}
+
 func autoPRTabStrip(activeTab, repoQuery string) string {
 	cls := func(t string) string {
 		if t == activeTab {
@@ -519,9 +542,21 @@ func autoPRTabStrip(activeTab, repoQuery string) string {
 		}
 		return "autopr-tab"
 	}
-	setupHref := "/auto-pr/config"
+	setupHref, repoArg := "/auto-pr/config", ""
 	if repoQuery != "" {
 		setupHref += "?repo=" + repoQuery
+		repoArg = "repo=" + repoQuery
+	}
+	link := func(tab string) string {
+		switch {
+		case tab == "" && repoArg == "":
+			return "/auto-pr"
+		case tab == "":
+			return "/auto-pr?" + repoArg
+		case repoArg == "":
+			return "/auto-pr?tab=" + tab
+		}
+		return "/auto-pr?tab=" + tab + "&amp;" + repoArg
 	}
 	return `<style>
 .autopr-tabs{display:flex;gap:2px;margin:0 0 18px;border-bottom:1px solid var(--gw-border);padding:0}
@@ -530,9 +565,9 @@ func autoPRTabStrip(activeTab, repoQuery string) string {
 .autopr-tab.active{color:var(--gw-accent);border-bottom-color:var(--gw-accent);font-weight:600}
 </style>
 <nav class="autopr-tabs">
-<a href="/auto-pr" class="` + cls("dashboard") + `">Dashboard</a>
-<a href="/auto-pr?tab=repos" class="` + cls("repos") + `">Repos</a>
-<a href="/auto-pr?tab=activity" class="` + cls("activity") + `">Activity</a>
+<a href="` + link("") + `" class="` + cls("dashboard") + `">Dashboard</a>
+<a href="` + link("repos") + `" class="` + cls("repos") + `">Repos</a>
+<a href="` + link("activity") + `" class="` + cls("activity") + `">Activity</a>
 <a href="` + setupHref + `" class="` + cls("setup") + `">Setup</a>
 </nav>`
 }
@@ -549,19 +584,23 @@ func autoPRHandler(policyRoot string, allowEdits bool, csrfToken func() string) 
 		if tab != "repos" && tab != "activity" {
 			tab = "dashboard"
 		}
+		repo := selectedRepo(r, policyRoot)
 		data := collectAutoPR(policyRoot, time.Now())
+		if repo != "" {
+			data.filterRepo(repo)
+		}
 		data.ActiveTab = tab
 		data.AllowEdits = allowEdits
 		data.CSRFToken = csrfToken()
 		var body bytes.Buffer
-		body.WriteString(autoPRTabStrip(tab, ""))
+		body.WriteString(autoPRTabStrip(tab, repo))
 		if err := renderAutoPR(&body, data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		renderGwShell(w, gwLayout{
 			Title:   "gateway: Auto-PR",
-			Chrome:  buildChrome("auto-pr", "", policyRoot),
+			Chrome:  buildChrome("auto-pr", repo, policyRoot),
 			Content: template.HTML(body.String()),
 		})
 	}

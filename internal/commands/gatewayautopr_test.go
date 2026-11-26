@@ -198,3 +198,21 @@ func TestCountRecentSettled_correlatesQueueState(t *testing.T) {
 		t.Errorf("settled = %d, want 1 (queued and deadlettered do not count)", settled)
 	}
 }
+
+func TestAutoPRFilterRepo_NarrowsEveryList(t *testing.T) {
+	d := autoPRData{
+		Repos:          []autoPRRepo{{Name: "a"}, {Name: "b"}},
+		ActiveLoops:    []autoPRLoop{{Repo: "a", PRNumber: 1}, {Repo: "b", PRNumber: 2}},
+		RecentActivity: []autoPREvent{{Repo: "b"}, {Repo: "a"}},
+	}
+	d.filterRepo("b")
+	if len(d.Repos) != 1 || d.Repos[0].Name != "b" || len(d.ActiveLoops) != 1 || d.ActiveLoops[0].PRNumber != 2 || len(d.RecentActivity) != 1 || d.RecentActivity[0].Repo != "b" {
+		t.Fatalf("filter left other repos: %+v", d)
+	}
+	strip := autoPRTabStrip("dashboard", "b")
+	for _, want := range []string{`href="/auto-pr?repo=b"`, `href="/auto-pr?tab=repos&amp;repo=b"`, `href="/auto-pr?tab=activity&amp;repo=b"`, `href="/auto-pr/config?repo=b"`} {
+		if !strings.Contains(strip, want) {
+			t.Errorf("tab strip missing %s", want)
+		}
+	}
+}

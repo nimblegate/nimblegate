@@ -458,7 +458,7 @@ func healthHandler(policyRoot, reposRoot, sshKeysPath string) http.HandlerFunc {
 		}
 		renderGwShell(w, gwLayout{
 			Title:   "gateway: health",
-			Chrome:  buildChrome("health", "", policyRoot),
+			Chrome:  buildChrome("health", selectedRepo(r, policyRoot), policyRoot),
 			Content: template.HTML(body.String()),
 		})
 	}
