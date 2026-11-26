@@ -28,7 +28,7 @@
 
 services:
   nimblegate:
-    image: ghcr.io/nimblegate/nimblegate:0.7.8
+    image: ghcr.io/nimblegate/nimblegate:0.7.9
     container_name: nimblegate
     restart: unless-stopped
     ports:

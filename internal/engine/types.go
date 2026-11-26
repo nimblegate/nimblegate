@@ -25,10 +25,15 @@ const (
 // CheckContext is everything a frame needs to evaluate itself.
 // It is passed by value to every frame's check function.
 type CheckContext struct {
-	Trigger       Trigger
-	ProjectRoot   string
-	WorkingDir    string
-	Command       string
+	Trigger     Trigger
+	ProjectRoot string
+	WorkingDir  string
+	Command     string
+	// Args is the argv after the command name, as received, for git-wrap
+	// frames that parse options: Command is a joined display string and
+	// re-splitting it breaks quoted arguments (`-m "fix -n"`). Empty from
+	// triggers that only have a string.
+	Args          []string
 	ChangedFiles  []string
 	CurrentBranch string
 

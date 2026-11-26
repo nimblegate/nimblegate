@@ -118,6 +118,7 @@ func interceptAndExec(opts interceptOptions) int {
 		ProjectRoot:   root,
 		WorkingDir:    cwd,
 		Command:       cmdStr,
+		Args:          opts.cmdArgs,
 		ExcludedDirs:  e.ExcludedDirs(),
 		IgnorePath:    e.IgnorePathFunc(),
 		CurrentBranch: currentGitBranch(root),

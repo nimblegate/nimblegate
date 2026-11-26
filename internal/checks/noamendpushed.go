@@ -9,7 +9,6 @@ import (
 
 	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
-	"nimblegate/internal/gitargs"
 )
 
 // NoAmendPushedCommits blocks `git commit --amend` when HEAD has
@@ -26,7 +25,7 @@ func NoAmendPushedCommits(ctx engine.CheckContext) engine.CheckResult {
 		Category: frames.CategoryGitSafety,
 	}
 
-	_, verb, args, ok := gitargs.Command(ctx.Command)
+	_, verb, args, ok := gitCommand(ctx)
 	if !ok || verb != "commit" {
 		res.Outcome = engine.OutcomeSkip
 		return res

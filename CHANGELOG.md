@@ -5,6 +5,28 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9] - 2026-11-27
+
+### Security
+
+- **Git aliases no longer hide a hook skip or a force-push.** An alias such
+  as `alias.ci = "commit -n"`, one given with `git -c alias.ci=...`, or a
+  `!git commit --no-verify` shell alias skipped the pre-commit hook without
+  `git/no-bypass-pre-commit` seeing it, and the same held for force-push
+  aliases. The verb is now resolved through aliases the way git does
+  (`-c alias.*`, then the repo's config, following chains; never for builtin
+  names, which git does not expand), and the strict shim and the shell
+  function route any verb git knows as an alias to nimblegate. Strict-mode
+  users: run `nimblegate shell install --strict` again.
+
+Reported by @arhuman.
+
+### Fixed
+
+- The git-wrap frames read the command's arguments as given instead of
+  re-splitting a joined string, so `git commit -m "fix -n handling"` is no
+  longer blocked as `-n`.
+
 ## [0.7.8] - 2026-11-27
 
 ### Security
