@@ -32,6 +32,9 @@ type PreReceiveDeps struct {
 	// the push, so it is rejected under enforcement rather than waved through.
 	MaxTreeBytes int64
 	ScanTimeout  time.Duration
+	// HistoryWorkers is how many history chunks are scanned at once (0 =
+	// DefaultHistoryWorkers). The history pass shares ScanTimeout with the tip.
+	HistoryWorkers int
 	// Notification rail (all optional - nil/empty disables the rail for this push).
 	NotificationConfig *NotificationConfig
 	Orchestrator       *notification.Orchestrator // for inline attempt; nil = skip inline, daemon drains
@@ -108,6 +111,7 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 			if !isGatedRef(d.Policy, r.Name) || r.IsDelete() {
 				continue // non-gated: no check; delete handled by Decide
 			}
+			start := time.Now()
 			tmp, err := os.MkdirTemp(d.ScanTmpDir, "afgw-")
 			if err != nil {
 				resultsByRef[r.Name] = []engine.CheckResult{{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: err.Error()}}
@@ -129,6 +133,21 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 			}
 			resultsByRef[r.Name] = relativizeResults(res, tmp)
 			suppByRef[r.Name] = relativizeSuppressions(supp, tmp)
+			// The tip scan sees only the final tree; earlier commits of the push
+			// are relayed too, so their file versions get the secret frames.
+			if hc, ok := d.Checker.(HistoryChecker); ok {
+				var deadline time.Time
+				if d.ScanTimeout > 0 {
+					deadline = start.Add(d.ScanTimeout)
+				}
+				hres, hsupp, err := scanHistory(d, hc, r, deadline)
+				if err != nil {
+					resultsByRef[r.Name] = append(resultsByRef[r.Name], engine.CheckResult{FrameID: ScanFailedID, Outcome: engine.OutcomeError, Reason: "history: " + err.Error()})
+					continue
+				}
+				resultsByRef[r.Name] = append(resultsByRef[r.Name], hres...)
+				suppByRef[r.Name] = append(suppByRef[r.Name], hsupp...)
+			}
 		}
 	}
 

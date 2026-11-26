@@ -32,7 +32,44 @@ import (
 // Applies the gateway-held whitelist (overlaid into the tree); suppressed findings are returned separately so the gateway records each in the audit log.
 type engineChecker struct{}
 
+// historySecretFrames run over the file versions a push carries only in its
+// earlier commits. Content and filename leak checks only: structural frames
+// would misfire on a partial tree, and a style finding in history is not worth
+// a history rewrite.
+var historySecretFrames = map[string]bool{
+	"security/no-private-keys-in-repo":    true,
+	"security/no-hardcoded-credentials":   true,
+	"security/possible-secret":            true,
+	"security/no-env-file-in-repo":        true,
+	"security/no-plaintext-passwords":     true,
+	"security/no-kubeconfig-in-repo":      true,
+	"security/no-terraform-state-in-repo": true,
+	"security/no-database-dump-in-repo":   true,
+	"security/no-secret-in-client-env":    true,
+}
+
 func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.SuppressionLog, error) {
+	return runGateCheck(root, false)
+}
+
+// CheckHistory runs the enabled secret frames only, with the gateway-held
+// whitelist; no linters and no policy-entry results (the tip scan reports
+// those once).
+func (engineChecker) CheckHistory(root string) ([]engine.CheckResult, []engine.SuppressionLog, error) {
+	return runGateCheck(root, true)
+}
+
+func onlyHistoryFrames(fs []frames.Frame) []frames.Frame {
+	var out []frames.Frame
+	for _, f := range fs {
+		if historySecretFrames[f.ID()] {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func runGateCheck(root string, history bool) ([]engine.CheckResult, []engine.SuppressionLog, error) {
 	stdlibFrames, err := stdlib.Load()
 	if err != nil {
 		return nil, nil, fmt.Errorf("load stdlib: %w", err)
@@ -41,6 +78,9 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 	gatedStdlib, _ := filterGated(stdlibFrames)
 	gatedProject, _ := filterGated(projectFrames)
 	gatedProject, unboundProject := splitUnboundProject(gatedProject)
+	if history {
+		gatedStdlib, gatedProject = onlyHistoryFrames(gatedStdlib), onlyHistoryFrames(gatedProject)
+	}
 
 	e, err := engine.New(engine.Options{
 		ProjectRoot:   root,
@@ -66,8 +106,10 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 		OutsideLinks: outside,
 	}
 	results := engine.Run(e.Registry, ctx)
-	lintResults, _ := linters.RunEnabledUntrusted(e.ProjectConfig.Linters, root, e.ExcludedDirs(), e.IgnorePathFunc())
-	results = append(results, lintResults...)
+	if !history {
+		lintResults, _ := linters.RunEnabledUntrusted(e.ProjectConfig.Linters, root, e.ExcludedDirs(), e.IgnorePathFunc())
+		results = append(results, lintResults...)
+	}
 
 	// Apply the gateway-held whitelist (overlaid into the tree at
 	// .appframes/_canonical/whitelist.toml). Missing file → empty whitelist, no
@@ -84,6 +126,9 @@ func (engineChecker) Check(root string) ([]engine.CheckResult, []engine.Suppress
 		return nil, nil, fmt.Errorf("whitelist: %w", err)
 	}
 	filtered, suppressed := engine.ApplyWhitelist(results, wl, root)
+	if history {
+		return filtered, suppressed, nil
+	}
 	// Added after the whitelist pass: a policy that names no frame is a
 	// gateway-config problem, not a finding in the pushed code to exempt.
 	filtered = append(filtered, engine.PolicyEntriesResults(e.EnabledExpanded, known)...)
@@ -255,13 +300,14 @@ func gatewayPreReceive(args []string) int {
 		})
 	}
 	return gateway.RunPreReceive(gateway.PreReceiveDeps{
-		Policy:       pol,
-		GitDir:       gitDir,
-		Checker:      engineChecker{},
-		AuditPath:    filepath.Join(policyRoot, repo, "audit.log"),
-		ScanTmpDir:   scanTmp,
-		MaxTreeBytes: gwCfg.MaxTreeBytes,
-		ScanTimeout:  gwCfg.ScanTimeout,
+		Policy:         pol,
+		GitDir:         gitDir,
+		Checker:        engineChecker{},
+		AuditPath:      filepath.Join(policyRoot, repo, "audit.log"),
+		ScanTmpDir:     scanTmp,
+		MaxTreeBytes:   gwCfg.MaxTreeBytes,
+		ScanTimeout:    gwCfg.ScanTimeout,
+		HistoryWorkers: gwCfg.HistoryWorkers,
 		// Notification rail: pol.Notification is the resolved config loaded from
 		// gateway.toml. Without these two, fireNotification's guard
 		// (NotificationConfig != nil) is false and no queue record is ever
