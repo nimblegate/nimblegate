@@ -13,6 +13,45 @@ import (
 	"nimblegate/internal/frames"
 )
 
+func TestAudit_RecordsFindingIDsMatchingSuppressions(t *testing.T) {
+	tmp := t.TempDir()
+	a, err := OpenAudit(filepath.Join(tmp, ".appframes", "audit.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := CheckResult{
+		FrameID: "security/x",
+		Outcome: OutcomeBlock,
+		Hits:    []Hit{{File: filepath.Join(tmp, "src", "a.go"), Line: 3, Label: "key"}},
+	}
+	if err := a.Write(CheckContext{Trigger: TriggerCLI, ProjectRoot: tmp}, r); err != nil {
+		t.Fatal(err)
+	}
+	_, sup := ApplyWhitelist([]CheckResult{r}, matchAll{}, tmp)
+	partPath := a.partPath
+	if err := a.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(partPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Findings []string `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &got); err != nil {
+		t.Fatal(err)
+	}
+	want := FindingID("security/x", sup[0].File, sup[0].Label)
+	if len(got.Findings) != 1 || got.Findings[0] != want {
+		t.Errorf("findings = %v, want [%s] (same identity as the suppression)", got.Findings, want)
+	}
+}
+
+type matchAll struct{}
+
+func (matchAll) Match(string, string, string) bool { return true }
+
 func TestClampToInt(t *testing.T) {
 	if got := clampToInt(-5); got != 0 {
 		t.Errorf("clampToInt(-5)=%d want 0", got)

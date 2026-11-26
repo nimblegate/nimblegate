@@ -31,6 +31,7 @@ type auditAnalyzeJSON struct {
 	} `json:"window"`
 	EntriesAnalyzed     int                 `json:"entries_analyzed"`
 	TotalHoursPrevented float64             `json:"total_hours_prevented"`
+	WhitelistedFindings int                 `json:"whitelisted_findings"`
 	HoursByTier         map[string]float64  `json:"hours_prevented_by_tier"`
 	FramesHitByTier     map[string]int      `json:"frames_hit_by_tier"`
 	TopBypassed         []bypassedFrameJSON `json:"top_bypassed"`
@@ -65,6 +66,7 @@ type frameStatJSON struct {
 	InfoCount      int     `json:"info_count"`
 	PassCount      int     `json:"pass_count"`
 	BypassCount    int     `json:"bypass_count"`
+	DistinctBlocks int     `json:"distinct_blocks"`
 	HoursPerHit    float64 `json:"hours_per_hit"`
 	HoursSource    string  `json:"hours_source"`
 	HoursPrevented float64 `json:"hours_prevented"`
@@ -145,7 +147,10 @@ func renderAnalyzeHuman(w io.Writer, r auditanalyze.Report, minBypass int) int {
 
 	// Time-prevented summary.
 	fmt.Fprintln(w, "Estimated time prevented (window):")
-	fmt.Fprintf(w, "  Total: %s\n", formatHours(r.TotalHoursPrevented))
+	fmt.Fprintf(w, "  Total: %s  (distinct BLOCK findings x hours/hit)\n", formatHours(r.TotalHoursPrevented))
+	if r.WhitelistedFindings > 0 {
+		fmt.Fprintf(w, "  %d whitelisted finding(s), not counted\n", r.WhitelistedFindings)
+	}
 	if r.TotalHoursPrevented > 0 {
 		tiers := make([]int, 0, len(r.HoursPreventedByTier))
 		for t := range r.HoursPreventedByTier {
@@ -201,6 +206,7 @@ func renderAnalyzeJSON(w io.Writer, r auditanalyze.Report, minBypass int) int {
 	out := auditAnalyzeJSON{
 		EntriesAnalyzed:     r.EntriesAnalyzed,
 		TotalHoursPrevented: r.TotalHoursPrevented,
+		WhitelistedFindings: r.WhitelistedFindings,
 		HoursByTier:         map[string]float64{},
 		FramesHitByTier:     map[string]int{},
 	}
@@ -256,6 +262,7 @@ func renderSingleFrame(w io.Writer, r auditanalyze.Report, frameID string, asJSO
 			InfoCount:      st.InfoCount,
 			PassCount:      st.PassCount,
 			BypassCount:    st.BypassCount,
+			DistinctBlocks: st.DistinctBlocks,
 			HoursPerHit:    st.HoursPerHit,
 			HoursSource:    string(st.HoursSource),
 			HoursPrevented: st.HoursPrevented,
@@ -270,7 +277,8 @@ func renderSingleFrame(w io.Writer, r auditanalyze.Report, frameID string, asJSO
 	fmt.Fprintf(w, "  BLOCK: %d   WARN: %d   INFO: %d   PASS: %d   BYPASS: %d\n",
 		st.BlockCount, st.WarnCount, st.InfoCount, st.PassCount, st.BypassCount)
 	fmt.Fprintf(w, "  Hours per hit: %s  (source: %s)\n", formatHours(st.HoursPerHit), st.HoursSource)
-	fmt.Fprintf(w, "  Hours prevented: %s  (BLOCK+WARN+INFO × hours/hit)\n", formatHours(st.HoursPrevented))
+	fmt.Fprintf(w, "  Distinct BLOCK findings (not whitelisted): %d\n", st.DistinctBlocks)
+	fmt.Fprintf(w, "  Hours prevented: %s  (distinct BLOCK findings x hours/hit)\n", formatHours(st.HoursPrevented))
 	if len(st.BypassReasons) > 0 {
 		fmt.Fprintln(w, "  Bypass reasons:")
 		for _, r := range st.BypassReasons {
