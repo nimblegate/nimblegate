@@ -20,7 +20,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   local accounts, rotate your upstream tokens.** `gateway doctor` now warns
   when a repo relays through the relay service but its `credential` file is
   readable by more than the relay user (a credential saved from the dashboard
-  is written as the dashboard's user). Reported by @arhuman (KwalitAI).
+  is written as the dashboard's user).
 - **Every `git commit` form that skips the pre-commit hook is caught.**
   `git/no-bypass-pre-commit` and the strict git shim matched only the exact
   words `--no-verify` and `-n`, so `-nm msg`, `--no-veri`,
@@ -31,7 +31,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   (`git -C dir push`, `-fu`, `--forc`, `+main` and `HEAD:main` refspecs) and
   `git/no-amend-pushed-commits`. Strict-mode users: run
   `nimblegate shell install --strict` again to regenerate the shims.
-  Reported by @arhuman (KwalitAI).
+
+Both reported by @arhuman.
 
 ## [0.7.6] - 2026-11-19
 
