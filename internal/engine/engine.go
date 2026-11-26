@@ -149,7 +149,7 @@ func (e *Engine) KnownFrameIDs() map[string]bool {
 
 // ExcludedDirs returns the directory-name segments that file-scanning checks
 // should skip. Drawn from the project config's [scan].exclude or, if that's
-// empty, a built-in default (.git, node_modules, dist, build, .nimblegate).
+// empty, scanignore.DefaultExcludes().
 //
 // Callers populate CheckContext.ExcludedDirs with this value when building
 // a context to hand to the runner.
@@ -163,10 +163,8 @@ func (e *Engine) ExcludedDirs() []string {
 	return defaultExcludedDirs()
 }
 
-// defaultExcludedDirs mirrors internal/checks.DefaultExcludes(). Duplicated
-// here so the engine package doesn't import internal/checks (cycle).
 func defaultExcludedDirs() []string {
-	return []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
+	return scanignore.DefaultExcludes()
 }
 
 // isFrameEnabled returns true if id matches any pattern in enabled. Patterns

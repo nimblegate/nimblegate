@@ -19,9 +19,10 @@ import (
 // ScanRegexContent walks files under root whose project-relative path or
 // basename matches any glob in patterns (filepath.Match semantics; empty
 // patterns = all files), skipping any directory segment named in excludedDirs
-// (and always .git), and returns a Hit per line matching re. Deterministic,
-// no subprocess. Hits are sorted by file then line.
-func ScanRegexContent(root string, patterns []string, re *regexp.Regexp, excludedDirs []string) ([]engine.Hit, error) {
+// (and always .git) and any path the ignore predicate (the engine's scan-ignore
+// matcher, nil for none) reports, and returns a Hit per line matching re.
+// Deterministic, no subprocess. Hits are sorted by file then line.
+func ScanRegexContent(root string, patterns []string, re *regexp.Regexp, excludedDirs []string, ignore func(string) bool) ([]engine.Hit, error) {
 	skip := map[string]bool{".git": true}
 	for _, d := range excludedDirs {
 		skip[d] = true
@@ -32,9 +33,12 @@ func ScanRegexContent(root string, patterns []string, re *regexp.Regexp, exclude
 			return nil
 		}
 		if d.IsDir() {
-			if path != root && skip[d.Name()] {
+			if path != root && (skip[d.Name()] || (ignore != nil && ignore(path))) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if ignore != nil && ignore(path) {
 			return nil
 		}
 		rel, rerr := filepath.Rel(root, path)
@@ -94,7 +98,10 @@ func matchesAnyGlob(rel string, patterns []string) bool {
 }
 
 // regexLinter is the Linter adapter for kind="regex" entries.
-type regexLinter struct{ name string }
+type regexLinter struct {
+	name   string
+	ignore func(string) bool
+}
 
 func (r regexLinter) ID() string { return frameID(r.name) }
 
@@ -107,7 +114,7 @@ func (r regexLinter) Run(projectRoot string, cfg config.LinterConfig, excludedDi
 	if err != nil {
 		return skipResult(id, r.name+": skipped (invalid regex: "+err.Error()+")")
 	}
-	hits, err := ScanRegexContent(projectRoot, cfg.Patterns, re, excludedDirs)
+	hits, err := ScanRegexContent(projectRoot, cfg.Patterns, re, excludedDirs, r.ignore)
 	if err != nil {
 		return skipResult(id, r.name+": skipped (scan error: "+err.Error()+")")
 	}

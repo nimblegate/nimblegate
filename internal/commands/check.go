@@ -104,7 +104,7 @@ func Check(args []string) int {
 	// findings identically. They're off unless [linters] enables them;
 	// --no-linters forces a frames-only run regardless of config.
 	if !*noLinters {
-		lintResults, _ := linters.RunEnabled(e.ProjectConfig.Linters, root, e.ExcludedDirs())
+		lintResults, _ := linters.RunEnabled(e.ProjectConfig.Linters, root, e.ExcludedDirs(), e.IgnorePathFunc())
 		results = append(results, lintResults...)
 	}
 

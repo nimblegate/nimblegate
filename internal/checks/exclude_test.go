@@ -2,7 +2,24 @@
 
 package checks
 
-import "testing"
+import (
+	"slices"
+	"testing"
+
+	"nimblegate/internal/engine"
+	"nimblegate/internal/scanignore"
+)
+
+func TestDefaultExcludes_singleSource(t *testing.T) {
+	want := scanignore.DefaultExcludes()
+	if !slices.Equal(DefaultExcludes(), want) {
+		t.Errorf("checks.DefaultExcludes = %v, want %v", DefaultExcludes(), want)
+	}
+	var e *engine.Engine
+	if !slices.Equal(e.ExcludedDirs(), want) {
+		t.Errorf("engine default = %v, want %v", e.ExcludedDirs(), want)
+	}
+}
 
 func TestIsExcluded_TopLevel(t *testing.T) {
 	if !IsExcluded("/proj/node_modules/foo.js", "/proj", DefaultExcludes()) {

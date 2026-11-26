@@ -33,6 +33,12 @@ import (
 	"nimblegate/internal/glob"
 )
 
+// DefaultExcludes is the [scan] exclude list used when a project sets none:
+// directory names skipped wherever they appear as a whole path segment.
+func DefaultExcludes() []string {
+	return []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
+}
+
 // MarkerFilename is the gitignore-style file nimblegate looks for when
 // walking the tree. Patterns inside it are scoped to the file's directory.
 const MarkerFilename = ".appframes-ignore"
@@ -130,17 +136,28 @@ func (m *Matcher) discoverMarkers() error {
 		for _, raw := range patterns {
 			// Marker patterns without `/` match recursively under the marker
 			// dir (gitignore convention: `*.zip` skips zips anywhere below).
-			// Patterns with `/` are anchored to the marker dir.
-			pat := raw
+			// Patterns with an inner `/` are anchored to the marker dir. A
+			// trailing `/` (`sample-data/`) names a directory: it matches
+			// that directory and everything under it.
+			pat := strings.TrimSuffix(raw, "/")
+			if pat == "" {
+				continue
+			}
 			if !strings.Contains(pat, "/") {
 				pat = "**/" + pat
 			}
-			re, err := glob.Compile(pat)
-			if err != nil {
-				m.loadWarnings = append(m.loadWarnings, fmt.Sprintf("%s: invalid pattern %q: %v", path, raw, err))
-				continue
+			pats := []string{pat}
+			if strings.HasSuffix(raw, "/") {
+				pats = append(pats, pat+"/**")
 			}
-			m.markerScoped = append(m.markerScoped, scopedPattern{dir: dir, pattern: re, raw: raw})
+			for _, p := range pats {
+				re, err := glob.Compile(p)
+				if err != nil {
+					m.loadWarnings = append(m.loadWarnings, fmt.Sprintf("%s: invalid pattern %q: %v", path, raw, err))
+					break
+				}
+				m.markerScoped = append(m.markerScoped, scopedPattern{dir: dir, pattern: re, raw: raw})
+			}
 		}
 		m.loadWarnings = append(m.loadWarnings, warnings...)
 		return nil

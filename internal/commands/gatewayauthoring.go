@@ -345,7 +345,7 @@ func (h authoringHandlers) preview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer cleanup()
-	hits, err := linters.ScanRegexContent(dir, patterns, re, nil)
+	hits, err := linters.ScanRegexContent(dir, patterns, re, nil, nil)
 	if err != nil {
 		_, _ = w.Write([]byte(`<div class="hit">preview scan error</div>`))
 		return

@@ -11,6 +11,7 @@ import (
 
 	"nimblegate/internal/config"
 	"nimblegate/internal/engine"
+	"nimblegate/internal/scanignore"
 )
 
 func writeFile(t *testing.T, root, rel, body string) {
@@ -31,7 +32,7 @@ func TestScanRegexContent_matchesByGlobAndLine(t *testing.T) {
 	writeFile(t, root, "c.txt", "TODO(no-owner)\n") // excluded by glob
 
 	re := regexp.MustCompile(`TODO\(no-owner\)`)
-	hits, err := ScanRegexContent(root, []string{"*.go"}, re, nil)
+	hits, err := ScanRegexContent(root, []string{"*.go"}, re, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +53,7 @@ func TestScanRegexContent_excludedDirsSkipped(t *testing.T) {
 	writeFile(t, root, "x.go", "MATCH\n")
 	writeFile(t, root, "vendor/y.go", "MATCH\n")
 	re := regexp.MustCompile(`MATCH`)
-	hits, err := ScanRegexContent(root, []string{"*.go"}, re, []string{"vendor"})
+	hits, err := ScanRegexContent(root, []string{"*.go"}, re, []string{"vendor"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestScanRegexContent_emptyPatternsMatchesAll(t *testing.T) {
 	writeFile(t, root, "a.go", "Z\n")
 	writeFile(t, root, "b.txt", "Z\n")
 	re := regexp.MustCompile(`Z`)
-	hits, err := ScanRegexContent(root, nil, re, nil)
+	hits, err := ScanRegexContent(root, nil, re, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +82,7 @@ func TestRunEnabled_regexKindRuns(t *testing.T) {
 	lc := map[string]config.LinterConfig{
 		"no-fixme": {Enabled: true, Kind: "regex", Severity: "warn", Patterns: []string{"*.go"}, Regex: "FIXME"},
 	}
-	results, ran := RunEnabled(lc, root, nil)
+	results, ran := RunEnabled(lc, root, nil, nil)
 	// RunEnabled returns lint.ID() which is "app-correctness/<name>"
 	if len(ran) != 1 || ran[0] != "app-correctness/no-fixme" {
 		t.Fatalf("ranIDs = %v, want [app-correctness/no-fixme]", ran)
@@ -96,7 +97,7 @@ func TestScanRegexContent_scannerErrorPropagated(t *testing.T) {
 	// A line longer than the 1 MiB scanner cap triggers bufio.ErrTooLong.
 	writeFile(t, root, "big.go", strings.Repeat("X", 1024*1024+1)+"\n")
 	re := regexp.MustCompile(`X`)
-	_, err := ScanRegexContent(root, []string{"*.go"}, re, nil)
+	_, err := ScanRegexContent(root, []string{"*.go"}, re, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for oversized line, got nil")
 	}
@@ -108,8 +109,29 @@ func TestRunEnabled_commandKindUnaffected(t *testing.T) {
 	lc := map[string]config.LinterConfig{
 		"mytool": {Enabled: true, Severity: "block"},
 	}
-	results, _ := RunEnabled(lc, root, nil)
+	results, _ := RunEnabled(lc, root, nil, nil)
 	if len(results) != 1 || results[0].Outcome != engine.OutcomeSkip {
 		t.Fatalf("results = %+v, want one OutcomeSkip (no command)", results)
+	}
+}
+
+func TestRunEnabled_regexHonoursAllScanIgnoreMechanisms(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "keep.txt", "LEAK\n")
+	writeFile(t, root, "skipname/a.txt", "LEAK\n")
+	writeFile(t, root, "public/downloads/b.txt", "LEAK\n")
+	writeFile(t, root, "samples/c.txt", "LEAK\n")
+	writeFile(t, root, "samples/.appframes-ignore", "c.txt\n")
+	m, err := scanignore.New(root, []string{".git", "skipname"}, []string{"public/downloads/**"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lc := map[string]config.LinterConfig{"leak": {Enabled: true, Kind: "regex", Regex: `LEAK`, Severity: "block"}}
+	results, _ := RunEnabled(lc, root, []string{".git", "skipname"}, m.Match)
+	if len(results) != 1 {
+		t.Fatalf("got %d results, want 1", len(results))
+	}
+	if len(results[0].Hits) != 1 || results[0].Hits[0].File != "keep.txt" {
+		t.Fatalf("hits = %+v, want only keep.txt", results[0].Hits)
 	}
 }
