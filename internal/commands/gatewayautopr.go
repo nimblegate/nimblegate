@@ -59,6 +59,7 @@ type autoPRLoop struct {
 	MaxAttempts  int
 	CurrentBot   string
 	StickyURL    string
+	Exhausted    bool
 	ResetURL     string
 }
 
@@ -67,7 +68,7 @@ type autoPREvent struct {
 	Repo      string
 	Ref       string
 	Decision  string // "rejected" | "observed"
-	Outcome   string // "settled" | "resolved" | "deadlettered" | "queued"
+	Outcome   string // "settled" | "resolved" | "deadlettered" | "queued" | "dropped" | "unknown"
 	Symbol    string // icon name (warn|notif|pending)
 	FrameID   string // first finding's frame_id, for context
 	EventLink string
@@ -133,8 +134,10 @@ func collectAutoPR(policyRoot string, now time.Time) autoPRData {
 		// Active loops (count + list).
 		stateDir := filepath.Join(policyRoot, repoName, "pr-comment-state")
 		loops := readActiveLoops(stateDir, repoName)
-		row.ActiveLoopCount = len(loops)
 		for _, l := range loops {
+			if !l.Exhausted {
+				row.ActiveLoopCount++
+			}
 			d.ActiveLoops = append(d.ActiveLoops, l)
 		}
 
@@ -241,7 +244,8 @@ func countRecentSettled(auditPath string, cutoff time.Time) (settled, attempted 
 }
 
 // readActiveLoops walks <repo>/pr-comment-state/*.json and returns one
-// autoPRLoop per non-exhausted state file.
+// autoPRLoop per state file. Exhausted loops are included (flagged) because
+// resetting one is how the operator restarts a parked loop.
 func readActiveLoops(stateDir, repoName string) []autoPRLoop {
 	entries, err := os.ReadDir(stateDir)
 	if err != nil {
@@ -261,9 +265,6 @@ func readActiveLoops(stateDir, repoName string) []autoPRLoop {
 		if err := json.Unmarshal(b, &s); err != nil {
 			continue
 		}
-		if s.Loop.Exhausted {
-			continue // exhausted loops aren't "active" - they're parked for human review
-		}
 		out = append(out, autoPRLoop{
 			Repo:         repoName,
 			PRNumber:     s.PRNumber,
@@ -271,6 +272,7 @@ func readActiveLoops(stateDir, repoName string) []autoPRLoop {
 			MaxAttempts:  s.Loop.MaxAttempts,
 			CurrentBot:   s.Mention.CurrentBot,
 			StickyURL:    s.StickyComment.URL,
+			Exhausted:    s.Loop.Exhausted,
 			ResetURL:     fmt.Sprintf("/feed/reset-loop?repo=%s&pr=%d", repoName, s.PRNumber),
 		})
 	}
@@ -337,6 +339,12 @@ func readRecentNotificationEvents(auditPath, repoName string, cutoff time.Time, 
 				ev.Outcome = "settled"
 				ev.Symbol = "notif"
 			}
+		case rec.Notification.Dropped:
+			ev.Outcome = "dropped"
+			ev.Symbol = "notif"
+		case rec.Notification.Unknown:
+			ev.Outcome = "unknown"
+			ev.Symbol = "notif"
 		default:
 			ev.Outcome = "queued"
 			ev.Symbol = "pending"
@@ -459,11 +467,11 @@ var autoPRTmpl = template.Must(template.New("autopr").Funcs(template.FuncMap{"ic
 {{range .ActiveLoops}}
 <div class="autopr-loop" data-repo="{{.Repo}}" data-pr="{{.PRNumber}}">
 <span><strong>{{.Repo}}</strong> · PR #{{.PRNumber}}</span>
-<span class="autopr-pill autopr-pill-loop">attempt {{.AttemptCount}}/{{.MaxAttempts}}</span>
+<span class="autopr-pill autopr-pill-loop">attempt {{.AttemptCount}}/{{.MaxAttempts}}</span>{{if .Exhausted}}<span class="autopr-pill autopr-pill-deadletter" title="Loop exhausted: no more bot mentions on this PR until it is reset">exhausted</span>{{end}}
 <span class="mono">{{.CurrentBot}}</span>
 <span style="flex:1"></span>
 {{if .StickyURL}}<a class="autopr-btn" href="{{.StickyURL}}">View PR</a>{{end}}
-<form style="display:inline;margin:0" hx-post="{{.ResetURL}}" hx-confirm="Reset loop state for {{.Repo}} PR #{{.PRNumber}}? This deletes the per-PR state file."><button type="submit" class="autopr-btn">Reset Loop</button></form>
+{{if $.AllowEdits}}<form style="display:inline;margin:0" hx-post="{{.ResetURL}}" hx-confirm="Reset loop state for {{.Repo}} PR #{{.PRNumber}}? This deletes the per-PR state file."><button type="submit" class="autopr-btn">Reset Loop</button></form>{{end}}
 </div>
 {{end}}
 </div>
@@ -595,7 +603,11 @@ func autoPRRetryHandler(policyRoot string, allowEdits bool, csrfToken func() str
 		dlPath := filepath.Join(policyRoot, repo, "pr-comment-deadletter.jsonl")
 		// Requeue deadletter first (moves them into the queue), then reset the
 		// whole queue's backoff so everything retries on the next poll.
-		requeued, _ := notification.RequeueDeadletter(queuePath, dlPath)
+		requeued, err := notification.RequeueDeadletter(queuePath, dlPath)
+		if err != nil {
+			http.Error(w, "requeue deadletter: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		reset, err := notification.ResetQueueBackoff(queuePath)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -619,7 +631,10 @@ func autoPRSetupHandler(policyRoot string, allowEdits bool, csrfToken func() str
 			http.NotFound(w, r)
 			return
 		}
-		repo := r.URL.Query().Get("repo")
+		repo := ""
+		if q := r.URL.Query().Get("repo"); validRepoName(q) {
+			repo = q
+		}
 		saveErr := r.URL.Query().Get("notifrail_err")
 		saveOK := r.URL.Query().Get("notifrail") == "saved"
 

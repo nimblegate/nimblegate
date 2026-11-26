@@ -66,9 +66,6 @@ func newestActiveLoop(policyRoot, repo, stateDir string) *gateway.ActiveLoopView
 		if err := json.Unmarshal(b, &s); err != nil {
 			continue
 		}
-		if s.Loop.Exhausted {
-			continue // exhausted loops are no longer "active"; nothing to reset that helps
-		}
 		if best == nil ||
 			s.Loop.AttemptCount > best.Loop.AttemptCount ||
 			(s.Loop.AttemptCount == best.Loop.AttemptCount && pr > bestPR) {
@@ -85,6 +82,7 @@ func newestActiveLoop(policyRoot, repo, stateDir string) *gateway.ActiveLoopView
 		AttemptCount: best.Loop.AttemptCount,
 		MaxAttempts:  best.Loop.MaxAttempts,
 		CurrentBot:   best.Mention.CurrentBot,
+		Exhausted:    best.Loop.Exhausted,
 		ResetURL:     fmt.Sprintf("/feed/reset-loop?repo=%s&pr=%d", url.QueryEscape(repo), bestPR),
 	}
 }
@@ -139,16 +137,16 @@ func applyNotifOff(vm *gateway.ViewModel, policyRoot string) {
 	}
 }
 
-// feedResetLoopHandler removes the PRState file for (repo, pr). POST-only
-// (CSRF-checked when --allow-edits is on). No-op when the state file is
-// absent - operator may have clicked twice or already accepted the PR.
+// feedResetLoopHandler removes the PRState file for (repo, pr). POST-only,
+// CSRF-checked, and mounted only with --allow-edits. No-op when the state file
+// is absent - operator may have clicked twice or already accepted the PR.
 func feedResetLoopHandler(policyRoot, csrfToken string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if csrfToken != "" && !csrfOK(r, csrfToken) {
+		if !csrfOK(r, csrfToken) {
 			http.Error(w, "csrf", http.StatusForbidden)
 			return
 		}
