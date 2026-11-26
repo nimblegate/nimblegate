@@ -3,6 +3,8 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -50,6 +52,17 @@ type auditEntry struct {
 	Override  bool   `json:"override"`
 	Reason    string `json:"reason,omitempty"`
 	Fix       string `json:"fix,omitempty"`
+	// Findings holds FindingID for each hit, so the analyzer can count a
+	// finding once across runs and match it to its whitelist suppression.
+	Findings []string `json:"findings,omitempty"`
+}
+
+// FindingID identifies one finding across runs: frame, project-relative file
+// and hit label, the identity the task ledger uses (line numbers shift with
+// unrelated edits). Hashed so the field adds no new text to the log.
+func FindingID(frameID, file, label string) string {
+	sum := sha256.Sum256([]byte(frameID + "\x00" + file + "\x00" + label))
+	return hex.EncodeToString(sum[:8])
 }
 
 // auditSuppression is the JSONL shape for a single hit suppressed by a
@@ -133,6 +146,9 @@ func (a *Audit) Write(ctx CheckContext, r CheckResult) error {
 		Override:  r.Override,
 		Reason:    r.Reason,
 		Fix:       r.Fix,
+	}
+	for _, h := range r.Hits {
+		entry.Findings = append(entry.Findings, FindingID(r.FrameID, relPath(h.File, ctx.ProjectRoot), h.Label))
 	}
 	data, err := json.Marshal(entry)
 	if err != nil {

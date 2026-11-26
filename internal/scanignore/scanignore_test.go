@@ -94,6 +94,31 @@ func TestMatch_MarkerFile(t *testing.T) {
 	}
 }
 
+func TestMatch_MarkerTrailingSlashMatchesDirAndContents(t *testing.T) {
+	root := setupTree(t, map[string]string{
+		".appframes-ignore":          "sample-data/\nfixtures/raw/\n",
+		"sample-data/a.json":         "x",
+		"pkg/sample-data/deep/b.txt": "x",
+		"fixtures/raw/c.txt":         "x",
+		"pkg/fixtures/raw/d.txt":     "x",
+		"sample-data-old/e.txt":      "x",
+	})
+	m, err := New(root, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"sample-data", "sample-data/a.json", "pkg/sample-data/deep/b.txt", "fixtures/raw", "fixtures/raw/c.txt"} {
+		if !m.Match(filepath.Join(root, rel)) {
+			t.Errorf("%s should be ignored", rel)
+		}
+	}
+	for _, rel := range []string{"pkg/fixtures/raw/d.txt", "sample-data-old/e.txt"} {
+		if m.Match(filepath.Join(root, rel)) {
+			t.Errorf("%s should NOT be ignored (inner-slash patterns stay anchored)", rel)
+		}
+	}
+}
+
 func TestMatch_MarkerNested(t *testing.T) {
 	root := setupTree(t, map[string]string{
 		"a/.appframes-ignore":   "*.zip\n",

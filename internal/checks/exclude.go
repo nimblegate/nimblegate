@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"nimblegate/internal/engine"
+	"nimblegate/internal/scanignore"
 )
 
 // DefaultExcludes is the path-segment list that file-scanning checks skip
@@ -17,7 +18,7 @@ import (
 // us the project root directly; the walker-based callers were already
 // skipping `.git` via filepath.WalkDir's SkipDir behaviour.
 func DefaultExcludes() []string {
-	return []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
+	return scanignore.DefaultExcludes()
 }
 
 // ShouldSkipPath is the single decision point file-scanning checks consult

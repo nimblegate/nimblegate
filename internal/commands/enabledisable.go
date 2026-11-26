@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"nimblegate/internal/frames"
 	"nimblegate/internal/paths"
 	"nimblegate/internal/stdlib"
 )
@@ -34,7 +35,7 @@ func enableOrDisable(args []string, enable bool) int {
 	}
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "nimblegate %s: frame ID required\n", verb)
-		fmt.Fprintf(os.Stderr, "usage: nimblegate %s <category/name | category/* | *>\n", verb)
+		fmt.Fprintf(os.Stderr, "usage: nimblegate %s <category/name>\n", verb)
 		return 2
 	}
 	target := args[0]
@@ -47,7 +48,7 @@ func enableOrDisable(args []string, enable bool) int {
 	}
 
 	// Validate target: known frame ID or wildcard pattern.
-	if err := validateEnableTarget(target); err != nil {
+	if err := validateEnableTarget(target, root, enable); err != nil {
 		fmt.Fprintf(os.Stderr, "nimblegate %s: %v\n", verb, err)
 		return 2
 	}
@@ -87,50 +88,28 @@ func enableOrDisable(args []string, enable bool) int {
 // validateEnableTarget refuses targets that don't resolve to anything.
 // A typo here would silently bloat the enabled list with a dead entry -
 // catching it now matches the fail-closed posture from whitelist.
-func validateEnableTarget(target string) error {
-	if target == "*" {
-		return nil
+// Enable takes exact frame IDs only (stdlib or the project's own frames);
+// disable also accepts a wildcard so a legacy entry can still be removed.
+func validateEnableTarget(target, root string, enable bool) error {
+	if strings.HasPrefix(target, "@") || (enable && strings.Contains(target, "*")) {
+		return fmt.Errorf("%q uses removed syntax.\n\n%s", target, removedSyntaxGuidance())
 	}
-	if strings.HasPrefix(target, "@") {
-		// @-prefixed group syntax is no longer supported. Kits replace groups;
-		// use `nimblegate kits apply <kit>` to enable a curated frame set.
-		return fmt.Errorf("%s", removedGroupSyntaxEnableMsg(target))
-	}
-	// Category wildcard or exact ID.
+	ids := map[string]bool{}
 	stdlibFrames, _ := stdlib.Load()
 	for _, f := range stdlibFrames {
-		if f.ID() == target {
-			return nil
-		}
+		ids[f.ID()] = true
 	}
-	if strings.HasSuffix(target, "/*") {
-		prefix := strings.TrimSuffix(target, "*")
-		for _, f := range stdlibFrames {
-			if strings.HasPrefix(f.ID(), prefix) {
-				return nil
-			}
-		}
+	projectFrames, _ := frames.LoadFromDir(paths.AppframesDir(root))
+	for _, f := range projectFrames {
+		ids[f.ID()] = true
+	}
+	if ids[target] {
+		return nil
+	}
+	if !enable && strings.Contains(target, "*") {
+		return nil
 	}
 	return fmt.Errorf("unknown target %q (try `nimblegate list` to see available frames)", target)
-}
-
-// removedGroupSyntaxEnableMsg returns the migration-error message shown
-// when a user attempts `nimblegate enable @group-name`.
-func removedGroupSyntaxEnableMsg(target string) string {
-	return fmt.Sprintf(`@-prefixed group syntax is no longer supported: %s
-
-Use kits instead:
-  nimblegate kits apply core
-  nimblegate kits apply web-app
-  nimblegate kits apply cf-pages-project
-  nimblegate kits apply cf-workers-project
-  nimblegate kits apply security-strict
-
-Or enable individual frames by ID:
-  nimblegate enable <category/frame-name>
-
-Run `+"`nimblegate kits list`"+` to see all available kits.
-`, target)
 }
 
 // enabledArrayRegex matches the `enabled = [...]` array literal in

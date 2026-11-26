@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"nimblegate/internal/config"
+	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
 )
 
@@ -30,7 +31,7 @@ func jsonEntry(ts time.Time, trigger, frame, result string, override bool, reaso
 		ts.UTC().Format(time.RFC3339Nano), trigger, frame, result, override, reason)
 }
 
-func TestReadEntries_SkipsWhitelistSuppression(t *testing.T) {
+func TestReadEntries_MarksWhitelistSuppression(t *testing.T) {
 	ts := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	p := writeFixtureLog(t, []string{
 		jsonEntry(ts, "cli", "security/x", "BLOCK", false, "leak"),
@@ -41,8 +42,14 @@ func TestReadEntries_SkipsWhitelistSuppression(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 2 {
-		t.Errorf("got %d entries; want 2 (suppression line should be skipped)", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("got %d entries; want 3", len(entries))
+	}
+	if s := entries[1]; !s.Suppressed || s.File != "vendor/foo.js" || s.Label != "AKIA..." {
+		t.Errorf("suppression entry = %+v; want Suppressed with file + label", s)
+	}
+	if entries[0].Suppressed || entries[2].Suppressed {
+		t.Error("raw results must not be marked Suppressed")
 	}
 }
 
@@ -117,12 +124,12 @@ func TestAnalyze_StaleFrames(t *testing.T) {
 func TestAnalyze_HoursPrevented_TierDefault(t *testing.T) {
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	entries := []Entry{
-		// Tier 1 frame fires 3× → 3 × 4h = 12h
-		{Timestamp: now.Add(-1 * time.Hour), Frame: "security/tier-1-frame", Result: "BLOCK"},
-		{Timestamp: now.Add(-2 * time.Hour), Frame: "security/tier-1-frame", Result: "BLOCK"},
-		{Timestamp: now.Add(-3 * time.Hour), Frame: "security/tier-1-frame", Result: "BLOCK"},
-		// Tier 6 fires once → 1 × 0.1h = 0.1h
-		{Timestamp: now.Add(-1 * time.Hour), Frame: "convention/tier-6-frame", Result: "WARN"},
+		// Tier 1 frame blocks 3 distinct findings → 3 × 4h = 12h
+		{Timestamp: now.Add(-1 * time.Hour), Frame: "security/tier-1-frame", Result: "BLOCK", Reason: "a"},
+		{Timestamp: now.Add(-2 * time.Hour), Frame: "security/tier-1-frame", Result: "BLOCK", Reason: "b"},
+		{Timestamp: now.Add(-3 * time.Hour), Frame: "security/tier-1-frame", Result: "BLOCK", Reason: "c"},
+		// Tier 6 BLOCK once → 1 × 0.1h = 0.1h
+		{Timestamp: now.Add(-1 * time.Hour), Frame: "convention/tier-6-frame", Result: "BLOCK"},
 		// PASS shouldn't count toward prevented hours.
 		{Timestamp: now.Add(-1 * time.Hour), Frame: "security/tier-1-frame", Result: "PASS"},
 	}
@@ -146,8 +153,8 @@ func TestAnalyze_HoursPrevented_TierDefault(t *testing.T) {
 func TestAnalyze_HoursPrevented_ProjectOverride(t *testing.T) {
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	entries := []Entry{
-		{Timestamp: now.Add(-1 * time.Hour), Frame: "security/x", Result: "BLOCK"},
-		{Timestamp: now.Add(-2 * time.Hour), Frame: "security/x", Result: "BLOCK"},
+		{Timestamp: now.Add(-1 * time.Hour), Frame: "security/x", Result: "BLOCK", Findings: []string{"f1"}},
+		{Timestamp: now.Add(-2 * time.Hour), Frame: "security/x", Result: "BLOCK", Findings: []string{"f2"}},
 	}
 	frameByID := map[string]frames.Frontmatter{
 		"security/x": {Category: "security", Name: "x", Tier: 1},
@@ -224,5 +231,35 @@ func TestTopTokens_OneCountPerReason(t *testing.T) {
 	}
 	if got[0].Token != "vendor" || got[0].Count != 2 {
 		t.Errorf("token = %q count = %d; want vendor 2 (de-duped per reason)", got[0].Token, got[0].Count)
+	}
+}
+
+func TestAnalyze_HoursPrevented_DistinctBlockNotWhitelisted(t *testing.T) {
+	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
+	kept := engine.FindingID("security/x", "a.go", "key one")
+	waived := engine.FindingID("security/x", "fixtures/b.go", "key two")
+	entries := []Entry{
+		// The same two findings reported by three runs.
+		{Timestamp: now.Add(-3 * time.Hour), Frame: "security/x", Result: "BLOCK", Findings: []string{kept, waived}},
+		{Timestamp: now.Add(-2 * time.Hour), Frame: "security/x", Result: "BLOCK", Findings: []string{kept, waived}},
+		{Timestamp: now.Add(-1 * time.Hour), Frame: "security/x", Result: "BLOCK", Findings: []string{kept, waived}},
+		{Timestamp: now.Add(-1 * time.Hour), Suppressed: true, Frame: "security/x", Result: "BLOCK", File: "fixtures/b.go", Label: "key two"},
+		// WARN and INFO never count.
+		{Timestamp: now.Add(-1 * time.Hour), Frame: "web/y", Result: "WARN", Findings: []string{"w"}},
+		{Timestamp: now.Add(-1 * time.Hour), Frame: "web/y", Result: "INFO", Findings: []string{"i"}},
+	}
+	frameByID := map[string]frames.Frontmatter{
+		"security/x": {Category: "security", Name: "x", Tier: 1, TimeCostHoursPrevented: 2},
+		"web/y":      {Category: "web", Name: "y", Tier: 1, TimeCostHoursPrevented: 2},
+	}
+	r := Analyze(entries, now, 24*time.Hour, nil, frameByID, config.ProjectConfig{}, DefaultConfig())
+	if r.TotalHoursPrevented != 2 {
+		t.Errorf("total hours = %v; want 2 (one distinct non-whitelisted BLOCK finding × 2h)", r.TotalHoursPrevented)
+	}
+	if r.WhitelistedFindings != 1 {
+		t.Errorf("whitelisted findings = %d; want 1", r.WhitelistedFindings)
+	}
+	if got := r.FrameStats["security/x"].BlockCount; got != 3 {
+		t.Errorf("raw BLOCK count = %d; want 3 (display count unchanged)", got)
 	}
 }

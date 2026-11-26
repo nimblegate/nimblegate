@@ -160,7 +160,7 @@ func resolveEntry(e Entry, knownFrameIDs map[string]bool, today time.Time, idx i
 			return nil, fmt.Errorf("invalid 'expires' format %q (want YYYY-MM-DD)", exp)
 		}
 		r.expiresAt = t
-		r.expired = !today.IsZero() && today.After(t)
+		r.expired = !today.IsZero() && !today.UTC().Before(t.AddDate(0, 0, 1))
 	}
 	return r, nil
 }

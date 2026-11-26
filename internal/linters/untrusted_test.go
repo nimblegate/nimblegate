@@ -35,7 +35,7 @@ func TestRunEnabledUntrusted_neverRunsRepoCodeLinters(t *testing.T) {
 		"eslint": {Enabled: true},
 		"go-vet": {Enabled: true},
 	}
-	results, ran := RunEnabledUntrusted(lc, root, nil)
+	results, ran := RunEnabledUntrusted(lc, root, nil, nil)
 	if _, err := os.Stat(marker); err == nil {
 		t.Fatal("the pushed node_modules/.bin/eslint was executed")
 	}
@@ -54,7 +54,7 @@ func TestRunEnabledUntrusted_neverRunsRepoCodeLinters(t *testing.T) {
 func TestRunEnabled_trustedTreeStillUsesProjectESLint(t *testing.T) {
 	root := t.TempDir()
 	marker := plantESLint(t, root)
-	RunEnabled(map[string]config.LinterConfig{"eslint": {Enabled: true}}, root, nil)
+	RunEnabled(map[string]config.LinterConfig{"eslint": {Enabled: true}}, root, nil, nil)
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatal("local runs should use the project's own eslint")
 	}
@@ -71,8 +71,8 @@ func TestRunEnabled_regexKindWinsOverBuiltinName(t *testing.T) {
 	lc := map[string]config.LinterConfig{
 		"eslint": {Enabled: true, Kind: "regex", Regex: "TODO", Patterns: []string{"*.txt"}, Severity: "WARN"},
 	}
-	for _, run := range []func(map[string]config.LinterConfig, string, []string) ([]engine.CheckResult, []string){RunEnabled, RunEnabledUntrusted} {
-		results, _ := run(lc, root, nil)
+	for _, run := range []func(map[string]config.LinterConfig, string, []string, func(string) bool) ([]engine.CheckResult, []string){RunEnabled, RunEnabledUntrusted} {
+		results, _ := run(lc, root, nil, nil)
 		if _, err := os.Stat(marker); err == nil {
 			t.Fatal("a regex check named eslint ran the eslint adapter")
 		}
@@ -91,7 +91,7 @@ func TestRunEnabledUntrusted_customCommandMustNotPointIntoTree(t *testing.T) {
 	lc := map[string]config.LinterConfig{
 		"mine": {Enabled: true, Command: "./lint.sh", Regex: `(?P<file>\S+):(?P<line>\d+): (?P<msg>.*)`},
 	}
-	results, _ := RunEnabledUntrusted(lc, root, nil)
+	results, _ := RunEnabledUntrusted(lc, root, nil, nil)
 	if _, err := os.Stat(marker); err == nil {
 		t.Fatal("a custom linter command inside the pushed tree was executed")
 	}
@@ -104,7 +104,7 @@ func TestRunEnabledUntrusted_customCommandMustNotPointIntoTree(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	results, _ = RunEnabledUntrusted(lc, root, nil)
+	results, _ = RunEnabledUntrusted(lc, root, nil, nil)
 	if len(results) != 1 || results[0].Outcome == engine.OutcomeSkip {
 		t.Fatalf("a command on PATH should run, got %+v", results)
 	}

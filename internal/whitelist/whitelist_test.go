@@ -240,6 +240,32 @@ expires = "2020-01-01"
 	}
 }
 
+func TestExpiry_ActiveThroughWholeExpiryDayUTC(t *testing.T) {
+	path := writeWhitelist(t, `
+[[entry]]
+frame   = "security/no-hardcoded-credentials"
+path    = "**"
+reason  = "ends with the day"
+expires = "2026-05-18"
+`)
+	for _, tc := range []struct {
+		now    time.Time
+		active bool
+	}{
+		{time.Date(2026, 5, 18, 0, 0, 1, 0, time.UTC), true},
+		{time.Date(2026, 5, 18, 23, 59, 59, 0, time.UTC), true},
+		{time.Date(2026, 5, 19, 0, 0, 0, 0, time.UTC), false},
+	} {
+		w, err := Load(path, knownFrames(), tc.now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := w.Match("security/no-hardcoded-credentials", "any.go", "any"); got != tc.active {
+			t.Errorf("at %s: active = %v, want %v", tc.now, got, tc.active)
+		}
+	}
+}
+
 func TestExpiry_FutureDateActive(t *testing.T) {
 	path := writeWhitelist(t, `
 [[entry]]
