@@ -268,3 +268,26 @@ func TestEngineChecker_neverRunsPushedESLint(t *testing.T) {
 		t.Error("no eslint result; the SKIP should be visible in the scan results")
 	}
 }
+
+func TestEngineChecker_markdownOnlyProjectFrameWarnsNotErrors(t *testing.T) {
+	dir := frameProject(t, []string{"documentation/unbound", "commands/curl-pipe-shell"}, "unbound", "[cli]")
+	res, _, err := engineChecker{}.Check(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	warned := 0
+	for _, r := range res {
+		if r.FrameID != "documentation/unbound" {
+			continue
+		}
+		if r.Outcome != engine.OutcomeWarn {
+			t.Errorf("markdown-only project frame: outcome %v, want WARN (an ERROR rejects the push): %+v", r.Outcome, r)
+		}
+		if strings.Contains(r.Reason, unboundFrameMsg) {
+			warned++
+		}
+	}
+	if warned != 1 {
+		t.Errorf("want exactly one %q WARN, got %d in %+v", unboundFrameMsg, warned, res)
+	}
+}

@@ -77,6 +77,14 @@ func lintAt(root string, stderr io.Writer) int {
 	}
 
 	projectFrames, projectErrs := frames.LoadFromDir(paths.AppframesDir(root))
+	for _, f := range append(append([]frames.Frame{}, stdlibFrames...), projectFrames...) {
+		for _, t := range f.Frontmatter.Triggers {
+			if !validTriggers[t] {
+				projectErrs = append(projectErrs, fmt.Errorf("%s: unknown trigger %q (valid: cli, pre-commit, git-wrap, watcher, server)",
+					f.SourcePath, frames.SanitizeForOutput(t)))
+			}
+		}
+	}
 
 	idSources := map[string][]string{}
 	stdlibSeverity := map[string]string{}
@@ -183,6 +191,14 @@ func lintAt(root string, stderr io.Writer) int {
 		fmt.Println()
 	}
 
+	if _, unbound := splitUnboundProject(projectFrames); len(unbound) > 0 {
+		fmt.Printf("⚠️  Project frames with no check (%d):\n", len(unbound))
+		for _, f := range unbound {
+			fmt.Printf("   - %s\n", unboundProjectMsg(f.ID()))
+		}
+		fmt.Println()
+	}
+
 	// Mismatches - enabled-list typos / dead entries.
 	if len(mismatches) > 0 {
 		fmt.Printf("⚠️  appframes.toml enables %d frame(s) that don't exist:\n", len(mismatches))
@@ -231,7 +247,7 @@ func lintAt(root string, stderr io.Writer) int {
 	// .appframes-ignore patterns as warnings so the user can fix typos.
 	excludeNames := cfg.Scan.Exclude
 	if len(excludeNames) == 0 {
-		excludeNames = []string{".git", "node_modules", "dist", "build", ".appframes", ".venv", "venv", "site-packages", "__pycache__", ".svelte-kit"}
+		excludeNames = scanignore.DefaultExcludes()
 	}
 	matcher, _ := scanignore.New(root, excludeNames, cfg.Scan.ExcludePaths)
 	if matcher != nil {
@@ -354,9 +370,13 @@ func errCount(err error) int {
 // removedGroupSyntaxMsg returns the migration-table error shown when
 // appframes.toml still contains pre-v0.1.0 @-prefix or wildcard syntax.
 func removedGroupSyntaxMsg() string {
-	return `Error: appframes.toml uses removed syntax.
+	return "Error: appframes.toml uses removed syntax.\n\n" + removedSyntaxGuidance()
+}
 
-The v0.1.0 frame model is flat frame IDs only. Apply a kit instead:
+// removedSyntaxGuidance is the kit migration table shared by `lint` (config
+// already holding @group / wildcard entries) and `enable` (refusing them).
+func removedSyntaxGuidance() string {
+	return `The v0.1.0 frame model is flat frame IDs only. Apply a kit instead:
 
   @tier-1          → nimblegate kits apply core
   @tier-6          → tick Documentation category frames in dashboard
@@ -365,8 +385,8 @@ The v0.1.0 frame model is flat frame IDs only. Apply a kit instead:
   @cf-pages        → nimblegate kits apply cf-pages-project
   @migrations      → tick Database > Migrations frames in dashboard
   @security-strict → nimblegate kits apply security-strict
-  security/*       → tick frames individually in dashboard
+  security/*       → nimblegate enable <category/name> per frame, or tick frames in dashboard
 
-See https://nimblegate.com/docs/frames-guide for the full v0.1.0 model. After migration, re-run.
+Run ` + "`nimblegate kits list`" + ` to see all kits. See https://nimblegate.com/docs/frames-guide for the full v0.1.0 model. After migration, re-run.
 `
 }

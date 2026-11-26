@@ -187,6 +187,9 @@ func TestCountRecentSettled_correlatesQueueState(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := notification.AppendOutcome(filepath.Join(dir, notification.OutcomesFile), "ev-settled", notification.OutcomeDelivered); err != nil {
+		t.Fatal(err)
+	}
 	settled, attempted := countRecentSettled(auditPath, now.Add(-24*time.Hour))
 	if attempted != 3 {
 		t.Errorf("attempted = %d, want 3 (the 48h-old record is outside the window)", attempted)

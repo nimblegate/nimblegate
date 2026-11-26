@@ -12,10 +12,11 @@
 //  3. Stale frames - frames enabled in appframes.toml but with zero audit
 //     entries in the window. Earned-out or never-applies candidates.
 //
-// Time-prevented stats are computed alongside: each non-bypass result for
-// a non-PASS / non-SKIP outcome (i.e. each frame that actually fired and
-// would have caught something) is worth the frame's per-hit time estimate.
-// Bypass entries do NOT count toward "prevented" - they're the opposite.
+// Time-prevented stats are computed alongside: each distinct BLOCK finding
+// in the window (counted once however many runs reported it) is worth the
+// frame's per-hit time estimate. Bypasses, WARN/INFO results and findings a
+// whitelist entry suppressed do NOT count; whitelisted findings are reported
+// as their own count instead.
 //
 // All output is mechanical (counts + multiplications). No prediction, no
 // AI judgment. The user can audit every number from the audit log + frame
@@ -32,6 +33,7 @@ import (
 	"time"
 
 	"nimblegate/internal/config"
+	"nimblegate/internal/engine"
 	"nimblegate/internal/frames"
 )
 
@@ -47,6 +49,14 @@ type Entry struct {
 	Target    string
 	Override  bool
 	Reason    string
+	// Findings are the engine.FindingID values of the result's hits; empty
+	// for hit-less results and for entries written before the field existed.
+	Findings []string
+	// Suppressed marks a whitelist-suppression line; File and Label name
+	// the suppressed hit and Result carries the severity it would have had.
+	Suppressed bool
+	File       string
+	Label      string
 }
 
 // FrameStat aggregates one frame's audit-log presence in the window.
@@ -57,11 +67,12 @@ type FrameStat struct {
 	InfoCount      int
 	PassCount      int
 	BypassCount    int            // override=true entries
+	DistinctBlocks int            // distinct non-whitelisted BLOCK findings
 	BypassReasons  []string       // raw reasons (one per bypass)
 	ReasonHotspots []HotspotToken // tokens >= MinTokenLen with freq >= MinReasonHotspotHits
 	HoursPerHit    float64        // resolved time estimate
 	HoursSource    frames.TimeEstimateSource
-	HoursPrevented float64 // (Block+Warn+Info) * HoursPerHit
+	HoursPrevented float64 // DistinctBlocks * HoursPerHit
 	LastSeen       time.Time
 }
 
@@ -96,8 +107,12 @@ type Report struct {
 	TotalHoursPrevented  float64
 	HoursPreventedByTier map[int]float64
 
-	// FrameHits maps tier → number of distinct frames in that tier with >=1 non-bypass hit.
+	// FrameHits maps tier → number of distinct frames in that tier with >=1 counted BLOCK finding.
 	FramesHitByTier map[int]int
+
+	// WhitelistedFindings counts distinct BLOCK findings a whitelist entry
+	// suppressed in the window; they are excluded from the hours above.
+	WhitelistedFindings int
 }
 
 // Config bundles the runtime knobs.
@@ -142,25 +157,37 @@ func ReadEntries(logPaths []string) ([]Entry, error) {
 		sc.Buffer(make([]byte, 64*1024), 1024*1024)
 		for sc.Scan() {
 			line := sc.Bytes()
-			// Skip whitelist-suppression entries - they have kind set and no
-			// "frame fired" semantics for this analyzer.
-			if isSuppressionLine(line) {
-				continue
-			}
 			var raw struct {
-				TS       string `json:"ts"`
-				Trigger  string `json:"trigger"`
-				Frame    string `json:"frame"`
-				Result   string `json:"result"`
-				Target   string `json:"target"`
-				Override bool   `json:"override"`
-				Reason   string `json:"reason"`
+				TS       string   `json:"ts"`
+				Kind     string   `json:"kind"`
+				Trigger  string   `json:"trigger"`
+				Frame    string   `json:"frame"`
+				Result   string   `json:"result"`
+				Target   string   `json:"target"`
+				Override bool     `json:"override"`
+				Reason   string   `json:"reason"`
+				Findings []string `json:"findings"`
+				File     string   `json:"file"`
+				Label    string   `json:"label"`
+				Severity string   `json:"severity"`
 			}
 			if err := json.Unmarshal(line, &raw); err != nil {
 				continue
 			}
 			t, err := time.Parse(time.RFC3339Nano, raw.TS)
 			if err != nil {
+				continue
+			}
+			if raw.Kind == "whitelist-suppression" {
+				out = append(out, Entry{
+					Timestamp:  t,
+					Trigger:    raw.Trigger,
+					Frame:      raw.Frame,
+					Result:     raw.Severity,
+					Suppressed: true,
+					File:       raw.File,
+					Label:      raw.Label,
+				})
 				continue
 			}
 			out = append(out, Entry{
@@ -171,18 +198,12 @@ func ReadEntries(logPaths []string) ([]Entry, error) {
 				Target:    raw.Target,
 				Override:  raw.Override,
 				Reason:    raw.Reason,
+				Findings:  raw.Findings,
 			})
 		}
 		_ = f.Close()
 	}
 	return out, nil
-}
-
-// isSuppressionLine peeks at the JSON shape to detect whitelist-suppression
-// entries (which have `"kind"` set and no traditional result). Cheaper than
-// full JSON parse - we only need to know whether to skip.
-func isSuppressionLine(line []byte) bool {
-	return strings.Contains(string(line), `"kind":"whitelist-suppression"`)
 }
 
 // Analyze runs the patterns over entries with the given window. enabledFrames
@@ -212,9 +233,20 @@ func Analyze(entries []Entry, now time.Time, window time.Duration, enabledFrames
 		FramesHitByTier:      map[int]int{},
 	}
 
+	// Suppressions are written after the raw result they exempt, so collect
+	// them first. A legacy suppression line has no severity; count it.
+	whitelisted := map[string]bool{}
+	for _, e := range entries {
+		if e.Suppressed && !e.Timestamp.Before(windowStart) && (e.Result == "" || e.Result == "BLOCK") {
+			whitelisted[engine.FindingID(e.Frame, e.File, e.Label)] = true
+		}
+	}
+	r.WhitelistedFindings = len(whitelisted)
+	blocked := map[string]map[string]bool{}
+
 	// Per-frame counters from in-window entries.
 	for _, e := range entries {
-		if e.Timestamp.Before(windowStart) {
+		if e.Timestamp.Before(windowStart) || e.Suppressed {
 			continue
 		}
 		r.EntriesAnalyzed++
@@ -236,6 +268,19 @@ func Analyze(entries []Entry, now time.Time, window time.Duration, enabledFrames
 		switch e.Result {
 		case "BLOCK":
 			st.BlockCount++
+			ids := e.Findings
+			if len(ids) == 0 {
+				ids = []string{engine.FindingID(e.Frame, "", e.Reason)}
+			}
+			for _, id := range ids {
+				if whitelisted[id] {
+					continue
+				}
+				if blocked[e.Frame] == nil {
+					blocked[e.Frame] = map[string]bool{}
+				}
+				blocked[e.Frame][id] = true
+			}
 		case "WARN":
 			st.WarnCount++
 		case "INFO":
@@ -251,6 +296,7 @@ func Analyze(entries []Entry, now time.Time, window time.Duration, enabledFrames
 	// are useful even without frame metadata. Time-prevented requires a
 	// loaded frame; orphans skip that part.
 	for id, st := range r.FrameStats {
+		st.DistinctBlocks = len(blocked[id])
 		if len(st.BypassReasons) > 0 {
 			st.ReasonHotspots = topTokens(st.BypassReasons, opt.MinTokenLen, opt.MinReasonHotspotHits, opt.MaxHotspotTokensPerFrame)
 		}
@@ -262,11 +308,10 @@ func Analyze(entries []Entry, now time.Time, window time.Duration, enabledFrames
 		hours, src := fm.EffectiveTimeCostHoursPrevented(tierOverride, tierSet)
 		st.HoursPerHit = hours
 		st.HoursSource = src
-		fired := st.BlockCount + st.WarnCount + st.InfoCount
-		st.HoursPrevented = float64(fired) * hours
+		st.HoursPrevented = float64(st.DistinctBlocks) * hours
 		r.TotalHoursPrevented += st.HoursPrevented
 		r.HoursPreventedByTier[fm.EffectiveTier()] += st.HoursPrevented
-		if fired > 0 {
+		if st.DistinctBlocks > 0 {
 			r.FramesHitByTier[fm.EffectiveTier()]++
 		}
 	}

@@ -46,7 +46,7 @@ func runAuditPrune(now func() time.Time, policyRoot string, acceptRetention, rej
 	}
 	var out []AuditPruneResult
 	for _, e := range entries {
-		if !e.IsDir() {
+		if !entryIsDir(policyRoot, e) {
 			continue
 		}
 		name := e.Name()

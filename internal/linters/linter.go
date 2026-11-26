@@ -74,19 +74,21 @@ func IsBuiltin(name string) bool {
 // whitelist entries for linter findings validate). A regex linter is always a
 // regex linter, whatever its name; otherwise a built-in name gets the built-in
 // adapter and any other name a config-driven custom linter. Deterministic order.
-func RunEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string) (results []engine.CheckResult, ranIDs []string) {
-	return runEnabled(lc, projectRoot, excludedDirs, false)
+// ignore is the engine's scan-ignore predicate (nil for none); regex linters
+// skip every path it reports, as frames do.
+func RunEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string, ignore func(string) bool) (results []engine.CheckResult, ranIDs []string) {
+	return runEnabled(lc, projectRoot, excludedDirs, ignore, false)
 }
 
 // RunEnabledUntrusted is RunEnabled for a tree its caller does not trust, such
 // as a push the gateway is checking. Linters that execute code from the tree
 // never run (each yields a SKIP saying why), and a custom linter's command must
 // be found on PATH or given as an absolute path, never as a path into the tree.
-func RunEnabledUntrusted(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string) (results []engine.CheckResult, ranIDs []string) {
-	return runEnabled(lc, projectRoot, excludedDirs, true)
+func RunEnabledUntrusted(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string, ignore func(string) bool) (results []engine.CheckResult, ranIDs []string) {
+	return runEnabled(lc, projectRoot, excludedDirs, ignore, true)
 }
 
-func runEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string, untrusted bool) (results []engine.CheckResult, ranIDs []string) {
+func runEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedDirs []string, ignore func(string) bool, untrusted bool) (results []engine.CheckResult, ranIDs []string) {
 	names := make([]string, 0, len(lc))
 	for name := range lc {
 		names = append(names, name)
@@ -100,7 +102,7 @@ func runEnabled(lc map[string]config.LinterConfig, projectRoot string, excludedD
 		var lint Linter
 		switch b, ok := builtins[name]; {
 		case cfg.Kind == "regex":
-			lint = regexLinter{name: name}
+			lint = regexLinter{name: name, ignore: ignore}
 		case ok:
 			lint = b
 		default:

@@ -91,7 +91,8 @@ type ActiveLoopView struct {
 	AttemptCount int
 	MaxAttempts  int
 	CurrentBot   string
-	ResetURL     string // POST target - /feed/reset-loop?repo=<r>&pr=<n>
+	Exhausted    bool
+	ResetURL     string // POST target - /feed/reset-loop?repo=<r>&pr=<n>; empty without --allow-edits
 }
 
 // NotifOffView is the row-level nudge shown when a rejected push produced no PR
@@ -166,6 +167,8 @@ type ViewModel struct {
 	Repos   []string
 	Rows    []DecisionRow
 	Filter  Filter
+	// CSRFToken is sent by the inline Reset forms; empty without --allow-edits.
+	CSRFToken string
 }
 
 // frameFromMessage pulls the bracketed frame id out of an audit message like
@@ -202,6 +205,18 @@ func notifStatusView(n *NotificationStatus) *NotificationStatusView {
 			Indicator: "delivered",
 			Symbol:    "notif",
 			Message:   "PR comment delivered · webhook fired",
+		}
+	case n.Dropped:
+		return &NotificationStatusView{
+			Indicator: "dropped",
+			Symbol:    "notif",
+			Message:   "superseded by a clean push, not delivered",
+		}
+	case n.Unknown:
+		return &NotificationStatusView{
+			Indicator: "unknown",
+			Symbol:    "notif",
+			Message:   "left the queue, outcome not recorded",
 		}
 	default:
 		return &NotificationStatusView{

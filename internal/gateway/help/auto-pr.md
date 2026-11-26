@@ -12,7 +12,7 @@ PRs currently mid-fix-loop, sorted by attempt count (most concerning first). Eac
 - **attempt N/M**: current attempt out of `max-attempts` (default 5).
 - **Current bot**: the agent the gateway is talking to, e.g. `@cursor-bot`.
 - **View PR**: deep link to the sticky comment on the upstream.
-- **Reset Loop**: clears the per-PR state file. Use when the loop is wedged on a bad assumption and you want the next push to start fresh.
+- **Reset Loop**: clears the per-PR state file. Use when the loop is wedged on a bad assumption and you want the next push to start fresh. Exhausted loops are listed too (labelled exhausted) and can be reset. Only shown when the dashboard runs with `--allow-edits`.
 
 The search field above the list filters live by repo name or PR number, useful when you have lots of loops in flight.
 
@@ -26,7 +26,7 @@ One row per registered repo with notification-rail status:
 - **24h settled**: notifications that left the delivery queue without being deadlettered, over attempts, in the last 24 hours. Settled is not the same as commented: a rejection on a ref with **no open PR** skips the comment step by design and fires only the webhook, and it settles exactly like one that posted a comment. The Activity tab labels those rows `settled` for the same reason. To confirm a comment reached a PR, open the PR.
 - **Delivery error row**: if deliveries are failing, a warning row appears under the repo showing the upstream error + an actionable hint (e.g. an HTTP 403 names the missing token scope). No need to read `docker logs`.
 - **Edit config**: jumps to the Setup tab for that repo.
-- **Retry now** (shown when Queue or Deadletter is non-zero): resets the retry backoff and re-queues any deadlettered records so pending comments deliver on the next ~5s poll. Use it after fixing a wrong/expired upstream token - it saves waiting out the multi-hour backoff, and means no editing queue files on the server.
+- **Retry now** (shown with `--allow-edits` when Queue or Deadletter is non-zero): resets the retry backoff and re-queues any deadlettered records so pending comments deliver on the next ~5s poll. Use it after fixing a wrong/expired upstream token - it saves waiting out the multi-hour backoff, and means no editing queue files on the server.
 
 ## Activity
 
@@ -36,6 +36,8 @@ Most recent notification-rail events across all repos in the last 24 hours, both
 - :icon-ok: **resolved**: a clean push closed the loop; the comment flipped to ✅ and the dashboard loop cleared.
 - :icon-pending: **queued**: accepted into the queue, drain pending.
 - :icon-warn: **deadlettered**: permanent failure; needs operator attention (see Health).
+- **dropped**: superseded by a clean push before it was delivered.
+- **unknown**: left the queue with no recorded outcome.
 
 ## Setup
 
@@ -46,7 +48,7 @@ Per-repo edit form for `[notification.*]` in `gateway.toml`. The **Editing:** dr
 Top-level toggles:
 
 - **Enable notifications for this repo**: the master switch.
-- **Also send notifications in observe mode**: by default observe-mode pushes don't fire the rail.
+- **Also send notifications in observe mode**: pre-checked in this form (the file default is off). When on, an observe-mode push that would have been blocked posts the PR comment and fires the webhook as `push.observed`; the push itself is still relayed.
 
 Webhook section:
 
@@ -54,12 +56,12 @@ Webhook section:
 - **Also send overlap events**: opt-in. Besides rejections, the webhook also gets a `push.overlap` event whenever an accepted push in enforce mode changes files that another open branch also changes, so whatever runs your agents can react while the work is in progress. It goes to the webhook only (no PR comment) and needs a Webhook URL. See [Overlaps](/overlaps).
 - **Auth mode**: HMAC-SHA256 (recommended) / Bearer / None.
 - **Secret**: signing key or Bearer token. Click **Generate random** for a fresh 32-byte hex value. HMAC mode requires a non-empty secret or save will fail.
-- **Auth header**: optional override; defaults to `X-Hub-Signature-256` (HMAC) or `Authorization` (Bearer).
+- **Auth header**: optional override; defaults to `X-Nimblegate-Signature` (HMAC) or `Authorization` (Bearer).
 
 Mention section:
 
 - **Default mention**: which bot to @-tag in the sticky comment, e.g. `@nimblegate-bot`.
-- **Auto-tag PR assignees + reviewers**: pulls names from the upstream PR.
+- **Auto-tag PR assignees + reviewers**: pulls names from the upstream PR. Unticked, no assignees or reviewers are tagged.
 
 **Multi-bot rotation (opt-in)**: when one bot can't fix the issue, fall through to the next:
 
@@ -74,16 +76,17 @@ Mention section:
 - **Cooldown threshold count / window**: N attempts inside the window triggers cooldown.
 - **Cooldown duration**: how long the rail stays quiet after cooldown trips.
 
-**Delivery**: webhook/comment retry shape:
+**Delivery**: webhook/comment retry shape for this repo's records:
 
-- **Max attempts**: total retries before deadletter (default 20).
+- **Max attempts**: total attempts before deadletter (default 20). A permanent error (upstream or webhook 4xx, except a GitHub rate-limit 403) deadletters at once.
 - **Backoff schedule**: comma-separated durations, e.g. `1m, 5m, 30m, 2h`.
 
 ## Common gotchas
 
 - HMAC mode without a secret will refuse to save. Either Generate one or pick a different auth mode.
 - Overlap events arrive at the same URL with the same auth as rejections, so a receiver must check the payload's `event` field before acting: `push.overlap` is not a rejection. They are not listed in the Activity tab (the [Overlaps](/overlaps) page shows them), but one waiting to be delivered does count in the repo's queued / deadletter numbers, since it travels through the same queue.
-- Changing `webhook_url` doesn't replay queued records. They retry against the new URL automatically on the next drain.
+- The webhook URL and secret are read at delivery time, so queued records retry against the new values on the next drain. Deadlettered records need **Retry now**.
+- The webhook fires even when the comment side fails, and a retry can POST the same `event_id` again: receivers should dedupe on `event_id`.
 - Reset Loop deletes the per-PR state file; the next push starts attempt 1/N with the default bot. It does **not** clear notifications already sent to the upstream.
 
 For depth: [Notifications and Auto-PR](https://nimblegate.com/docs/notifications) (operator guide) · [Upstream adapters](https://nimblegate.com/docs/adapters) (adapter-author guide).

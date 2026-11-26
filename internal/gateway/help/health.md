@@ -13,7 +13,7 @@ Notification rail telemetry: queue depth, deadletter counts, recent delivery suc
 - **Whitelist** (only when something is wrong): a repo whose `.appframes/_canonical/whitelist.toml` will not load, with the reason and the file to fix. The gate reads that file before any frame runs and refuses every push to the repo if it cannot, while the pusher sees only a bare `rejected` - typically a stale entry naming a frame or linter that was removed. The entries themselves are on [Stats](/stats) and [Policy → Whitelist](/policy?tab=whitelist); `nimblegate gateway doctor` also prints each repo's whitelist status with its entry count.
 - **Gate scans** (only when non-zero): pushes the gate could not evaluate in the last 24h - a full staging filesystem, an unwritable scan dir, a tree over `max_tree_bytes`, or a frame run past `scan_timeout`. Under enforcement those pushes were rejected; in observe mode they were relayed **unscanned**, and this line is the only place that says so.
 - **Repo connection** (when `--repos-root` is set): one-line summary of whether every registered repo has the files the gateway needs to accept pushes and relay them upstream (bare repo, `gateway.toml`, `appframes.toml`, and a credential when the upstream is HTTP). Green :icon-ok: = all repos connected. Orange :icon-warn: = N issue(s) across M repo(s), with the blocking count broken out when non-zero. Click through to [/repos](/repos) for the per-issue Repair buttons. Suppressed when reposRoot isn't configured because the check needs both roots to detect missing bares.
-- **Maintenance** (when configured): periodic self-cleanup loop. Shows the interval, last sweep time, next sweep time, and per-task summary lines (auth-session prune, /tmp orphan cleanup, deadletter retention). Per-repo `git gc` details collapse behind an expandable "per-repo gc" section. Configured in `<policy-root>/gateway.toml` `[maintenance]`; disabled if that section isn't present or `--repos-root` isn't set. See [Hardening the gateway: maintenance loop](https://nimblegate.com/docs/server-hardening#maintenance-loop-what-it-touches) for what each task touches.
+- **Maintenance**: periodic self-cleanup loop. Shows the interval, last sweep time, next sweep time, and per-task summary lines (auth-session prune, /tmp orphan cleanup, deadletter retention). Per-repo `git gc` details collapse behind an expandable "per-repo gc" section. The sweep also trims old audit accept records and events; see [Events](/events) for `maintenance-*` entries. Configured in `<policy-root>/gateway.toml` `[maintenance]`; on and weekly when that section is absent, off with `enabled = false` or when `--repos-root` isn't set. See [Hardening the gateway: maintenance loop](https://nimblegate.com/docs/server-hardening#maintenance-loop-what-it-touches) for what each task touches.
 
 ## Notification queue per repo
 
@@ -34,12 +34,12 @@ Watching them separately catches per-side failures: webhook 100% but comments 0%
 
 ## What deadletter means
 
-A record is moved to `pr-comment-deadletter.jsonl` after `delivery.max-attempts` (default 20) consecutive failures, usually because the webhook URL is wrong, the auth secret was rotated, the upstream is permanently 401-ing, or the PR no longer exists. The daemon stops retrying it, so a single broken config doesn't bury the queue. **Investigate** lets you inspect the record + the last error; fix the root cause (Auto-PR · Setup) and the next pushes drain normally.
+A record is moved to `pr-comment-deadletter.jsonl` after the repo's `delivery.max-attempts` (default 20) failed attempts, or at once on a permanent error: an upstream or webhook 4xx such as 401/403/404 (a GitHub rate-limit 403 is still retried), an upstream with no adapter, or an undecodable response. The daemon stops retrying it, so a single broken config doesn't bury the queue. **Investigate** lets you inspect the record + the last error; fix the root cause (Auto-PR · Setup) and the next pushes drain normally.
 
 ## Common gotchas
 
 - A long "last drain" with zero queue depth just means nothing has been rejected recently; it's not an alarm.
-- Deadletter doesn't shrink automatically. Once you've fixed the root cause, you can manually replay the file or delete it; see the depth link.
+- Deadletter doesn't shrink until the maintenance loop prunes entries older than `[maintenance.deadletter] retention` (default 30 days). Once you've fixed the root cause, use **Retry now** on Auto-PR → Repos to re-queue them.
 - Disk-free is measured at the policy root, not `/`. A separate volume for `/srv/gateway` is a sensible deploy choice.
 
 For depth: [Notifications: operations](https://nimblegate.com/docs/notifications#operations).

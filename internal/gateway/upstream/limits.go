@@ -7,3 +7,7 @@ package upstream
 // outside - so 4 MiB is generous. Without a cap the daemon reads whatever the
 // far end sends, which is the one remaining unbounded read in the relay path.
 const maxUpstreamResponseBytes int64 = 4 << 20
+
+// maxListPages bounds how many pages a paginated list read walks, so a
+// misbehaving host that never returns a short page cannot loop forever.
+const maxListPages = 100

@@ -174,31 +174,37 @@ func (a *GitHubAdapter) FindStickyComment(ctx context.Context, _ *PullRequest, c
 	return decodeGitHubComment(body)
 }
 
-// ScanForMarker lists the PR's issue comments and returns the most
-// recent one whose body contains marker. v0.1 reads a single page
-// (per_page=100); pagination is parked for v0.2. Returns (nil, nil) on
-// no match - the orchestrator treats that as "no sticky yet, create one".
+// ScanForMarker walks every page of the PR's issue comments (the endpoint
+// is oldest-first with no direction parameter) and returns the most recent
+// one whose body contains marker. Returns (nil, nil) on no match - the
+// orchestrator treats that as "no sticky yet, create one".
 func (a *GitHubAdapter) ScanForMarker(ctx context.Context, pr *PullRequest, marker string) (*Comment, error) {
-	endpoint := fmt.Sprintf("%s/repos/%s/issues/%d/comments?per_page=100", a.apiBase, a.ownerRepo, pr.Number)
-	body, err := a.do(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	var raw []json.RawMessage
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("%w: decode comments: %v", ErrPermanent, err)
-	}
-	// Walk newest-first so the first body containing the marker wins.
-	for i := len(raw) - 1; i >= 0; i-- {
-		c, err := decodeGitHubComment(raw[i])
+	const perPage = 100
+	var found *Comment
+	for page := 1; page <= maxListPages; page++ {
+		endpoint := fmt.Sprintf("%s/repos/%s/issues/%d/comments?per_page=%d&page=%d", a.apiBase, a.ownerRepo, pr.Number, perPage, page)
+		body, err := a.do(ctx, "GET", endpoint, nil)
 		if err != nil {
 			return nil, err
 		}
-		if strings.Contains(c.Body, marker) {
-			return c, nil
+		var raw []json.RawMessage
+		if err := json.Unmarshal(body, &raw); err != nil {
+			return nil, fmt.Errorf("%w: decode comments: %v", ErrPermanent, err)
+		}
+		for _, r := range raw {
+			c, err := decodeGitHubComment(r)
+			if err != nil {
+				return nil, err
+			}
+			if strings.Contains(c.Body, marker) {
+				found = c
+			}
+		}
+		if len(raw) < perPage {
+			break
 		}
 	}
-	return nil, nil
+	return found, nil
 }
 
 // CreateComment POSTs a new comment to the PR's issue comments endpoint

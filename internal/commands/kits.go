@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"nimblegate/internal/frames"
 	"nimblegate/internal/kits"
+	"nimblegate/internal/paths"
+	"nimblegate/internal/stdlib"
 )
 
 func Kits(args []string) int {
@@ -172,11 +175,34 @@ func kitsCreate(args []string) int {
 		return 2
 	}
 	if flags.NArg() != 1 || *framesCSV == "" {
-		fmt.Fprintln(os.Stderr, "usage: nimblegate kits create <name> --frames id1,id2,...")
+		fmt.Fprintln(os.Stderr, "usage: nimblegate kits create --frames id1,id2,... <name>  (flags go before the name)")
 		return 2
 	}
 	name := flags.Arg(0)
-	ids := strings.Split(*framesCSV, ",")
+	var ids []string
+	for _, id := range strings.Split(*framesCSV, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	known := map[string]bool{}
+	stdlibFrames, _ := stdlib.Load()
+	projectFrames, _ := frames.LoadFromDir(paths.AppframesDir("."))
+	for _, fs := range [][]frames.Frame{stdlibFrames, projectFrames} {
+		for _, f := range fs {
+			known[f.ID()] = true
+		}
+	}
+	var unknown []string
+	for _, id := range ids {
+		if !known[id] {
+			unknown = append(unknown, frames.SanitizeForOutput(id))
+		}
+	}
+	if len(unknown) > 0 {
+		fmt.Fprintf(os.Stderr, "nimblegate kits create: unknown frame ID(s): %s (try `nimblegate list` to see available frames)\n", strings.Join(unknown, ", "))
+		return 2
+	}
 	cfgPath := "appframes.toml"
 	if err := addUserKit(cfgPath, name, ids); err != nil {
 		fmt.Fprintln(os.Stderr, err)

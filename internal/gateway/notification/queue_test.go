@@ -94,7 +94,7 @@ func TestQueue_MoveToDeadletter(t *testing.T) {
 	_ = AppendQueueRecord(queuePath, QueueRecord{ID: "a"})
 	_ = AppendQueueRecord(queuePath, QueueRecord{ID: "b"})
 
-	if err := MoveToDeadletter(queuePath, dlPath, "a"); err != nil {
+	if err := MoveToDeadletter(queuePath, dlPath, QueueRecord{ID: "a"}); err != nil {
 		t.Fatalf("move: %v", err)
 	}
 	queue, _ := ReadQueueRecords(queuePath)

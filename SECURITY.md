@@ -115,6 +115,4 @@ that rationale.
 
 ## Acknowledgements
 
-- **@arhuman (KwalitAI)** - the upstream token was visible in the process list
-  of the git commands the relay runs, and several `git commit` spellings
-  skipped the pre-commit hook unnoticed (fixed in 0.7.7).
+- @arhuman - upstream token in the relay's git argv and hook-skipping commit spellings (fixed in 0.7.7).

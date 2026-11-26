@@ -6,7 +6,7 @@ Authorized public keys for the gateway. Every `git push` against the gateway run
 
 - **Add a key**: paste the public key (one line, `ssh-ed25519 AAAA... user@host`). It's stored mode 0600 in the container's ssh volume.
 - **Delete a key**: removes it from `authorized_keys`; immediate, no grace period. Active sessions stay connected; new pushes need a different key.
-- **Name a key**: the optional comment field shows in [Events](/events) so you know which key was used.
+- **Name a key**: the comment at the end of the key line (`user@host`) shows in the list here, so you can tell keys apart. Pushes are not attributed to a key: the audit log and [Events](/events) do not record which key pushed (sshd's own log does). One key per agent still lets you revoke a single agent's access without touching the others.
 
 ## Don't have an SSH key yet?
 
@@ -18,10 +18,6 @@ cat ~/.ssh/id_ed25519.pub
 ```
 
 Paste the `cat` output into the form above. The private half (`~/.ssh/id_ed25519`, no `.pub`) stays on your machine; never paste it anywhere.
-
-## TOFU: Trust On First Use
-
-The first time a key pushes to a repo, the gateway records it as "seen". Subsequent pushes from the same key are familiar (:icon-accept: in feed); pushes from new keys to the same repo show `?` so you notice unfamiliar agents.
 
 ## Common gotchas
 

@@ -261,6 +261,9 @@ func defaultNotifRailView() notifRailView {
 // Errors fall through to defaults rather than blocking the page render.
 func loadNotifRailView(policyRoot, repo string) notifRailView {
 	view := defaultNotifRailView()
+	if !validRepoName(repo) {
+		return view
+	}
 	path := filepath.Join(policyRoot, repo, "gateway.toml")
 	var raw struct {
 		Notification *struct {
@@ -275,7 +278,7 @@ func loadNotifRailView(policyRoot, repo string) notifRailView {
 			} `toml:"webhook"`
 			Mention *struct {
 				Default            string `toml:"default"`
-				IncludePRAssignees bool   `toml:"include-pr-assignees"`
+				IncludePRAssignees *bool  `toml:"include-pr-assignees"`
 				Rotation           *struct {
 					Bots                  []string `toml:"bots"`
 					AttemptsPerBot        int      `toml:"attempts-per-bot"`
@@ -314,7 +317,9 @@ func loadNotifRailView(policyRoot, repo string) notifRailView {
 		if n.Mention.Default != "" {
 			view.MentionDefault = n.Mention.Default
 		}
-		view.AutoTagAssignees = n.Mention.IncludePRAssignees
+		if n.Mention.IncludePRAssignees != nil {
+			view.AutoTagAssignees = *n.Mention.IncludePRAssignees
+		}
 		if n.Mention.Rotation != nil {
 			view.RotationBots = n.Mention.Rotation.Bots
 			if n.Mention.Rotation.AttemptsPerBot > 0 {

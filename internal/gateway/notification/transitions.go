@@ -26,9 +26,9 @@ type RejectEvent struct {
 // CooldownConfig is the subset of [notification.loop] that drives cooldown
 // per spec §6.5.
 type CooldownConfig struct {
-	ThresholdCount  int
-	ThresholdWindow time.Duration
-	Duration        time.Duration
+	ThresholdCount  int           `json:"threshold_count,omitempty"`
+	ThresholdWindow time.Duration `json:"threshold_window,omitempty"`
+	Duration        time.Duration `json:"duration,omitempty"`
 }
 
 // Transition is the PR loop state machine per spec §6.2. Pure function: given
@@ -69,6 +69,7 @@ func Transition(prev *PRState, ev RejectEvent, cfg LoopConfig) PRState {
 	// Subsequent reject: advance attempt count first.
 	next := *prev
 	next.Loop.AttemptCount++
+	next.Loop.MaxAttempts = cfg.MaxAttempts
 	if next.Loop.MaxAttempts == 0 {
 		next.Loop.MaxAttempts = cfg.MaxAttempts
 	}

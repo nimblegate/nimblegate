@@ -150,6 +150,11 @@ func (h *e2eHarness) runReject(t *testing.T, results []engine.CheckResult, ncfg 
 		InstanceID:         "gw-e2e",
 		PolicyRoot:         h.policyRoot,
 	}
+	// The orchestrator resolves the webhook from the repo config at delivery
+	// time, as the daemon and the hook do in production.
+	if ncfg != nil {
+		h.orch.Webhooks = map[string]notification.WebhookTarget{"demo": {URL: ncfg.WebhookURL, Auth: ncfg.WebhookAuth}}
+	}
 	if withOrchestrator {
 		deps.Orchestrator = h.orch
 	}
@@ -252,8 +257,8 @@ func TestE2E_NotificationRail_RealPushTripsBlock(t *testing.T) {
 	if q.UpstreamKind != "stub" {
 		t.Errorf("UpstreamKind = %q, want stub", q.UpstreamKind)
 	}
-	if q.WebhookURL != h.webhookSrv.URL {
-		t.Errorf("WebhookURL not preserved on queue record: %q", q.WebhookURL)
+	if q.WebhookURL != "" || q.WebhookAuth.Secret != "" {
+		t.Errorf("webhook URL/secret must not be written to the queue record: %q %+v", q.WebhookURL, q.WebhookAuth)
 	}
 	if len(q.Notification.Decision.Findings) != 1 {
 		t.Fatalf("queued Decision.Findings = %+v", q.Notification.Decision.Findings)

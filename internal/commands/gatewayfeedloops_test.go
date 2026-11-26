@@ -59,7 +59,7 @@ func TestLoadActiveLoopsByRepo_returnsHighestAttempt(t *testing.T) {
 	}
 }
 
-func TestLoadActiveLoopsByRepo_skipsExhausted(t *testing.T) {
+func TestLoadActiveLoopsByRepo_surfacesExhaustedForReset(t *testing.T) {
 	root := t.TempDir()
 	seedActiveLoopRepo(t, root, "api", 42, 5, 5, "@bot")
 	// Mark exhausted on disk.
@@ -72,8 +72,8 @@ func TestLoadActiveLoopsByRepo_skipsExhausted(t *testing.T) {
 	}
 
 	loops := loadActiveLoopsByRepo(root)
-	if loops["api"] != nil {
-		t.Errorf("exhausted loops should not be surfaced, got %+v", loops["api"])
+	if l := loops["api"]; l == nil || !l.Exhausted || l.ResetURL == "" {
+		t.Errorf("exhausted loop must be listed, flagged and resettable, got %+v", loops["api"])
 	}
 }
 
@@ -306,5 +306,16 @@ func TestApplyNotifOff(t *testing.T) {
 	}
 	if vm.Rows[3].NotifOff != nil {
 		t.Error("accept rows must never get the nudge")
+	}
+}
+
+func TestResetLoopForms_SendCSRFHeader(t *testing.T) {
+	vm := gateway.ViewModel{CSRFToken: "tok123", Rows: []gateway.DecisionRow{{Repo: "demo", ActiveLoop: &gateway.ActiveLoopView{PRNumber: 7, ResetURL: "/feed/reset-loop?repo=demo&pr=7"}}}}
+	var b strings.Builder
+	if err := gwTmpl.ExecuteTemplate(&b, "rows", vm); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), `hx-headers='{"X-CSRF-Token":"tok123"}'`) {
+		t.Errorf("feed Reset form does not send the CSRF header:\n%s", b.String())
 	}
 }

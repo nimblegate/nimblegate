@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -16,22 +17,41 @@ import (
 // is "queue write before any network call." The daemon drains queue records
 // older than 30s (avoids racing the pre-receive inline attempt).
 type QueueRecord struct {
-	ID           string           `json:"id"` // matches Notification.EventID
-	QueuedAt     time.Time        `json:"queued_at"`
-	UpstreamKind string           `json:"upstream_kind"` // "gitea" | "github" | ... - looked up by registry
-	Notification Notification     `json:"notification"`
-	WebhookURL   string           `json:"webhook_url,omitempty"`
-	WebhookAuth  WebhookAuth      `json:"webhook_auth,omitempty"`
-	State        QueueRecordState `json:"state"`
+	ID           string       `json:"id"` // matches Notification.EventID
+	QueuedAt     time.Time    `json:"queued_at"`
+	UpstreamKind string       `json:"upstream_kind"` // "gitea" | "github" | ... - looked up by registry
+	Notification Notification `json:"notification"`
+	// WebhookURL + WebhookAuth are read only from records queued before the
+	// webhook was resolved from gateway.toml at delivery time; new records
+	// leave them empty so no secret is written to the queue or deadletter.
+	WebhookURL  string           `json:"webhook_url,omitempty"`
+	WebhookAuth WebhookAuth      `json:"webhook_auth,omitempty"`
+	State       QueueRecordState `json:"state"`
 	// LoopConfig drives the per-PR loop state machine (attempt count + bot
 	// rotation) at delivery time, when the PR number is finally known. Set by
 	// pre-receive from the repo's [notification.loop]/[mention] config. Zero
 	// (MaxAttempts 0) means "no loop tracking" - the delivery still posts the
 	// comment, it just doesn't advance attempt counters.
-	LoopConfig       LoopConfig `json:"loop_config,omitempty"`
-	DeliveryAttempts int        `json:"delivery_attempts"`
-	LastError        string     `json:"last_error,omitempty"`
-	NextRetryAt      time.Time  `json:"next_retry_at,omitempty"`
+	LoopConfig LoopConfig `json:"loop_config,omitempty"`
+	// Cooldown pauses delivery for a PR whose rejects arrive faster than the
+	// threshold. Zero means no cooldown.
+	Cooldown CooldownConfig `json:"cooldown,omitempty"`
+	// OmitPRPeople is [notification.mention] include-pr-assignees = false:
+	// the comment tags no assignees or reviewers. Negated so records queued
+	// before the field existed keep the default (tag them).
+	OmitPRPeople bool `json:"omit_pr_people,omitempty"`
+	// Delivery is the repo's [notification.delivery] retry policy. Zero
+	// fields fall back to the daemon defaults.
+	Delivery         DeliveryPolicy `json:"delivery,omitempty"`
+	DeliveryAttempts int            `json:"delivery_attempts"`
+	LastError        string         `json:"last_error,omitempty"`
+	NextRetryAt      time.Time      `json:"next_retry_at,omitempty"`
+}
+
+// DeliveryPolicy is the per-repo retry cap and backoff schedule.
+type DeliveryPolicy struct {
+	MaxAttempts int             `json:"max_attempts,omitempty"`
+	Backoff     []time.Duration `json:"backoff,omitempty"`
 }
 
 // QueueRecordState carries the per-PR state references the orchestrator needs
@@ -51,10 +71,18 @@ type WebhookAuth struct {
 }
 
 // AppendQueueRecord writes one record as a JSON line to path (created if
-// absent, mode 0600). Atomic per-line: a partial write doesn't corrupt
-// previously appended records because each line ends with '\n' and parsers
-// skip malformed lines (see ReadQueueRecords).
-func AppendQueueRecord(path string, rec QueueRecord) (err error) {
+// absent, mode 0600), under the path's lock so it cannot land between a
+// rewriter's read and rename.
+func AppendQueueRecord(path string, rec QueueRecord) error {
+	unlock, err := LockFile(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return appendQueueRecord(path, rec)
+}
+
+func appendQueueRecord(path string, rec QueueRecord) error {
 	if rec.QueuedAt.IsZero() {
 		rec.QueuedAt = time.Now().UTC()
 	}
@@ -62,6 +90,10 @@ func AppendQueueRecord(path string, rec QueueRecord) (err error) {
 	if err != nil {
 		return err
 	}
+	return appendLine(path, b)
+}
+
+func appendLine(path string, b []byte) (err error) {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
@@ -112,6 +144,11 @@ func ReadQueueRecords(path string) ([]QueueRecord, error) {
 // from a delivery attempt: drop the record from the queue after the upstream
 // API accepted it.
 func RemoveQueueRecord(path, id string) error {
+	unlock, err := LockFile(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	records, err := ReadQueueRecords(path)
 	if err != nil {
 		return err
@@ -128,28 +165,48 @@ func RemoveQueueRecord(path, id string) error {
 	return writeQueueAtomic(path, filtered)
 }
 
-// MoveToDeadletter removes the record from queuePath and appends it to
-// deadletterPath. Used when DeliveryAttempts exceeds the configured cap.
-// Two-step: append to deadletter first (ensure record is not lost if the
-// queue rewrite fails), then remove from queue.
-func MoveToDeadletter(queuePath, deadletterPath, id string) error {
+// MarkDelivered removes a delivered record from the queue and records the
+// delivery in the repo's outcomes file.
+func MarkDelivered(queuePath, id string) error {
+	if err := RemoveQueueRecord(queuePath, id); err != nil {
+		return err
+	}
+	return AppendOutcome(filepath.Join(filepath.Dir(queuePath), OutcomesFile), id, OutcomeDelivered)
+}
+
+// MoveToDeadletter removes the record with rec.ID from queuePath and appends
+// rec - the caller's copy, carrying the final attempt count and last error -
+// to deadletterPath. Append to the deadletter first so the record is not lost
+// if the queue rewrite fails. Missing ID = no-op.
+func MoveToDeadletter(queuePath, deadletterPath string, rec QueueRecord) error {
+	unlockQ, err := LockFile(queuePath)
+	if err != nil {
+		return err
+	}
+	defer unlockQ()
 	records, err := ReadQueueRecords(queuePath)
 	if err != nil {
 		return err
 	}
-	var found *QueueRecord
+	found := false
 	filtered := make([]QueueRecord, 0, len(records))
-	for i, r := range records {
-		if r.ID == id {
-			found = &records[i]
+	for _, r := range records {
+		if r.ID == rec.ID {
+			found = true
 			continue
 		}
 		filtered = append(filtered, r)
 	}
-	if found == nil {
+	if !found {
 		return nil
 	}
-	if err := AppendQueueRecord(deadletterPath, *found); err != nil {
+	unlockD, err := LockFile(deadletterPath)
+	if err != nil {
+		return err
+	}
+	err = appendQueueRecord(deadletterPath, rec)
+	unlockD()
+	if err != nil {
 		return err
 	}
 	return writeQueueAtomic(queuePath, filtered)
@@ -160,6 +217,11 @@ func MoveToDeadletter(queuePath, deadletterPath, id string) error {
 // NextRetryAt + LastError after a failed delivery (the record stays in the
 // queue for the next backoff window). Missing ID = no-op.
 func UpdateQueueRecord(path string, rec QueueRecord) error {
+	unlock, err := LockFile(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	records, err := ReadQueueRecords(path)
 	if err != nil {
 		return err
@@ -185,8 +247,13 @@ func UpdateQueueRecord(path string, rec QueueRecord) error {
 // moot, and delivering one AFTER the resolution would flip the ✅ comment back to
 // ⛔ - the resolution clears the PR state, so a late reject starts a fresh
 // attempt 1 and re-opens the loop. The just-appended resolution record is kept.
-// Returns the number removed.
+// Each dropped record is noted in the outcomes file. Returns the number removed.
 func RemovePendingRejectsForRef(path, ref string) (int, error) {
+	unlock, err := LockFile(path)
+	if err != nil {
+		return 0, err
+	}
+	defer unlock()
 	records, err := ReadQueueRecords(path)
 	if err != nil {
 		return 0, err
@@ -195,21 +262,25 @@ func RemovePendingRejectsForRef(path, ref string) (int, error) {
 		return 0, nil
 	}
 	kept := make([]QueueRecord, 0, len(records))
-	removed := 0
+	var removed []string
 	for _, r := range records {
 		if r.Notification.Event != "push.resolved" && r.Notification.Event != "push.overlap" && recordTargetsRef(r, ref) {
-			removed++
+			removed = append(removed, r.ID)
 			continue
 		}
 		kept = append(kept, r)
 	}
-	if removed == 0 {
+	if len(removed) == 0 {
 		return 0, nil
 	}
 	if err := writeQueueAtomic(path, kept); err != nil {
 		return 0, err
 	}
-	return removed, nil
+	outcomes := filepath.Join(filepath.Dir(path), OutcomesFile)
+	for _, id := range removed {
+		_ = AppendOutcome(outcomes, id, OutcomeDropped)
+	}
+	return len(removed), nil
 }
 
 // recordTargetsRef reports whether the record's notification is for `ref`.
@@ -228,6 +299,11 @@ func recordTargetsRef(r QueueRecord, ref string) bool {
 // a bad upstream token: without it, records that failed for an hour sit on a
 // multi-hour backoff before the fix takes effect. Returns the number reset.
 func ResetQueueBackoff(path string) (int, error) {
+	unlock, err := LockFile(path)
+	if err != nil {
+		return 0, err
+	}
+	defer unlock()
 	records, err := ReadQueueRecords(path)
 	if err != nil {
 		return 0, err
@@ -252,6 +328,16 @@ func ResetQueueBackoff(path string) (int, error) {
 // window can be retried once the token is fixed - without server access. Returns
 // the number requeued.
 func RequeueDeadletter(queuePath, deadletterPath string) (int, error) {
+	unlockQ, err := LockFile(queuePath)
+	if err != nil {
+		return 0, err
+	}
+	defer unlockQ()
+	unlockD, err := LockFile(deadletterPath)
+	if err != nil {
+		return 0, err
+	}
+	defer unlockD()
 	dead, err := ReadQueueRecords(deadletterPath)
 	if err != nil {
 		return 0, err
@@ -263,7 +349,7 @@ func RequeueDeadletter(queuePath, deadletterPath string) (int, error) {
 		dead[i].NextRetryAt = time.Time{}
 		dead[i].DeliveryAttempts = 0
 		dead[i].LastError = ""
-		if err := AppendQueueRecord(queuePath, dead[i]); err != nil {
+		if err := appendQueueRecord(queuePath, dead[i]); err != nil {
 			return 0, err
 		}
 	}
@@ -274,24 +360,19 @@ func RequeueDeadletter(queuePath, deadletterPath string) (int, error) {
 	return len(dead), nil
 }
 
-// writeQueueAtomic rewrites path with records via temp + rename. If the
-// rewrite is interrupted, the original file is unchanged.
-// Close is explicit (not deferred) because the temp file must be closed
-// before os.Rename; a defer would close after the return value is set,
-// which is after Rename runs.
+// writeQueueAtomic rewrites path with records via a temp file in the same
+// directory + rename. If the rewrite is interrupted, the original file is
+// unchanged. Callers hold the path's lock.
 func writeQueueAtomic(path string, records []QueueRecord) error {
-	tmp := path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
+	tmp := f.Name()
 	abort := func(origErr error) error {
-		if cerr := f.Close(); cerr != nil {
-			os.Remove(tmp)
-			return cerr
-		}
+		err := errors.Join(origErr, f.Close())
 		os.Remove(tmp)
-		return origErr
+		return err
 	}
 	for _, r := range records {
 		b, merr := json.Marshal(r)
@@ -306,5 +387,60 @@ func writeQueueAtomic(path string, records []QueueRecord) error {
 		os.Remove(tmp)
 		return err
 	}
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// OutcomesFile records how each record left the queue, so the feed can say
+// "delivered" from evidence instead of inferring it from absence.
+const OutcomesFile = "pr-comment-outcomes.jsonl"
+
+const (
+	OutcomeDelivered = "delivered"
+	OutcomeDropped   = "dropped" // superseded by a resolution before delivery
+)
+
+// Outcome is one line of OutcomesFile. The timestamp is tagged "queued_at" so
+// the deadletter retention prune handles this file unchanged.
+type Outcome struct {
+	ID      string    `json:"id"`
+	Outcome string    `json:"outcome"`
+	At      time.Time `json:"queued_at"`
+}
+
+// AppendOutcome appends one outcome line to path.
+func AppendOutcome(path, id, outcome string) error {
+	b, err := json.Marshal(Outcome{ID: id, Outcome: outcome, At: time.Now().UTC()})
+	if err != nil {
+		return err
+	}
+	unlock, err := LockFile(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return appendLine(path, b)
+}
+
+// ReadOutcomes returns the outcomes in path keyed by record ID. Missing file
+// = nil.
+func ReadOutcomes(path string) map[string]Outcome {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	out := map[string]Outcome{}
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for sc.Scan() {
+		var o Outcome
+		if json.Unmarshal(sc.Bytes(), &o) == nil && o.ID != "" {
+			out[o.ID] = o
+		}
+	}
+	return out
 }

@@ -43,6 +43,9 @@ type GatewayConfig struct {
 	ScanTmpDir   string        // "" = <repos-root>/_scan-tmp
 	MaxTreeBytes int64         // 0 = unlimited
 	ScanTimeout  time.Duration // 0 = no deadline
+	// HistoryWorkers is how many history chunks a push scans at once
+	// (0 = DefaultHistoryWorkers).
+	HistoryWorkers int
 }
 
 // DefaultGatewayConfig is what an operator gets with no [gateway] section.
@@ -56,9 +59,10 @@ func DefaultGatewayConfig() GatewayConfig {
 // (explicitly unlimited).
 type gatewayTOML struct {
 	Gateway struct {
-		ScanTmpDir   *string `toml:"scan_tmpdir"`
-		MaxTreeBytes *int64  `toml:"max_tree_bytes"`
-		ScanTimeout  *string `toml:"scan_timeout"`
+		ScanTmpDir     *string `toml:"scan_tmpdir"`
+		MaxTreeBytes   *int64  `toml:"max_tree_bytes"`
+		ScanTimeout    *string `toml:"scan_timeout"`
+		HistoryWorkers *int    `toml:"history_workers"`
 	} `toml:"gateway"`
 }
 
@@ -75,7 +79,7 @@ func LoadGatewayConfig(policyRoot string) (GatewayConfig, error) {
 // TOML that parses cleanly and does nothing, which is how an operator ends up
 // staring at an unchanged dashboard - so they are matched by name wherever they
 // appear and reported.
-var gatewayKnobs = map[string]bool{"scan_tmpdir": true, "max_tree_bytes": true, "scan_timeout": true}
+var gatewayKnobs = map[string]bool{"scan_tmpdir": true, "max_tree_bytes": true, "scan_timeout": true, "history_workers": true}
 
 // InspectGatewayConfig is LoadGatewayConfig plus every reason the file might not
 // be doing what its author intended: a parse failure, a knob outside [gateway],
@@ -162,6 +166,12 @@ func inspectGatewayConfig(policyRoot string) (GatewayConfig, []string, error) {
 			return cfg, issues, fmt.Errorf("gateway: scan_timeout must be >= 0 (0 = no deadline); got %s", d)
 		}
 		cfg.ScanTimeout = d
+	}
+	if raw.Gateway.HistoryWorkers != nil {
+		if *raw.Gateway.HistoryWorkers < 0 {
+			return cfg, issues, fmt.Errorf("gateway: history_workers must be >= 0 (0 = automatic); got %d", *raw.Gateway.HistoryWorkers)
+		}
+		cfg.HistoryWorkers = *raw.Gateway.HistoryWorkers
 	}
 	return cfg, issues, nil
 }

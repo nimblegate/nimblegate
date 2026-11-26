@@ -39,6 +39,10 @@ type NotificationStatus struct {
 	DeliveredAt      time.Time `json:"delivered_at,omitempty"`
 	DeliveryAttempts int       `json:"delivery_attempts,omitempty"`
 	Deadlettered     bool      `json:"deadlettered,omitempty"`
+	// Set at read time only (CorrelateNotificationStatus): the record left the
+	// queue superseded by a resolution, or left it with no recorded outcome.
+	Dropped bool `json:"dropped,omitempty"`
+	Unknown bool `json:"unknown,omitempty"`
 }
 
 // AppendAudit appends one record as a JSON line to path (created if absent).

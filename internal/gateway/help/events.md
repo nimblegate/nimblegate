@@ -15,7 +15,7 @@ Raw audit-log stream: every event the gateway has logged, including the ones tha
 
 ## Common gotchas
 
-- Events are append-only and on-disk; nothing here can be edited or deleted from the UI.
+- Events are on-disk and can't be edited or deleted from the UI. The maintenance loop drops events older than `[maintenance.events] retention` (default `720h`, 30 days) in `<policy-root>/gateway.toml`.
 - Credential-update events have no payload, just the fact and the timestamp.
 - **Process restarts** (crashes, manual restart, container recreates) don't appear here. For the container install they go to `docker logs nimblegate`; for bare-metal they go to the systemd journal (`journalctl -u nimblegate-dashboard.service`, the unit name kept the v0.1.0 codename). The dashboard does emit a **`build-update`** event when the running binary's SHA differs from the prior start (formatted `build abc1234 → build d9fe903`, with `(dirty)` appended when the binary was built from a working tree with uncommitted changes), so a real version change always shows up here. A restart that loads the *same* binary is silent in events; the process log is the right place to see it.
 

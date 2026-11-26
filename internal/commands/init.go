@@ -129,7 +129,7 @@ func initAtWith(root string, args []string, stdin io.Reader, stdout, stderr io.W
 		return 2
 	}
 
-	fmt.Printf("nimblegate init: applied kit %q (%d frames). Dashboard: nimblegate gateway start\n",
+	fmt.Printf("nimblegate init: applied kit %q (%d frames). Dashboard: nimblegate gateway dashboard\n",
 		*kitName, len(enabled))
 
 	// If this is a git repo, install the pre-commit hook.
