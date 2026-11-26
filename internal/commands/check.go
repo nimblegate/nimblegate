@@ -71,6 +71,7 @@ func Check(args []string) int {
 	// stay loaded for queries (history/list/info) but never fire.
 	gatedStdlib, skippedStdlib := filterGated(stdlibFrames)
 	gatedProject, skippedProject := filterGated(projectFrames)
+	gatedProject, unboundProject := splitUnboundProject(gatedProject)
 	totalSkipped := len(skippedStdlib) + len(skippedProject)
 
 	e, err := engine.New(engine.Options{
@@ -117,7 +118,11 @@ func Check(args []string) int {
 	// Load the project whitelist (V0.5 spec §6). Missing file is fine;
 	// any load failure is fatal - the whole point of fail-closed is that
 	// a broken whitelist never silently grants exemptions.
-	wl, err := whitelist.LoadFromProject(root, knownIDsWithLinters(e), time.Now().UTC())
+	wlKnown := knownIDsWithLinters(e)
+	for _, f := range unboundProject {
+		wlKnown[f.ID()] = true
+	}
+	wl, err := whitelist.LoadFromProject(root, wlKnown, time.Now().UTC())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "nimblegate check: %v\n", err)
 		return 2
@@ -141,6 +146,9 @@ func Check(args []string) int {
 	}
 
 	engine.FormatLoadWarnings(os.Stdout, loadErrs)
+	if msg := wildcardDeprecation(e.ProjectConfig.Frames.Enabled); msg != "" {
+		fmt.Println(msg)
+	}
 	// A marker naming a frame that does not exist suppresses nothing and says
 	// nothing, so the user sees a finding they believed was silenced. Validate
 	// against every frame that EXISTS, not the enabled set: suppressing a frame
@@ -151,6 +159,7 @@ func Check(args []string) int {
 	// non-zero), but kept out of the task ledger below: it is config to fix,
 	// not code.
 	shown := append(append([]engine.CheckResult{}, filtered...), engine.PolicyEntriesResults(e.EnabledExpanded, known)...)
+	shown = append(shown, unboundProjectResults(unboundProject, e.EnabledExpanded)...)
 	exit := engine.FormatResults(os.Stdout, shown)
 
 	// Phase 1 Slice 4: surface lifecycle-filtered frames as a one-line
@@ -183,6 +192,61 @@ func Check(args []string) int {
 	// Broken frames don't fail the gate by themselves - they're already
 	// surfaced via the banner. Keep exit driven by BLOCK/ERROR results.
 	return exit
+}
+
+// splitUnboundProject separates project frames that have a Go check (they
+// override a stdlib frame of the same ID) from markdown-only ones, which can
+// never run.
+func splitUnboundProject(project []frames.Frame) (bound, unbound []frames.Frame) {
+	funcs := BuiltinCheckFuncs()
+	for _, f := range project {
+		if funcs[f.ID()] != nil {
+			bound = append(bound, f)
+		} else {
+			unbound = append(unbound, f)
+		}
+	}
+	return bound, unbound
+}
+
+func unboundProjectMsg(id string) string {
+	return fmt.Sprintf("project frames can only override stdlib frame metadata/severity; %s has no check", frames.SanitizeForOutput(id))
+}
+
+// unboundProjectResults reports each enabled markdown-only project frame as a
+// WARN. Shown, not audited or tracked as a task: it is config to fix, and an
+// ERROR would fail every run over a frame that cannot check anything.
+func unboundProjectResults(unbound []frames.Frame, enabled []string) []engine.CheckResult {
+	var out []engine.CheckResult
+	for _, f := range unbound {
+		if !isFrameEnabledByPatterns(f.ID(), enabled) {
+			continue
+		}
+		out = append(out, engine.CheckResult{
+			FrameID:  f.ID(),
+			Category: f.Frontmatter.Category,
+			Outcome:  engine.OutcomeWarn,
+			Reason:   unboundProjectMsg(f.ID()),
+		})
+	}
+	return out
+}
+
+// wildcardDeprecation returns the one-line notice for [frames] enabled
+// entries using the removed "category/*" syntax, or "" when there are none.
+// Such entries still expand so existing configs keep gating.
+func wildcardDeprecation(enabled []string) string {
+	var wild []string
+	for _, e := range enabled {
+		if strings.HasSuffix(e, "/*") {
+			wild = append(wild, e)
+		}
+	}
+	if len(wild) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("Deprecated: [frames] enabled uses wildcard entries (%s); they still apply, but list frame IDs or apply a kit instead (`nimblegate lint` shows how).",
+		strings.Join(engine.PolicyEntryLabels(wild), ", "))
 }
 
 // knownIDsWithLinters is the frame-ID set the whitelist loader validates

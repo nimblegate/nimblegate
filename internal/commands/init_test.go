@@ -65,6 +65,14 @@ func TestInitKitNone(t *testing.T) {
 	}
 }
 
+func TestInitPointsAtGatewayDashboard(t *testing.T) {
+	tmp := t.TempDir()
+	out := captureStdout(t, func() int { return initAt(tmp, []string{}) })
+	if !strings.Contains(out, "Dashboard: nimblegate gateway dashboard") {
+		t.Errorf("init output should name `nimblegate gateway dashboard`; got: %s", out)
+	}
+}
+
 func TestInitKitUnknown(t *testing.T) {
 	tmp := t.TempDir()
 	rc := initAt(tmp, []string{"--kit", "nonsense"})

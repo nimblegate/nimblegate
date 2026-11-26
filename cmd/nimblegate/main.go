@@ -109,10 +109,10 @@ Subcommands:
   check           Run all enabled frames against the current project (CLI trigger)
   init            Scaffold appframes.toml + .appframes/ in the current project
   lint            Validate every frame (stdlib + project) without running checks
-  list            Browse loaded frames; filter by --group / --tag; --json output
+  list            Browse loaded frames; filter by --kit / --tag; --json output
   info            Show one frame's full details (frontmatter + body)
-  enable          Add a frame ID / @group / wildcard to appframes.toml enabled list
-  disable         Remove a frame ID / @group / wildcard from appframes.toml enabled list
+  enable          Add a frame ID to appframes.toml enabled list (kits apply for sets)
+  disable         Remove a frame ID from appframes.toml enabled list
   whitelist       Manage the project whitelist (subcommand: list)
   incident        Capture footguns as drafts, promote them into new frames (subcommands: new, list, promote)
   intro           Print the rich project-context banner (what nimblegate is, active frames, anti-bypass rules)
