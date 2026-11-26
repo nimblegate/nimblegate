@@ -5,6 +5,7 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,6 +26,10 @@ type Orchestrator struct {
 	Render     func(Notification) string // typically render.Comment
 	PolicyRoot string                    // for PRState persistence
 	Now        func() time.Time          // nil = time.Now().UTC()
+	// Webhooks maps repo name to its current webhook config, rebuilt from
+	// gateway.toml by the caller so a corrected URL or rotated secret applies
+	// to records already queued.
+	Webhooks map[string]WebhookTarget
 }
 
 // CooldownError is returned by DeliverOne while the record's PR is in a loop
@@ -49,12 +54,30 @@ func (o *Orchestrator) now() time.Time {
 // Returns nil on success (caller removes the queue record). Returns an
 // error wrapping upstream.ErrTransient or ErrPermanent so the daemon can
 // classify it for retry vs deadletter routing.
+//
+// The webhook is attempted even when the PR-comment side failed, and both
+// errors are returned joined. A retry after a webhook-only failure re-runs the
+// comment step, which is idempotent: the sticky comment is updated in place and
+// the loop step is not re-applied (PRState.LastEventID). The webhook may then
+// receive the same event_id twice, which is what the idempotency key is for.
 func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 	// An overlap is advisory and has no PR side, so it skips the upstream
 	// entirely: the webhook is its only channel.
 	if rec.Notification.Event == "push.overlap" {
 		return o.deliverWebhook(ctx, rec)
 	}
+	commentErr := o.deliverComment(ctx, &rec)
+	var cd *CooldownError
+	if errors.As(commentErr, &cd) {
+		return commentErr
+	}
+	return errors.Join(commentErr, o.deliverWebhook(ctx, rec))
+}
+
+// deliverComment is the PR side of DeliverOne: find the PR, advance the loop,
+// upsert the sticky comment. It enriches rec.Notification (PR, mention, loop
+// state) for the webhook payload that follows.
+func (o *Orchestrator) deliverComment(ctx context.Context, rec *QueueRecord) error {
 	adapter, err := o.Upstreams.LookupByURL(rec.Notification.Repo.UpstreamURL)
 	if err != nil {
 		return fmt.Errorf("%w: %v", upstream.ErrPermanent, err)
@@ -77,12 +100,9 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 	if rec.Notification.Event == "push.resolved" {
 		if pr != nil {
 			rec.Notification.Push.PR = &PRInfo{Number: pr.Number, URL: pr.URL}
-			var sticky *upstream.Comment
-			if rec.State.StickyCommentID != "" {
-				sticky, _ = adapter.FindStickyComment(ctx, pr, rec.State.StickyCommentID)
-			}
-			if sticky == nil {
-				sticky, _ = adapter.ScanForMarker(ctx, pr, "<!-- nimblegate-data:")
+			sticky, err := findSticky(ctx, adapter, pr, rec.State.StickyCommentID)
+			if err != nil {
+				return err
 			}
 			if sticky != nil {
 				if err := adapter.UpdateComment(ctx, sticky, o.Render(rec.Notification)); err != nil {
@@ -110,6 +130,10 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 		if err != nil {
 			return fmt.Errorf("read PR people: %w", err)
 		}
+		tagged := people
+		if rec.OmitPRPeople {
+			tagged = upstream.PRPeople{}
+		}
 		// Augment notification with live PR info (assignees, mention)
 		rec.Notification.Push.PR = &PRInfo{
 			Number:    pr.Number,
@@ -127,7 +151,7 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 		var loopState PRState
 		if trackLoop && retry {
 			loopState = *prev
-			applyLoopState(&rec.Notification, loopState, people)
+			applyLoopState(&rec.Notification, loopState, tagged)
 		} else if trackLoop {
 			loopState = Transition(prev, RejectEvent{
 				Findings: rec.Notification.Decision.Findings,
@@ -144,12 +168,12 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 			if prev != nil {
 				loopState.StickyComment = prev.StickyComment // keep sticky ref across attempts
 			}
-			applyLoopState(&rec.Notification, loopState, people)
+			applyLoopState(&rec.Notification, loopState, tagged)
 		} else {
 			if rec.Notification.Mention == nil {
 				rec.Notification.Mention = &MentionInfo{}
 			}
-			rec.Notification.Mention.AutoTaggedHumans = dedupeHumans(people, rec.Notification.Mention.CurrentBot)
+			rec.Notification.Mention.AutoTaggedHumans = dedupeHumans(tagged, rec.Notification.Mention.CurrentBot)
 		}
 
 		// 3. Sticky lookup - try by ID first, fall back to marker scan
@@ -157,12 +181,9 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 		if trackLoop {
 			stickyID = loopState.StickyComment.ID
 		}
-		var sticky *upstream.Comment
-		if stickyID != "" {
-			sticky, _ = adapter.FindStickyComment(ctx, pr, stickyID)
-		}
-		if sticky == nil {
-			sticky, _ = adapter.ScanForMarker(ctx, pr, "<!-- nimblegate-data:")
+		sticky, err := findSticky(ctx, adapter, pr, stickyID)
+		if err != nil {
+			return err
 		}
 
 		// 4. Render markdown body
@@ -199,23 +220,58 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 			_ = WritePRState(o.PolicyRoot, repoName, pr.Number, loopState)
 		}
 	}
-
-	// 6. Webhook ALWAYS fires when configured, regardless of PR comment outcome
-	return o.deliverWebhook(ctx, rec)
+	return nil
 }
 
-// deliverWebhook POSTs the notification to the record's webhook URL. No URL
+// findSticky looks the sticky comment up by ID, falling back to a marker scan.
+// A lookup error is transient rather than "no sticky": creating a comment on a
+// failed lookup would leave a duplicate sticky on the PR.
+func findSticky(ctx context.Context, adapter upstream.Upstream, pr *upstream.PullRequest, id string) (*upstream.Comment, error) {
+	if id != "" {
+		c, err := adapter.FindStickyComment(ctx, pr, id)
+		if err != nil {
+			return nil, fmt.Errorf("%w: find sticky comment: %v", upstream.ErrTransient, err)
+		}
+		if c != nil {
+			return c, nil
+		}
+	}
+	c, err := adapter.ScanForMarker(ctx, pr, "<!-- nimblegate-data:")
+	if err != nil {
+		return nil, fmt.Errorf("%w: scan for sticky comment: %v", upstream.ErrTransient, err)
+	}
+	return c, nil
+}
+
+// WebhookTarget is a repo's webhook URL + auth as configured in gateway.toml.
+type WebhookTarget struct {
+	URL  string
+	Auth WebhookAuth
+}
+
+// webhookFor resolves the webhook from the current per-repo config. A repo
+// absent from Webhooks (or a nil map) falls back to the URL stored on records
+// queued before delivery-time resolution existed.
+func (o *Orchestrator) webhookFor(rec QueueRecord) WebhookTarget {
+	if t, ok := o.Webhooks[rec.Notification.Repo.Name]; ok {
+		return t
+	}
+	return WebhookTarget{URL: rec.WebhookURL, Auth: rec.WebhookAuth}
+}
+
+// deliverWebhook POSTs the notification to the repo's webhook URL. No URL
 // configured is a successful no-op.
 func (o *Orchestrator) deliverWebhook(ctx context.Context, rec QueueRecord) error {
-	if rec.WebhookURL == "" {
+	target := o.webhookFor(rec)
+	if target.URL == "" {
 		return nil
 	}
 	payload, err := json.Marshal(rec.Notification)
 	if err != nil {
 		return fmt.Errorf("%w: marshal notification: %v", upstream.ErrPermanent, err)
 	}
-	auth := webhook.Auth{Mode: rec.WebhookAuth.Mode, Secret: rec.WebhookAuth.Secret, HeaderName: rec.WebhookAuth.HeaderName}
-	if err := o.Webhook.Deliver(ctx, rec.WebhookURL, payload, auth); err != nil {
+	auth := webhook.Auth{Mode: target.Auth.Mode, Secret: target.Auth.Secret, HeaderName: target.Auth.HeaderName}
+	if err := o.Webhook.Deliver(ctx, target.URL, payload, auth); err != nil {
 		return fmt.Errorf("webhook: %w", err)
 	}
 	return nil

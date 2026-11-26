@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"nimblegate/internal/gateway/upstream"
 )
 
 // Daemon polls all repos' queue files and drains pending notification
@@ -89,11 +91,18 @@ func (d *Daemon) drainQueue(ctx context.Context, queuePath, deadletterPath strin
 				continue
 			}
 			log.Printf("notification daemon: deliver %s (repo %s): %v", rec.ID, rec.Notification.Repo.Name, err)
+			maxAttempts, backoff := d.Config.DeliveryMaxAttempts, d.Config.Backoff
+			if rec.Delivery.MaxAttempts > 0 {
+				maxAttempts = rec.Delivery.MaxAttempts
+			}
+			if len(rec.Delivery.Backoff) > 0 {
+				backoff = rec.Delivery.Backoff
+			}
 			rec.DeliveryAttempts++
 			rec.LastError = err.Error()
-			rec.NextRetryAt = d.Now().Add(computeBackoff(rec.DeliveryAttempts, d.Config.Backoff))
-			if rec.DeliveryAttempts >= d.Config.DeliveryMaxAttempts {
-				if mErr := MoveToDeadletter(queuePath, deadletterPath, rec.ID); mErr != nil {
+			rec.NextRetryAt = d.Now().Add(computeBackoff(rec.DeliveryAttempts, backoff))
+			if rec.DeliveryAttempts >= maxAttempts || isPermanent(err) {
+				if mErr := MoveToDeadletter(queuePath, deadletterPath, rec); mErr != nil {
 					log.Printf("notification daemon: move to deadletter %s: %v", rec.ID, mErr)
 				}
 				continue
@@ -103,10 +112,17 @@ func (d *Daemon) drainQueue(ctx context.Context, queuePath, deadletterPath strin
 			}
 			continue
 		}
-		if rErr := RemoveQueueRecord(queuePath, rec.ID); rErr != nil {
+		if rErr := MarkDelivered(queuePath, rec.ID); rErr != nil {
 			log.Printf("notification daemon: remove delivered record %s: %v", rec.ID, rErr)
 		}
 	}
+}
+
+// isPermanent reports whether retrying err cannot help (bad credential, 404,
+// undecodable response). An error joining a transient part with a permanent
+// one stays retryable, since the transient part may yet succeed.
+func isPermanent(err error) bool {
+	return errors.Is(err, upstream.ErrPermanent) && !errors.Is(err, upstream.ErrTransient)
 }
 
 // resolveDefaults fills in zero-valued config + Now from the spec defaults.

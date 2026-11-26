@@ -158,9 +158,9 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 	for _, r := range refs {
 		suppressed = append(suppressed, suppByRef[r.Name]...)
 	}
-	// Notification rail (additive - gated on per-repo config). Pre-receive only
-	// fires for true rejects under enforcement; observe-mode would-blocks are
-	// relayed and tracked via the audit-log path, not the notification rail.
+	// Notification rail (additive - gated on per-repo config). Pre-receive
+	// fires for true rejects under enforcement; observe-mode would-blocks
+	// notify (as "push.observed") only with observe-pr-comments = true.
 	// Build the notification BEFORE writing the audit record so the record can
 	// carry the notification's EventID. The audit log is append-only and the
 	// daemon delivers asynchronously, so the record stores only "a notification
@@ -171,7 +171,7 @@ func RunPreReceive(d PreReceiveDeps, stdin io.Reader, stdout io.Writer) int {
 	// Scan failure notifies even under observe: observe suppresses policy
 	// rejects by design, but a gate that could not evaluate the push is an
 	// outage, and in observe mode nothing else would tell the operator.
-	willNotify := !dec.Accept && notifEnabled && (!d.Policy.Observe || dec.ScanFailed)
+	willNotify := !dec.Accept && notifEnabled && (!d.Policy.Observe || dec.ScanFailed || d.NotificationConfig.ObservePRComments)
 
 	var notif notification.Notification
 	var notifStatus *NotificationStatus
@@ -302,7 +302,7 @@ func buildNotification(d PreReceiveDeps, refs []RefUpdate, dec Decision, suppres
 	in := notification.BuildInput{
 		Repo:        d.Policy.Repo,
 		UpstreamURL: d.Policy.UpstreamURL,
-		Observed:    d.Policy.Observe, // true only on the scan-failure path; policy rejects are gated to non-observe upstream
+		Observed:    d.Policy.Observe, // observe mode reaches here on a scan failure or with observe-pr-comments
 		Refs:        toBuildRefs(refs),
 		Findings:    toBuildFindings(dec.Findings),
 		Suppressed:  toBuildSuppressions(suppressed),
@@ -321,27 +321,33 @@ func enqueueNotification(d PreReceiveDeps, notif notification.Notification) erro
 		ID:           notif.EventID,
 		Notification: notif,
 		UpstreamKind: d.NotificationConfig.UpstreamKind,
-		WebhookURL:   d.NotificationConfig.WebhookURL,
-		WebhookAuth:  d.NotificationConfig.WebhookAuth,
 		// Carry the loop config so the daemon can advance the per-PR attempt
 		// counter / bot rotation when it resolves the PR at delivery time.
-		LoopConfig: d.NotificationConfig.LoopCfg,
-		Cooldown:   d.NotificationConfig.Cooldown,
+		LoopConfig:   d.NotificationConfig.LoopCfg,
+		Cooldown:     d.NotificationConfig.Cooldown,
+		OmitPRPeople: !d.NotificationConfig.Mention.IncludePRAssignees,
+		Delivery:     deliveryPolicy(d.NotificationConfig),
 	}
 	if err := notification.AppendQueueRecord(queuePath, qrec); err != nil {
 		return err
 	}
 
-	// Opportunistic inline attempt - only if Orchestrator was injected.
-	if d.Orchestrator != nil {
+	// Opportunistic inline attempt - only if Orchestrator was injected. Not in
+	// observe mode: the push is relayed, and up to 3s of extra latency is a
+	// tell the observed agent could notice. The daemon delivers it instead.
+	if d.Orchestrator != nil && !d.Policy.Observe {
 		ctx, cancel := context.WithTimeout(context.Background(), inlineDeliveryTimeout)
 		defer cancel()
 		if err := d.Orchestrator.DeliverOne(ctx, qrec); err == nil {
-			_ = notification.RemoveQueueRecord(queuePath, qrec.ID)
+			_ = notification.MarkDelivered(queuePath, qrec.ID)
 		}
 		// Failure path: queue record stays for the daemon to drain.
 	}
 	return nil
+}
+
+func deliveryPolicy(nc *NotificationConfig) notification.DeliveryPolicy {
+	return notification.DeliveryPolicy{MaxAttempts: nc.Delivery.MaxAttempts, Backoff: nc.Delivery.BackoffSchedule}
 }
 
 // enqueueOverlap queues a webhook-only "push.overlap" record. No inline
@@ -364,8 +370,7 @@ func enqueueOverlap(d PreReceiveDeps, refs []RefUpdate, overlaps []Overlap) {
 		ID:           notif.EventID,
 		Notification: notif,
 		UpstreamKind: d.NotificationConfig.UpstreamKind,
-		WebhookURL:   d.NotificationConfig.WebhookURL,
-		WebhookAuth:  d.NotificationConfig.WebhookAuth,
+		Delivery:     deliveryPolicy(d.NotificationConfig),
 	}); err != nil {
 		_ = AppendEvent(d.PolicyRoot, Event{Event: "notification-enqueue-failed", Repo: d.Policy.Repo, OK: false, Payload: map[string]any{"error": err.Error()}})
 	}
@@ -396,8 +401,7 @@ func buildResolutions(d PreReceiveDeps, refs []RefUpdate) ([]notification.QueueR
 				ID:           notif.EventID,
 				Notification: notif,
 				UpstreamKind: d.NotificationConfig.UpstreamKind,
-				WebhookURL:   d.NotificationConfig.WebhookURL,
-				WebhookAuth:  d.NotificationConfig.WebhookAuth,
+				Delivery:     deliveryPolicy(d.NotificationConfig),
 				State: notification.QueueRecordState{
 					PRNumber:        st.PRNumber,
 					StickyCommentID: st.StickyComment.ID,

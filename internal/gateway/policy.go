@@ -63,7 +63,7 @@ type webhookTOML struct {
 
 type mentionTOML struct {
 	Default            string        `toml:"default"`
-	IncludePRAssignees bool          `toml:"include-pr-assignees"`
+	IncludePRAssignees *bool         `toml:"include-pr-assignees"` // nil = absent = true
 	Rotation           *rotationTOML `toml:"rotation,omitempty"`
 }
 
@@ -265,7 +265,9 @@ func (t *notificationTOML) toConfig() (NotificationConfig, error) {
 		if t.Mention.Default != "" {
 			mention.Default = t.Mention.Default
 		}
-		mention.IncludePRAssignees = t.Mention.IncludePRAssignees
+		if t.Mention.IncludePRAssignees != nil {
+			mention.IncludePRAssignees = *t.Mention.IncludePRAssignees
+		}
 		if t.Mention.Rotation != nil {
 			mention.RotationBots = t.Mention.Rotation.Bots
 			if t.Mention.Rotation.AttemptsPerBot > 0 {
@@ -362,7 +364,7 @@ func notificationConfigToTOML(nc *NotificationConfig) *notificationTOML {
 		},
 		Mention: &mentionTOML{
 			Default:            nc.Mention.Default,
-			IncludePRAssignees: nc.Mention.IncludePRAssignees,
+			IncludePRAssignees: &nc.Mention.IncludePRAssignees,
 			Rotation: &rotationTOML{
 				Bots:                  nc.Mention.RotationBots,
 				AttemptsPerBot:        nc.Mention.AttemptsPerBot,
