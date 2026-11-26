@@ -4,6 +4,7 @@ package notification
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -79,6 +80,14 @@ func (d *Daemon) drainQueue(ctx context.Context, queuePath, deadletterPath strin
 			continue
 		}
 		if err := d.Orchestrator.DeliverOne(ctx, rec); err != nil {
+			var cd *CooldownError
+			if errors.As(err, &cd) {
+				rec.NextRetryAt = cd.Until
+				if uErr := UpdateQueueRecord(queuePath, rec); uErr != nil {
+					log.Printf("notification daemon: update queue record %s: %v", rec.ID, uErr)
+				}
+				continue
+			}
 			log.Printf("notification daemon: deliver %s (repo %s): %v", rec.ID, rec.Notification.Repo.Name, err)
 			rec.DeliveryAttempts++
 			rec.LastError = err.Error()

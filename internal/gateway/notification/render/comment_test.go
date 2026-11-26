@@ -110,6 +110,24 @@ func TestRender_LoopExhaustion(t *testing.T) {
 	mustNotContain(t, got, "### Next steps") // exhaustion skips next-steps section
 }
 
+func TestRender_LoopExhaustedWithoutFallback_StopsBotMention(t *testing.T) {
+	n := baseNotification()
+	n.Mention = &notification.MentionInfo{CurrentBot: "@nimblegate-bot", AutoTaggedHumans: []string{"@alice"}}
+	n.LoopState = &notification.LoopState{PRAttemptCount: 6, MaxAttempts: 5, Exhausted: true,
+		PreviousAttempts: []notification.AttemptRecord{{SHA: "a1b2c3d", Bot: "@nimblegate-bot"}}}
+
+	got := Comment(n)
+	mustContain(t, got,
+		"## ⛔⛔ Loop exhausted",
+		"Human review required; the bot is no longer tagged.",
+		"@alice (assigned)",
+	)
+	visible := strings.SplitN(got, "<!-- nimblegate-data:", 2)[0]
+	if strings.Contains(strings.ReplaceAll(visible, "`@nimblegate-bot`", ""), "@nimblegate-bot") {
+		t.Errorf("exhausted comment still tags the bot outside the data block:\n%s", got)
+	}
+}
+
 func TestRender_ObserveMode(t *testing.T) {
 	n := baseNotification()
 	n.Event = "push.observed"

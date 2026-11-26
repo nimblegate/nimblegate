@@ -326,6 +326,7 @@ func enqueueNotification(d PreReceiveDeps, notif notification.Notification) erro
 		// Carry the loop config so the daemon can advance the per-PR attempt
 		// counter / bot rotation when it resolves the PR at delivery time.
 		LoopConfig: d.NotificationConfig.LoopCfg,
+		Cooldown:   d.NotificationConfig.Cooldown,
 	}
 	if err := notification.AppendQueueRecord(queuePath, qrec); err != nil {
 		return err

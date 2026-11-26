@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"nimblegate/internal/gateway/upstream"
 	"nimblegate/internal/gateway/webhook"
@@ -23,6 +24,25 @@ type Orchestrator struct {
 	Webhook    *webhook.Client
 	Render     func(Notification) string // typically render.Comment
 	PolicyRoot string                    // for PRState persistence
+	Now        func() time.Time          // nil = time.Now().UTC()
+}
+
+// CooldownError is returned by DeliverOne while the record's PR is in a loop
+// cooldown. The record is not delivered and should be retried at Until; it
+// is not a delivery failure.
+type CooldownError struct {
+	Until time.Time
+}
+
+func (e *CooldownError) Error() string {
+	return "PR loop in cooldown until " + e.Until.UTC().Format(time.RFC3339)
+}
+
+func (o *Orchestrator) now() time.Time {
+	if o.Now != nil {
+		return o.Now()
+	}
+	return time.Now().UTC()
 }
 
 // DeliverOne runs the full delivery flow for a single queue record.
@@ -72,6 +92,18 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 		}
 	} else if pr != nil {
 		repoName := rec.Notification.Repo.Name
+		now := o.now()
+
+		trackLoop := rec.LoopConfig.MaxAttempts > 0
+		var prev *PRState
+		retry := false
+		if trackLoop {
+			prev, _ = ReadPRState(o.PolicyRoot, repoName, pr.Number)
+			retry = prev != nil && prev.LastEventID == rec.ID
+			if prev != nil && !retry && now.Before(prev.Loop.CooldownUntil) {
+				return &CooldownError{Until: prev.Loop.CooldownUntil}
+			}
+		}
 
 		// 2. Read assignees + reviewers
 		people, err := adapter.ReadPRPeople(ctx, pr)
@@ -93,13 +125,17 @@ func (o *Orchestrator) DeliverOne(ctx context.Context, rec QueueRecord) error {
 		// below (with any new sticky id). With no loop config (e.g. unit tests
 		// driving DeliverOne directly), the bare path runs exactly as before.
 		var loopState PRState
-		trackLoop := rec.LoopConfig.MaxAttempts > 0
-		if trackLoop {
-			prev, _ := ReadPRState(o.PolicyRoot, repoName, pr.Number)
+		if trackLoop && retry {
+			loopState = *prev
+			applyLoopState(&rec.Notification, loopState, people)
+		} else if trackLoop {
 			loopState = Transition(prev, RejectEvent{
 				Findings: rec.Notification.Decision.Findings,
 				PushSHA:  firstNewSHA(rec.Notification.Push.Refs),
+				Now:      now,
 			}, rec.LoopConfig)
+			loopState.Loop.CooldownUntil = ComputeCooldown(loopState.AttemptHistory, now, rec.Cooldown)
+			loopState.LastEventID = rec.ID
 			loopState.PRNumber = pr.Number
 			loopState.Repo = repoName
 			if len(rec.Notification.Push.Refs) > 0 {
@@ -191,6 +227,7 @@ func applyLoopState(n *Notification, s PRState, people upstream.PRPeople) {
 	n.LoopState = &LoopState{
 		PRAttemptCount:   s.Loop.AttemptCount,
 		MaxAttempts:      s.Loop.MaxAttempts,
+		Exhausted:        s.Loop.Exhausted,
 		PreviousAttempts: priorAttempts(s.AttemptHistory),
 	}
 	if n.Mention == nil {

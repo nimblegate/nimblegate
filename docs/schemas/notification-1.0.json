@@ -121,6 +121,7 @@
         "pr_attempt_count": { "type": "integer", "minimum": 0 },
         "max_attempts": { "type": "integer", "minimum": 1 },
         "same_finding_as_previous": { "type": "boolean" },
+        "exhausted": { "type": "boolean" },
         "previous_attempts": {
           "type": "array",
           "items": {

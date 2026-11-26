@@ -24,7 +24,7 @@ const MarkerStart = "<!-- nimblegate-data:"
 //
 //	⛔ Push rejected (default)
 //	🔄 (rotation banner inline when Mention.Rotation.RotatedFrom is set)
-//	⛔⛔ Loop exhausted (when Mention.FallbackActive == true)
+//	⛔⛔ Loop exhausted (when LoopState.Exhausted or Mention.FallbackActive)
 //	⚠ OBSERVE (when Event == "push.observed")
 func Comment(n notification.Notification) string {
 	if n.Event == "push.resolved" {
@@ -71,7 +71,7 @@ func writeStatusHeader(b *strings.Builder, n notification.Notification) {
 	switch {
 	case n.Event == "push.observed":
 		statusLine = "## ⚠ OBSERVE mode · would have rejected (push accepted + relayed)"
-	case n.Mention != nil && n.Mention.FallbackActive:
+	case loopExhausted(n):
 		statusLine = "## ⛔⛔ Loop exhausted"
 	}
 	fmt.Fprintln(b, statusLine)
@@ -109,11 +109,21 @@ func writeRotationBanner(b *strings.Builder, n notification.Notification) {
 	fmt.Fprintf(b, "🔄 **Rotated from %s** → %s - %s.\n\n", r.RotatedFrom, n.Mention.CurrentBot, reason)
 }
 
+// loopExhausted reports whether the PR's fix-loop hit its attempt ceiling.
+// Past that point the bot is no longer tagged.
+func loopExhausted(n notification.Notification) bool {
+	return (n.LoopState != nil && n.LoopState.Exhausted) || (n.Mention != nil && n.Mention.FallbackActive)
+}
+
 func writeExhaustionMessage(b *strings.Builder, n notification.Notification) {
-	if n.Mention == nil || !n.Mention.FallbackActive {
+	if !loopExhausted(n) {
 		return
 	}
-	fmt.Fprintf(b, "%s - automated fix-loop exhausted on this PR. Human review required.\n", n.Mention.CurrentBot)
+	if n.Mention != nil && n.Mention.FallbackActive {
+		fmt.Fprintf(b, "%s - automated fix-loop exhausted on this PR. Human review required.\n", n.Mention.CurrentBot)
+	} else {
+		fmt.Fprintln(b, "Automated fix-loop exhausted on this PR. Human review required; the bot is no longer tagged.")
+	}
 	if n.LoopState != nil {
 		fmt.Fprintf(b, "The agents tried %d times. The same finding persists - either the fix needs context the bots don't have, or a rule needs review.\n", n.LoopState.PRAttemptCount)
 	}
@@ -129,7 +139,7 @@ func writeMentionLine(b *strings.Builder, n notification.Notification) {
 		return
 	}
 	parts := []string{}
-	if n.Mention.CurrentBot != "" {
+	if n.Mention.CurrentBot != "" && !loopExhausted(n) {
 		parts = append(parts, n.Mention.CurrentBot)
 	}
 	for _, h := range n.Mention.AutoTaggedHumans {
@@ -186,9 +196,11 @@ func writeHistory(b *strings.Builder, n notification.Notification) {
 	}
 	fmt.Fprintf(b, "<details>\n<summary>▾ Previous attempts (%d - click to expand)</summary>\n\n", len(n.LoopState.PreviousAttempts))
 	for _, a := range n.LoopState.PreviousAttempts {
-		bot := a.Bot
-		if bot == "" {
-			bot = "-"
+		// A code span keeps the handle from re-mentioning the bot on every
+		// update; only the mention line decides who is tagged.
+		bot := "-"
+		if a.Bot != "" {
+			bot = "`" + a.Bot + "`"
 		}
 		fmt.Fprintf(b, "- `%s` · %s · %s\n", a.SHA, a.Timestamp.UTC().Format("2006-01-02 15:04 UTC"), bot)
 	}

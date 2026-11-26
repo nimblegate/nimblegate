@@ -26,9 +26,9 @@ type RejectEvent struct {
 // CooldownConfig is the subset of [notification.loop] that drives cooldown
 // per spec §6.5.
 type CooldownConfig struct {
-	ThresholdCount  int
-	ThresholdWindow time.Duration
-	Duration        time.Duration
+	ThresholdCount  int           `json:"threshold_count,omitempty"`
+	ThresholdWindow time.Duration `json:"threshold_window,omitempty"`
+	Duration        time.Duration `json:"duration,omitempty"`
 }
 
 // Transition is the PR loop state machine per spec §6.2. Pure function: given

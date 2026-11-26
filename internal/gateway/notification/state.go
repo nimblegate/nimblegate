@@ -28,6 +28,9 @@ type PRState struct {
 	Mention             MentionCounters  `json:"mention"`
 	FindingFingerprints FingerprintTrack `json:"finding_fingerprints"`
 	AttemptHistory      []HistoryEntry   `json:"attempt_history,omitempty"`
+	// LastEventID is the queue record whose transition this state holds, so
+	// a delivery retry of that record does not count as another attempt.
+	LastEventID string `json:"last_event_id,omitempty"`
 }
 
 type StickyCommentRef struct {

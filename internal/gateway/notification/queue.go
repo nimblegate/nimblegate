@@ -28,10 +28,13 @@ type QueueRecord struct {
 	// pre-receive from the repo's [notification.loop]/[mention] config. Zero
 	// (MaxAttempts 0) means "no loop tracking" - the delivery still posts the
 	// comment, it just doesn't advance attempt counters.
-	LoopConfig       LoopConfig `json:"loop_config,omitempty"`
-	DeliveryAttempts int        `json:"delivery_attempts"`
-	LastError        string     `json:"last_error,omitempty"`
-	NextRetryAt      time.Time  `json:"next_retry_at,omitempty"`
+	LoopConfig LoopConfig `json:"loop_config,omitempty"`
+	// Cooldown pauses delivery for a PR whose rejects arrive faster than the
+	// threshold. Zero means no cooldown.
+	Cooldown         CooldownConfig `json:"cooldown,omitempty"`
+	DeliveryAttempts int            `json:"delivery_attempts"`
+	LastError        string         `json:"last_error,omitempty"`
+	NextRetryAt      time.Time      `json:"next_retry_at,omitempty"`
 }
 
 // QueueRecordState carries the per-PR state references the orchestrator needs

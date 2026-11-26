@@ -121,6 +121,7 @@ type LoopState struct {
 	PRAttemptCount        int             `json:"pr_attempt_count"`
 	MaxAttempts           int             `json:"max_attempts"`
 	SameFindingAsPrevious bool            `json:"same_finding_as_previous,omitempty"`
+	Exhausted             bool            `json:"exhausted,omitempty"`
 	PreviousAttempts      []AttemptRecord `json:"previous_attempts,omitempty"`
 }
 
