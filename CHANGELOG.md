@@ -62,7 +62,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the gateway report as one WARN instead of an error; `init` prints the right
   dashboard command.
 - **The top bar's repo selector filters the Repos and Auto-PR pages** (it
-  reset to "all repos" there), and Health and Keys keep the selection.
+  reset to "all repos" there) and the per-repo checks on Health's Diagnostics
+  tab; Health's Status tab and Keys keep the selection.
 - Dashboard help pages and the docs match what the code does.
 
 ## [0.7.7] - 2026-11-25

@@ -194,7 +194,11 @@ func doctorConnectSteps(rc gateway.DoctorRepoConn) []doctorConnectStep {
 
 // healthTabStrip renders the Status / Diagnostics sub-tab strip for /health,
 // mirroring settingsTabStrip.
-func healthTabStrip(active string) string {
+func healthTabStrip(active, repo string) string {
+	repoArg := ""
+	if repo != "" {
+		repoArg = "&amp;repo=" + repo
+	}
 	cls := func(t string) string {
 		if t == active {
 			return "autopr-tab active"
@@ -208,8 +212,8 @@ func healthTabStrip(active string) string {
 .autopr-tab.active{color:var(--gw-accent);border-bottom-color:var(--gw-accent);font-weight:600}
 </style>
 <nav class="autopr-tabs">
-<a href="/health?tab=status" class="` + cls("status") + `">Status</a>
-<a href="/health?tab=diagnostics" class="` + cls("diagnostics") + `">Diagnostics</a>
+<a href="/health?tab=status` + repoArg + `" class="` + cls("status") + `">Status</a>
+<a href="/health?tab=diagnostics` + repoArg + `" class="` + cls("diagnostics") + `">Diagnostics</a>
 </nav>`
 }
 
@@ -233,6 +237,7 @@ type doctorPageVM struct {
 	Repos  []doctorRepoVM
 	Keys   []gateway.DoctorKey
 	Online bool
+	Repo   string // top-bar selection carried into the live-checks link
 }
 
 func doctorStatusClassIcon(s gateway.DoctorStatus) (string, string) {
@@ -252,7 +257,9 @@ func doctorStatusClassIcon(s gateway.DoctorStatus) (string, string) {
 // Diagnostics tab body. rawHost is r.Host (port stripped here). The live
 // connectivity checks (SSH gate dial + upstream auth) run only when online is
 // set, so a normal page view stays fast and never hangs on a slow upstream.
-func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string, online bool) template.HTML {
+// renderHealthDiagnostics runs the doctor checks; a non-empty repo (the top
+// bar's selection) limits the per-repo checks to it, gateway-wide ones stay.
+func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string, online bool, repo string) template.HTML {
 	if sshKeysPath == "" {
 		sshKeysPath = defaultAuthorizedKeysPath()
 	}
@@ -264,9 +271,10 @@ func renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, rawHost string,
 		Version:            version.Resolved(),
 		Offline:            !online,
 		PushPort:           publicSSHPort(),
+		RepoFilter:         repo,
 	})
 
-	vm := doctorPageVM{Keys: rep.Keys, Online: online}
+	vm := doctorPageVM{Keys: rep.Keys, Online: online, Repo: repo}
 	for _, c := range rep.Checks {
 		if c.Repo != "" {
 			continue
@@ -328,7 +336,7 @@ var doctorTmpl = template.Must(template.New("doctor").Funcs(template.FuncMap{"ic
 </style>
 <h2 class="gw-pagehead">Diagnostics</h2>
 <p class="gw-pagedesc">Read-only preflight: global gateway health, per-repo policy, and a copy-paste block to connect a dev machine. Nothing here changes state.</p>
-{{if .Online}}<p class="sub">Live connectivity checks ran (SSH gate dial + upstream auth).</p>{{else}}<p class="sub">Config-only view for speed. <a href="/health?tab=diagnostics&amp;online=1" style="color:var(--gw-accent)">Run live connectivity checks</a> (SSH gate + upstream auth; may take a few seconds per repo).</p>{{end}}
+{{if .Online}}<p class="sub">Live connectivity checks ran (SSH gate dial + upstream auth).</p>{{else}}<p class="sub">Config-only view for speed. <a href="/health?tab=diagnostics&amp;online=1{{if .Repo}}&amp;repo={{.Repo}}{{end}}" style="color:var(--gw-accent)">Run live connectivity checks</a> (SSH gate + upstream auth; may take a few seconds per repo).</p>{{end}}
 
 <section class="frame gw-doc-sec">
 <h3 class="gw-section-head">Global</h3>

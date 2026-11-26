@@ -440,10 +440,11 @@ func healthHandler(policyRoot, reposRoot, sshKeysPath string) http.HandlerFunc {
 			tab = "diagnostics"
 		}
 		var body bytes.Buffer
-		body.WriteString(healthTabStrip(tab))
+		repo := selectedRepo(r, policyRoot)
+		body.WriteString(healthTabStrip(tab, repo))
 		if tab == "diagnostics" {
 			online := r.URL.Query().Get("online") == "1"
-			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, r.Host, online)))
+			body.WriteString(string(renderHealthDiagnostics(policyRoot, reposRoot, sshKeysPath, r.Host, online, repo)))
 		} else {
 			now := time.Now()
 			data := collectHealth(policyRoot, reposRoot, dashStartTime, now)
@@ -458,7 +459,7 @@ func healthHandler(policyRoot, reposRoot, sshKeysPath string) http.HandlerFunc {
 		}
 		renderGwShell(w, gwLayout{
 			Title:   "gateway: health",
-			Chrome:  buildChrome("health", selectedRepo(r, policyRoot), policyRoot),
+			Chrome:  buildChrome("health", repo, policyRoot),
 			Content: template.HTML(body.String()),
 		})
 	}
