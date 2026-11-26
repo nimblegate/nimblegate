@@ -33,17 +33,18 @@ func ReadDecisions(policyRoot string, tailPerRepo int) []AuditRecord {
 // asynchronously, so a record only stores "a notification fired (EventID)" at
 // push time - the actual outcome is computed here at read time:
 //
-//	in deadletter file → deadlettered
-//	in queue file      → still queued (left as-is)
-//	in neither         → settled: it left the queue
+//	in deadletter file            → deadlettered
+//	in queue file                 → still queued (left as-is)
+//	delivered in outcomes file    → delivered (DeliveredAt = when)
+//	dropped in outcomes file      → dropped (superseded by a resolution)
+//	in none                       → unknown (pruned, or left before outcomes were recorded)
 //
-// "Settled" is the honest ceiling here. A record leaves the queue both when a
-// comment was posted and when the ref had no open PR, where the comment step is
-// skipped by design and only the webhook fires - the two are indistinguishable
-// on disk. Callers must not report this as a confirmed delivery.
+// "Delivered" means the delivery completed: the comment was posted, or the
+// ref had no open PR and only the webhook fired.
 func CorrelateNotificationStatus(repoDir string, recs []AuditRecord) {
 	queued := notifIDSet(filepath.Join(repoDir, "pr-comment-queue.jsonl"))
 	dead := notifIDSet(filepath.Join(repoDir, "pr-comment-deadletter.jsonl"))
+	outcomes := notification.ReadOutcomes(filepath.Join(repoDir, notification.OutcomesFile))
 	for i := range recs {
 		n := recs[i].Notification
 		if n == nil || n.EventID == "" {
@@ -53,16 +54,18 @@ func CorrelateNotificationStatus(repoDir string, recs []AuditRecord) {
 		if n.Deadlettered || !n.DeliveredAt.IsZero() || n.InlineSucceeded {
 			continue
 		}
+		o, hasOutcome := outcomes[n.EventID]
 		switch {
 		case dead[n.EventID]:
 			n.Deadlettered = true
 		case queued[n.EventID]:
 			// still pending - leave as queued
+		case hasOutcome && o.Outcome == notification.OutcomeDelivered:
+			n.DeliveredAt = o.At
+		case hasOutcome && o.Outcome == notification.OutcomeDropped:
+			n.Dropped = true
 		default:
-			n.DeliveredAt = n.QueuedAt
-			if n.DeliveredAt.IsZero() {
-				n.DeliveredAt = recs[i].Time
-			}
+			n.Unknown = true
 		}
 	}
 }

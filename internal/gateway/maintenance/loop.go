@@ -314,7 +314,7 @@ func (r *Runner) findBareRepos() []string {
 	var out []string
 	for _, e := range entries {
 		name := e.Name()
-		if !e.IsDir() {
+		if !entryIsDir(r.reposRoot, e) {
 			continue
 		}
 		if strings.HasPrefix(name, "_") {

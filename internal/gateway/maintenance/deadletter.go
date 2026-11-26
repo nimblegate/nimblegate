@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"nimblegate/internal/gateway/notification"
 )
 
 // defaultDeadletterRetention is the operator-tunable knob's default. 30 days
@@ -39,24 +41,48 @@ func runDeadletterPrune(now func() time.Time, policyRoot string, retention time.
 	cutoff := now().Add(-retention)
 	var out []DeadletterResult
 	for _, e := range entries {
-		if !e.IsDir() {
+		if !entryIsDir(policyRoot, e) {
 			continue
 		}
 		name := e.Name()
 		if len(name) > 0 && name[0] == '_' {
 			continue
 		}
+		// Delivery outcomes share the deadletter's retention; they are bookkeeping
+		// for the feed, not reported on /health.
+		if p := filepath.Join(policyRoot, name, notification.OutcomesFile); fileNonEmpty(p) {
+			_ = pruneLocked(now, name, p, cutoff)
+		}
 		path := filepath.Join(policyRoot, name, "pr-comment-deadletter.jsonl")
-		st, err := os.Stat(path)
-		if err != nil {
+		if !fileNonEmpty(path) {
 			continue // no deadletter file for this repo - healthy
 		}
-		if st.Size() == 0 {
-			continue
-		}
-		out = append(out, pruneOneDeadletter(now, name, path, cutoff))
+		out = append(out, pruneLocked(now, name, path, cutoff))
 	}
 	return out
+}
+
+func fileNonEmpty(path string) bool {
+	st, err := os.Stat(path)
+	return err == nil && st.Size() > 0
+}
+
+// pruneLocked holds the file's queue lock so a record the daemon appends
+// mid-rewrite is not lost.
+func pruneLocked(now func() time.Time, repo, path string, cutoff time.Time) DeadletterResult {
+	unlock, err := notification.LockFile(path)
+	if err != nil {
+		return DeadletterResult{Repo: repo, Took: now(), Err: fmt.Errorf("lock %s: %w", path, err)}
+	}
+	defer unlock()
+	return pruneOneDeadletter(now, repo, path, cutoff)
+}
+
+// entryIsDir follows symlinks: registered repos are activation symlinks
+// (<policy-root>/<name> -> _repos/<name>), for which DirEntry.IsDir is false.
+func entryIsDir(parent string, e os.DirEntry) bool {
+	fi, err := os.Stat(filepath.Join(parent, e.Name()))
+	return err == nil && fi.IsDir()
 }
 
 // pruneOneDeadletter rewrites one deadletter file in place, keeping only

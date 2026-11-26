@@ -89,7 +89,7 @@ func serveFavicon(w http.ResponseWriter, _ *http.Request) {
 // Template set: "rows" is shared by the full page and the /feed fragment.
 var gwTmpl = func() *template.Template {
 	t := template.New("gwdash").Funcs(feedFuncs)
-	template.Must(t.New("rows").Parse(`{{if .Rows}}<table class="fr"><colgroup><col class="col-loc"><col class="col-msg"><col class="col-stat"><col class="col-reset"></colgroup><thead><tr><td class="k">time</td><td class="k">location</td><td class="k">status</td><td class="k"></td></tr></thead><tbody>{{range .Rows}}<tr data-feedsev="{{feedSev .Findings}}"><td class="loc"><time class="gw-ts gw-tc-{{.Time.UTC.Hour}}" datetime="{{.Time.UTC.Format "2006-01-02T15:04:05Z"}}">{{.Time.UTC.Format "2006-01-02 15:04:05"}}Z</time></td><td class="gw-msgcell"><span class="gw-repo">{{.Repo}}</span>{{if .RefDisplays}}{{range .RefDisplays}}{{if .ShortSHA}}<button type="button" class="gw-ref gw-ref-inline" aria-expanded="false" title="show file locations">{{refBreaks .Name}}</button> {{if .URL}}<a class="gw-sha" href="{{.URL}}" target="_blank" rel="noopener" title="open commit {{.SHA}} upstream">{{.ShortSHA}}</a>{{else}}<span class="gw-sha" data-copy="{{.SHA}}" title="commit SHA: same on dev box, gateway, and upstream - click to copy">{{.ShortSHA}}</span>{{end}}<span class="gw-refend"></span>{{else}}<button type="button" class="gw-ref" aria-expanded="false" title="show file locations">{{refBreaks .Name}}</button>{{end}}{{end}}{{else}}{{range .Refs}}<button type="button" class="gw-ref" aria-expanded="false" title="show file locations">{{refBreaks .}}</button>{{end}}{{end}}{{range .Locations}}<span class="gw-rmsg">{{.}}</span>{{end}}{{if and .Messages (not .Locations)}}<span class="gw-rmsg sub">-</span>{{end}}</td><td class="gw-statcell"><span class="gw-stat">{{if .Accept}}<span class="acc">{{icon "accept"}} accept</span>{{else}}<span class="rej">{{icon "reject"}} REJECT</span>{{end}}</span>{{with .NotificationStatus}}<span class="gw-notif gw-notif-{{.Indicator}}" title="{{.Message}}">{{icon .Symbol}} {{.Message}}</span>{{end}}{{if .Findings}}<div class="gw-finds">{{range .Findings}}<span class="gw-find">{{if .Message}}<button type="button" class="fnd {{.Severity}}" aria-expanded="false" title="show rule detail">{{.Severity}} {{.ID}}</button><span class="dmsg">{{.Message}}</span>{{else}}<span class="fnd {{.Severity}}">{{.Severity}} {{.ID}}</span>{{end}}{{if eq .Origin "linter"}}<span class="gw-orig" title="from a linter configured in this gateway's policy, not a stdlib frame - it has no catalog entry, and it stops existing if the config drops it">linter</span>{{end}}</span>{{end}}</div>{{end}}{{if .Suppressed}}<div class="gw-finds"><span class="gw-find"><button type="button" class="fnd SUPP" aria-expanded="false" title="hits the gateway whitelist exempted - they did not affect this decision; click to list them">{{len .Suppressed}} suppressed</button><span class="dmsg">{{range .Suppressed}}<span class="gw-suppitem">{{if .Severity}}{{.Severity}} {{end}}{{.Frame}}{{if eq .Origin "linter"}} <span class="gw-orig" title="from a linter configured in this gateway's policy, not a stdlib frame">linter</span>{{end}} - {{.File}}{{if .Label}} - {{.Label}}{{end}}</span>{{end}}</span></span></div>{{end}}{{if .Overlaps}}<div class="gw-finds"><span class="gw-find"><a class="fnd INFO" href="/overlaps?repo={{.Repo}}" title="{{.OverlapTitle}}">overlap</a></span></div>{{end}}{{with .ActiveLoop}}<div class="gw-looprow"><span class="fnd LOOP" title="Active fix-loop on PR #{{.PRNumber}}">{{icon "loop"}} {{.AttemptCount}}/{{.MaxAttempts}}{{if .CurrentBot}} {{.CurrentBot}}{{end}}</span></div>{{end}}{{with .NotifOff}}<div class="gw-looprow"><span class="fnd WARN" title="Notifications are off for this repo, so this rejection posted no PR comment. Enable to activate the auto-PR loop.">no PR comment: notifications off</span> <a href="{{.EnableURL}}">Enable</a></div>{{end}}</td><td class="gw-resetcell">{{with .ActiveLoop}}<form class="gw-loopresetform" method="post" action="{{.ResetURL}}" hx-post="{{.ResetURL}}" hx-confirm="Reset loop state for PR #{{.PRNumber}}? This deletes the per-PR state file."><button type="submit" class="gw-loopreset" title="Reset loop state for PR #{{.PRNumber}}">Reset</button></form>{{end}}</td></tr>{{end}}</tbody></table>{{else}}<div class="frame" style="padding:18px;color:var(--gw-text-muted);background:var(--gw-bg-panel);border:1px dashed var(--gw-border);border-radius:6px"><p style="margin:0 0 8px;color:var(--gw-text-soft)"><b>No decisions yet.</b></p><p style="margin:0 0 4px;font-size:13px">Once you've authorized an SSH key and registered a repo, every push lands here as accept / reject / observed, typically within a second of the push completing.</p><p style="margin:6px 0 0;font-size:12px;color:var(--gw-text-fainter)">Setup: <a href="/ssh-keys" style="color:var(--gw-accent)">/ssh-keys</a> → <a href="/policy" style="color:var(--gw-accent)">/policy</a> → on your dev box <code>git remote set-url origin ssh://git@&lt;host&gt;:2222/~/&lt;repo&gt;.git</code> &amp; <code>git push</code> (Docker image; on a bare-metal install: <code>ssh://git@&lt;host&gt;/srv/gateway/repos/&lt;repo&gt;.git</code>. <a href="/health" style="color:var(--gw-accent)">Health</a> prints the exact URL).</p></div>{{end}}`))
+	template.Must(t.New("rows").Parse(`{{if .Rows}}<table class="fr"><colgroup><col class="col-loc"><col class="col-msg"><col class="col-stat"><col class="col-reset"></colgroup><thead><tr><td class="k">time</td><td class="k">location</td><td class="k">status</td><td class="k"></td></tr></thead><tbody>{{range .Rows}}<tr data-feedsev="{{feedSev .Findings}}"><td class="loc"><time class="gw-ts gw-tc-{{.Time.UTC.Hour}}" datetime="{{.Time.UTC.Format "2006-01-02T15:04:05Z"}}">{{.Time.UTC.Format "2006-01-02 15:04:05"}}Z</time></td><td class="gw-msgcell"><span class="gw-repo">{{.Repo}}</span>{{if .RefDisplays}}{{range .RefDisplays}}{{if .ShortSHA}}<button type="button" class="gw-ref gw-ref-inline" aria-expanded="false" title="show file locations">{{refBreaks .Name}}</button> {{if .URL}}<a class="gw-sha" href="{{.URL}}" target="_blank" rel="noopener" title="open commit {{.SHA}} upstream">{{.ShortSHA}}</a>{{else}}<span class="gw-sha" data-copy="{{.SHA}}" title="commit SHA: same on dev box, gateway, and upstream - click to copy">{{.ShortSHA}}</span>{{end}}<span class="gw-refend"></span>{{else}}<button type="button" class="gw-ref" aria-expanded="false" title="show file locations">{{refBreaks .Name}}</button>{{end}}{{end}}{{else}}{{range .Refs}}<button type="button" class="gw-ref" aria-expanded="false" title="show file locations">{{refBreaks .}}</button>{{end}}{{end}}{{range .Locations}}<span class="gw-rmsg">{{.}}</span>{{end}}{{if and .Messages (not .Locations)}}<span class="gw-rmsg sub">-</span>{{end}}</td><td class="gw-statcell"><span class="gw-stat">{{if .Accept}}<span class="acc">{{icon "accept"}} accept</span>{{else}}<span class="rej">{{icon "reject"}} REJECT</span>{{end}}</span>{{with .NotificationStatus}}<span class="gw-notif gw-notif-{{.Indicator}}" title="{{.Message}}">{{icon .Symbol}} {{.Message}}</span>{{end}}{{if .Findings}}<div class="gw-finds">{{range .Findings}}<span class="gw-find">{{if .Message}}<button type="button" class="fnd {{.Severity}}" aria-expanded="false" title="show rule detail">{{.Severity}} {{.ID}}</button><span class="dmsg">{{.Message}}</span>{{else}}<span class="fnd {{.Severity}}">{{.Severity}} {{.ID}}</span>{{end}}{{if eq .Origin "linter"}}<span class="gw-orig" title="from a linter configured in this gateway's policy, not a stdlib frame - it has no catalog entry, and it stops existing if the config drops it">linter</span>{{end}}</span>{{end}}</div>{{end}}{{if .Suppressed}}<div class="gw-finds"><span class="gw-find"><button type="button" class="fnd SUPP" aria-expanded="false" title="hits the gateway whitelist exempted - they did not affect this decision; click to list them">{{len .Suppressed}} suppressed</button><span class="dmsg">{{range .Suppressed}}<span class="gw-suppitem">{{if .Severity}}{{.Severity}} {{end}}{{.Frame}}{{if eq .Origin "linter"}} <span class="gw-orig" title="from a linter configured in this gateway's policy, not a stdlib frame">linter</span>{{end}} - {{.File}}{{if .Label}} - {{.Label}}{{end}}</span>{{end}}</span></span></div>{{end}}{{if .Overlaps}}<div class="gw-finds"><span class="gw-find"><a class="fnd INFO" href="/overlaps?repo={{.Repo}}" title="{{.OverlapTitle}}">overlap</a></span></div>{{end}}{{with .ActiveLoop}}<div class="gw-looprow"><span class="fnd LOOP" title="Active fix-loop on PR #{{.PRNumber}}">{{icon "loop"}} {{.AttemptCount}}/{{.MaxAttempts}}{{if .Exhausted}} exhausted{{else if .CurrentBot}} {{.CurrentBot}}{{end}}</span></div>{{end}}{{with .NotifOff}}<div class="gw-looprow"><span class="fnd WARN" title="Notifications are off for this repo, so this rejection posted no PR comment. Enable to activate the auto-PR loop.">no PR comment: notifications off</span> <a href="{{.EnableURL}}">Enable</a></div>{{end}}</td><td class="gw-resetcell">{{with .ActiveLoop}}{{if .ResetURL}}<form class="gw-loopresetform" method="post" action="{{.ResetURL}}" hx-post="{{.ResetURL}}" hx-confirm="Reset loop state for PR #{{.PRNumber}}? This deletes the per-PR state file."><button type="submit" class="gw-loopreset" title="Reset loop state for PR #{{.PRNumber}}">Reset</button></form>{{end}}{{end}}</td></tr>{{end}}</tbody></table>{{else}}<div class="frame" style="padding:18px;color:var(--gw-text-muted);background:var(--gw-bg-panel);border:1px dashed var(--gw-border);border-radius:6px"><p style="margin:0 0 8px;color:var(--gw-text-soft)"><b>No decisions yet.</b></p><p style="margin:0 0 4px;font-size:13px">Once you've authorized an SSH key and registered a repo, every push lands here as accept / reject / observed, typically within a second of the push completing.</p><p style="margin:6px 0 0;font-size:12px;color:var(--gw-text-fainter)">Setup: <a href="/ssh-keys" style="color:var(--gw-accent)">/ssh-keys</a> → <a href="/policy" style="color:var(--gw-accent)">/policy</a> → on your dev box <code>git remote set-url origin ssh://git@&lt;host&gt;:2222/~/&lt;repo&gt;.git</code> &amp; <code>git push</code> (Docker image; on a bare-metal install: <code>ssh://git@&lt;host&gt;/srv/gateway/repos/&lt;repo&gt;.git</code>. <a href="/health" style="color:var(--gw-accent)">Health</a> prints the exact URL).</p></div>{{end}}`))
 	template.Must(t.New("content").Parse(`{{if .Notice}}<div class="warn">{{icon "warn"}} {{.Notice}}</div>{{end}}
 <section>
 <h2 class="gw-pagehead">Feed</h2>
@@ -197,7 +197,14 @@ func gatewayDashboard(args []string) int {
 	authDBPath := fs.String("auth-db", "", "path to the SQLite DB backing single-admin auth (default: <policy-root>/_auth.db)")
 	authSessionTTL := fs.Duration("auth-session-ttl", 12*time.Hour, "session cookie lifetime")
 	agentExcerpts := fs.Bool("agent-api-excerpts", false, "include finding excerpt text in agent API receipts (default: redacted)")
+	trustedProxy := fs.String("trusted-proxy", "", "comma-separated reverse-proxy IPs/CIDRs whose X-Forwarded-For is believed for the login rate limit (default: none; the peer address is used)")
 	_ = fs.Parse(args)
+
+	proxies, err := parseTrustedProxies(*trustedProxy)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gateway dashboard: --trusted-proxy: %v\n", err)
+		return 2
+	}
 
 	// Fail-safe: refuse --scoped-access while any key would bypass scoping
 	// (a plain/non-forced-command key still reaches every repo via git-shell).
@@ -225,7 +232,13 @@ func gatewayDashboard(args []string) int {
 		vm := gateway.BuildView(gateway.ReadDecisionsBefore(*policyRoot, f.Before, *tail+1), f) // +1: read one past the display limit so BuildView.HasMore can detect an older page exists
 		// Enrich rows with the newest active loop per repo, so the operator
 		// can spot stuck PR loops in the feed and reset them inline (spec §6.2).
-		applyActiveLoops(&vm, loadActiveLoopsByRepo(*policyRoot))
+		loops := loadActiveLoopsByRepo(*policyRoot)
+		if !*allowEdits {
+			for _, l := range loops {
+				l.ResetURL = "" // the reset route exists only with --allow-edits
+			}
+		}
+		applyActiveLoops(&vm, loops)
 		applyNotifOff(&vm, *policyRoot)
 		applyCommitLinks(&vm, newCommitLinker(*policyRoot))
 		return vm
@@ -255,7 +268,9 @@ func gatewayDashboard(args []string) int {
 		}
 	})
 	mux.HandleFunc("/feed/export", feedExportHandler(*policyRoot))
-	mux.HandleFunc("/feed/reset-loop", feedResetLoopHandler(*policyRoot, token))
+	if *allowEdits {
+		mux.HandleFunc("/feed/reset-loop", feedResetLoopHandler(*policyRoot, token))
+	}
 	mux.HandleFunc("/health", healthHandler(*policyRoot, *reposRoot, *sshKeysPath))
 	mux.HandleFunc("/auto-pr", autoPRHandler(*policyRoot, *allowEdits, func() string { return token }))
 	mux.HandleFunc("/auto-pr/config", autoPRSetupHandler(*policyRoot, *allowEdits, func() string { return token }))
@@ -487,12 +502,13 @@ func gatewayDashboard(args []string) int {
 			fmt.Printf("[nbg-setup] %s setup token: %s, visit /setup to claim\n", marker, tok)
 		}
 		ah := &authHandlers{
-			store:         store,
-			policyRoot:    *policyRoot,
-			sessionTTL:    *authSessionTTL,
-			mode:          mode,
-			csrfToken:     token,
-			rateLimitHits: map[string][]time.Time{},
+			store:          store,
+			policyRoot:     *policyRoot,
+			sessionTTL:     *authSessionTTL,
+			mode:           mode,
+			csrfToken:      token,
+			rateLimitHits:  map[string][]time.Time{},
+			trustedProxies: proxies,
 		}
 		mux.HandleFunc("/login", ah.login)
 		mux.HandleFunc("/logout", ah.logout)

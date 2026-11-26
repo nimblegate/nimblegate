@@ -75,41 +75,50 @@ func (a *GiteaAdapter) Name() string { return "gitea" }
 func (a *GiteaAdapter) FindPRForRef(ctx context.Context, _, ref string) (*PullRequest, error) {
 	branch := strings.TrimPrefix(ref, "refs/heads/")
 
-	endpoint := fmt.Sprintf("%s/api/v1/repos/%s/pulls?state=open", a.apiBase, a.ownerRepo)
-	body, err := a.do(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
+	for page := 1; page <= maxListPages; page++ {
+		endpoint := fmt.Sprintf("%s/api/v1/repos/%s/pulls?state=open&page=%d&limit=%d", a.apiBase, a.ownerRepo, page, giteaPageLimit)
+		body, err := a.do(ctx, "GET", endpoint, nil)
+		if err != nil {
+			return nil, err
+		}
 
-	var prs []struct {
-		Number  int    `json:"number"`
-		URL     string `json:"url"`
-		HTMLURL string `json:"html_url"`
-		Head    struct {
-			Ref string `json:"ref"`
-		} `json:"head"`
-		CreatedAt time.Time `json:"created_at"`
-	}
-	if err := json.Unmarshal(body, &prs); err != nil {
-		return nil, fmt.Errorf("%w: decode PR list: %v", ErrPermanent, err)
-	}
+		var prs []struct {
+			Number  int    `json:"number"`
+			URL     string `json:"url"`
+			HTMLURL string `json:"html_url"`
+			Head    struct {
+				Ref string `json:"ref"`
+			} `json:"head"`
+			CreatedAt time.Time `json:"created_at"`
+		}
+		if err := json.Unmarshal(body, &prs); err != nil {
+			return nil, fmt.Errorf("%w: decode PR list: %v", ErrPermanent, err)
+		}
 
-	for _, p := range prs {
-		if p.Head.Ref == branch {
-			u := p.HTMLURL
-			if u == "" {
-				u = p.URL
+		for _, p := range prs {
+			if p.Head.Ref == branch {
+				u := p.HTMLURL
+				if u == "" {
+					u = p.URL
+				}
+				return &PullRequest{
+					Number:   p.Number,
+					URL:      u,
+					Ref:      ref,
+					OpenedAt: p.CreatedAt,
+				}, nil
 			}
-			return &PullRequest{
-				Number:   p.Number,
-				URL:      u,
-				Ref:      ref,
-				OpenedAt: p.CreatedAt,
-			}, nil
+		}
+		if len(prs) < giteaPageLimit {
+			break
 		}
 	}
 	return nil, nil
 }
+
+// giteaPageLimit is the page size requested from list endpoints; 50 is
+// Gitea's default maximum (MAX_RESPONSE_ITEMS).
+const giteaPageLimit = 50
 
 // ReadPRPeople fetches the PR (for assignees) plus the requested_reviewers
 // endpoint, returning logins with no @ prefix. Empty slices mean "no
@@ -171,30 +180,36 @@ func (a *GiteaAdapter) FindStickyComment(ctx context.Context, _ *PullRequest, co
 	return c, nil
 }
 
-// ScanForMarker walks the PR's issue comments newest-first and returns
-// the most recent one whose body contains marker. Returns (nil, nil) if
-// no match - the orchestrator treats that as "no sticky yet, create one".
+// ScanForMarker walks every page of the PR's issue comments (oldest-first,
+// as the API returns them) and returns the most recent one whose body
+// contains marker. Returns (nil, nil) if no match - the orchestrator treats
+// that as "no sticky yet, create one".
 func (a *GiteaAdapter) ScanForMarker(ctx context.Context, pr *PullRequest, marker string) (*Comment, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/repos/%s/issues/%d/comments", a.apiBase, a.ownerRepo, pr.Number)
-	body, err := a.do(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	var raw []json.RawMessage
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("%w: decode comments: %v", ErrPermanent, err)
-	}
-	// Walk newest-first so the first body containing the marker wins.
-	for i := len(raw) - 1; i >= 0; i-- {
-		c, err := decodeComment(raw[i])
+	var found *Comment
+	for page := 1; page <= maxListPages; page++ {
+		endpoint := fmt.Sprintf("%s/api/v1/repos/%s/issues/%d/comments?page=%d&limit=%d", a.apiBase, a.ownerRepo, pr.Number, page, giteaPageLimit)
+		body, err := a.do(ctx, "GET", endpoint, nil)
 		if err != nil {
 			return nil, err
 		}
-		if strings.Contains(c.Body, marker) {
-			return c, nil
+		var raw []json.RawMessage
+		if err := json.Unmarshal(body, &raw); err != nil {
+			return nil, fmt.Errorf("%w: decode comments: %v", ErrPermanent, err)
+		}
+		for _, r := range raw {
+			c, err := decodeComment(r)
+			if err != nil {
+				return nil, err
+			}
+			if strings.Contains(c.Body, marker) {
+				found = c
+			}
+		}
+		if len(raw) < giteaPageLimit {
+			break
 		}
 	}
-	return nil, nil
+	return found, nil
 }
 
 // CreateComment POSTs a new comment to the PR's issue comments endpoint

@@ -5,6 +5,7 @@ package commands
 import (
 	"context"
 	"errors"
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -44,13 +45,14 @@ func userIDFromContext(ctx context.Context) int64 {
 // authHandlers serves /login, /logout, /setup AND provides the middleware
 // that wraps every other dashboard route.
 type authHandlers struct {
-	store         *auth.Store
-	policyRoot    string
-	sessionTTL    time.Duration
-	mode          authMode
-	csrfToken     string // shared with the dashboard's existing CSRF
-	rateLimitMu   sync.Mutex
-	rateLimitHits map[string][]time.Time // per-IP timestamps of failed attempts
+	store          *auth.Store
+	policyRoot     string
+	sessionTTL     time.Duration
+	mode           authMode
+	csrfToken      string // shared with the dashboard's existing CSRF
+	rateLimitMu    sync.Mutex
+	rateLimitHits  map[string][]time.Time // per-IP timestamps of failed attempts
+	trustedProxies []*net.IPNet           // --trusted-proxy: peers whose X-Forwarded-For is believed
 }
 
 const (
@@ -102,21 +104,76 @@ func (h *authHandlers) clearRateLimit(ip string) {
 	delete(h.rateLimitHits, ip)
 }
 
-// clientIP extracts the client IP for rate-limiting. Honors X-Forwarded-For
-// only for the first hop (defense in depth - we expect the gateway to bind
-// localhost when fronted by a proxy, but mis-config happens).
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if i := strings.Index(xff, ","); i > 0 {
-			return strings.TrimSpace(xff[:i])
-		}
-		return strings.TrimSpace(xff)
-	}
+// clientIP extracts the client IP for rate-limiting. X-Forwarded-For is
+// client-controlled, so it is read only when the direct peer is a trusted
+// proxy, and then from the right: the right-most entry not itself a trusted
+// proxy is the first address no trusted hop could have been handed by the
+// client. Without this, rotating the header gave unlimited login attempts.
+func clientIP(r *http.Request, trusted []*net.IPNet) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if !ipTrusted(host, trusted) {
+		return host
+	}
+	var hops []string
+	for _, v := range r.Header.Values("X-Forwarded-For") {
+		hops = append(hops, strings.Split(v, ",")...)
+	}
+	for i := len(hops) - 1; i >= 0; i-- {
+		hop := strings.TrimSpace(hops[i])
+		if net.ParseIP(hop) == nil {
+			return host
+		}
+		if !ipTrusted(hop, trusted) {
+			return hop
+		}
 	}
 	return host
+}
+
+func ipTrusted(s string, trusted []*net.IPNet) bool {
+	ip := net.ParseIP(s)
+	if ip == nil {
+		return false
+	}
+	for _, n := range trusted {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseTrustedProxies parses the --trusted-proxy list: comma-separated IPs
+// and CIDRs. Empty = trust no proxy.
+func parseTrustedProxies(s string) ([]*net.IPNet, error) {
+	var out []*net.IPNet
+	for _, f := range strings.Split(s, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if !strings.Contains(f, "/") {
+			ip := net.ParseIP(f)
+			if ip == nil {
+				return nil, fmt.Errorf("invalid proxy address %q", f)
+			}
+			bits := 128
+			if ip.To4() != nil {
+				ip, bits = ip.To4(), 32
+			}
+			out = append(out, &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)})
+			continue
+		}
+		_, n, err := net.ParseCIDR(f)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy CIDR %q: %w", f, err)
+		}
+		out = append(out, n)
+	}
+	return out, nil
 }
 
 // --- middleware ---
@@ -225,7 +282,7 @@ func (h *authHandlers) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	ip := clientIP(r)
+	ip := clientIP(r, h.trustedProxies)
 	if h.rateLimited(ip) {
 		http.Error(w, "too many failed attempts, try again in a few minutes", http.StatusTooManyRequests)
 		return

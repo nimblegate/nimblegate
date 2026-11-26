@@ -266,6 +266,7 @@ func gatewayPreReceive(args []string) int {
 		// written - the rail silently never fires. PolicyRoot locates the queue
 		// file the dashboard daemon drains.
 		NotificationConfig: pol.Notification,
+		Orchestrator:       inlineNotifOrchestrator(policyRoot, repo, pol),
 		PolicyRoot:         policyRoot,
 		GatewayVersion:     version.Version,
 		InstanceID:         host,
