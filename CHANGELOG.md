@@ -5,6 +5,31 @@ All notable changes to nimblegate will be documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.10] - 2026-11-28
+
+### Security
+
+- **Keys in large files are found.** `security/no-hardcoded-credentials` and
+  `security/no-private-keys-in-repo` skipped text files over 1 MiB, so a key
+  in a minified bundle passed. They now stream text files up to 64 MiB in
+  1 MiB windows (memory stays near 1 MiB per file); a text file over 64 MiB
+  gets a WARN instead of a silent skip.
+- **Every key on a line is reported.** Both frames stopped at the first
+  match on a line; a minified line with two keys reported one. Findings on
+  lines over 1,000 characters name the column.
+- **Keys in build output are found.** Under the default scan excludes, the
+  two key frames now read `dist/` and `build/`, where a key inlined at build
+  time ends up. A local `nimblegate check` reads there only the files git
+  would commit; the gateway reads the whole pushed tree. A `[scan] exclude`
+  that lists `dist` or `build` turns this off. Other frames still skip
+  build output.
+
+### Fixed
+
+- The legacy OpenAI key pattern (`sk-` + 48 characters) no longer matches
+  runs of joined words with no digits, such as the language-name tables in
+  `golang.org/x/text`.
+
 ## [0.7.9] - 2026-11-27
 
 ### Security
