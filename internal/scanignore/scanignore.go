@@ -172,6 +172,16 @@ func (m *Matcher) discoverMarkers() error {
 // absPath may be absolute or relative; if relative, it is joined with the
 // matcher's projectRoot to resolve.
 func (m *Matcher) Match(absPath string) bool {
+	return m.MatchAllowing(absPath, nil)
+}
+
+// BuildOutputDirs are the default-excluded names that hold build output. The
+// key frames read them anyway: a key inlined at build time lives only there.
+var BuildOutputDirs = map[string]bool{"dist": true, "build": true}
+
+// MatchAllowing is Match with the segment names in allow not excluding.
+// Markers inside an excluded directory are still not discovered.
+func (m *Matcher) MatchAllowing(absPath string, allow map[string]bool) bool {
 	if m == nil {
 		return false
 	}
@@ -195,7 +205,7 @@ func (m *Matcher) Match(absPath string) bool {
 		relSegments = strings.Split(strings.TrimPrefix(p, "/"), "/")
 	}
 	for _, seg := range relSegments {
-		if _, hit := m.excludeNames[seg]; hit {
+		if _, hit := m.excludeNames[seg]; hit && !allow[seg] {
 			return true
 		}
 	}

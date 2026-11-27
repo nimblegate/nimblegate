@@ -57,6 +57,11 @@ type CheckContext struct {
 	// fall back to the segment-only behavior via checks.IsExcluded.
 	IgnorePath func(absPath string) bool
 
+	// IgnoreKeyPath, when non-nil, replaces IgnorePath for the key frames
+	// (no-hardcoded-credentials, no-private-keys-in-repo): under the default
+	// excludes it still reads dist/ and build/. See Engine.IgnoreKeyPathFunc.
+	IgnoreKeyPath func(absPath string) bool
+
 	// OutsideLinks lists the symlinks the gateway replaced with empty files
 	// while staging a pushed tree, because their targets left it. Non-nil
 	// means the tree on disk no longer shows them, so checks must use this

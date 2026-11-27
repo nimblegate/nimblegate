@@ -13,6 +13,7 @@ import (
 
 	"nimblegate/internal/checks"
 	"nimblegate/internal/engine"
+	"nimblegate/internal/scanignore"
 )
 
 // TestFrameSweep runs frames file by file over whole directory trees, so every
@@ -74,9 +75,16 @@ func TestFrameSweep(t *testing.T) {
 	if os.Getenv("NBG_SWEEP_RAW") == "1" {
 		excl = []string{".git"}
 	}
+	// The key frames read dist/ and build/ under the default excludes
+	// (engine.IgnoreKeyPathFunc), so the walk enters them; the other frames
+	// still skip them through ExcludedDirs.
 	skip := map[string]bool{}
+	var keyExcl []string
 	for _, d := range excl {
-		skip[d] = true
+		if !scanignore.BuildOutputDirs[d] {
+			skip[d] = true
+			keyExcl = append(keyExcl, d)
+		}
 	}
 	for _, root := range strings.Split(roots, ",") {
 		files := 0
@@ -95,12 +103,17 @@ func TestFrameSweep(t *testing.T) {
 				return nil
 			}
 			files++
-			ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ChangedFiles: []string{p}, ExcludedDirs: excl}
+			buildOutput := checks.IsExcluded(p, root, excl)
+			ctx := engine.CheckContext{Trigger: engine.TriggerCLI, ProjectRoot: root, ChangedFiles: []string{p}, ExcludedDirs: excl,
+				IgnoreKeyPath: func(path string) bool { return checks.IsExcluded(path, root, keyExcl) }}
 			for _, id := range ids {
 				// Symlinks go only to the frame that judges links. Content
 				// frames would read through them, and a link to a FIFO or
 				// device would hang the sweep.
 				if link && id != "security/no-out-of-tree-references" {
+					continue
+				}
+				if buildOutput && id != "security/no-hardcoded-credentials" && id != "security/no-private-keys-in-repo" {
 					continue
 				}
 				for _, h := range all[id](ctx).Hits {

@@ -4,8 +4,11 @@ package engine
 
 import (
 	"fmt"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"nimblegate/internal/config"
 	"nimblegate/internal/frames"
@@ -123,6 +126,69 @@ func (e *Engine) IgnorePathFunc() func(string) bool {
 		return nil
 	}
 	return e.IgnoreMatcher.Match
+}
+
+// IgnoreKeyPathFunc returns the skip test for the key frames. With the
+// default excludes it lets dist/ and build/ through, since a key inlined at
+// build time exists only in the bundle; an explicit [scan] exclude is used as
+// written. local is for checks of a working folder: there, inside dist/ and
+// build/, only files git would commit are read, so a gitignored local build
+// (made from a local .env) does not block. The gateway passes false: its
+// tree is the pushed commit.
+func (e *Engine) IgnoreKeyPathFunc(local bool) func(string) bool {
+	if e == nil || e.IgnoreMatcher == nil {
+		return nil
+	}
+	m := e.IgnoreMatcher
+	if len(e.ProjectConfig.Scan.Exclude) > 0 {
+		return m.Match
+	}
+	var committable func(string) bool
+	if local {
+		committable = gitCommittable(e.ProjectRoot)
+	}
+	return func(p string) bool {
+		if !m.Match(p) {
+			return false
+		}
+		if m.MatchAllowing(p, scanignore.BuildOutputDirs) {
+			return true
+		}
+		return committable != nil && !committable(p)
+	}
+}
+
+// gitCommittable lists, once, the files under dist/ and build/ that git
+// tracks or would add (untracked, not ignored), and reports whether a path is
+// one of them or a directory holding one. Outside a git work tree it lets
+// everything through.
+func gitCommittable(root string) func(string) bool {
+	var once sync.Once
+	var keep map[string]bool
+	return func(p string) bool {
+		once.Do(func() {
+			out, err := exec.Command("git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard",
+				"--", ":(glob)**/dist/**", ":(glob)**/build/**").Output()
+			if err != nil {
+				return
+			}
+			keep = map[string]bool{}
+			for _, f := range strings.Split(string(out), "\x00") {
+				for f != "" && f != "." && !keep[f] {
+					keep[f] = true
+					f = path.Dir(f)
+				}
+			}
+		})
+		if keep == nil {
+			return true
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return true
+		}
+		return keep[filepath.ToSlash(rel)]
+	}
 }
 
 // Close releases resources (audit log).

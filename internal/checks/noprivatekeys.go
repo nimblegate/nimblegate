@@ -151,7 +151,7 @@ func NoPrivateKeysInRepo(ctx engine.CheckContext) engine.CheckResult {
 				return nil
 			}
 			if d.IsDir() {
-				if ShouldSkipPath(ctx, path) {
+				if shouldSkipKeyPath(ctx, path) {
 					return filepath.SkipDir
 				}
 				return nil
@@ -173,7 +173,7 @@ func NoPrivateKeysInRepo(ctx engine.CheckContext) engine.CheckResult {
 	full := false
 filesLoop:
 	for _, file := range files {
-		if ShouldSkipPath(ctx, file) {
+		if shouldSkipKeyPath(ctx, file) {
 			continue
 		}
 
