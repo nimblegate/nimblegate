@@ -5,7 +5,6 @@ package checks
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -67,7 +66,6 @@ var privateKeyExtensions = map[string]engine.CheckOutcome{
 
 const privateKeysDisableMarker = "appframes:disable security/no-private-keys-in-repo"
 const privateKeysDisableLineMarker = "appframes:disable-next-line security/no-private-keys-in-repo"
-const privateKeysMaxFileBytes = 1 << 20 // 1 MiB
 
 // pemMinKeyBodyChars is the shortest base64 body a real private key has:
 // a PKCS#8 Ed25519 key is 48 DER bytes, 64 base64 characters.
@@ -172,6 +170,7 @@ func NoPrivateKeysInRepo(ctx engine.CheckContext) engine.CheckResult {
 	var blockHitsStruct, infoHitsStruct []engine.Hit
 	const hitCap = 10
 
+	full := false
 filesLoop:
 	for _, file := range files {
 		if ShouldSkipPath(ctx, file) {
@@ -184,47 +183,64 @@ filesLoop:
 		// (.pem)". Both detections firing on the same file is redundant.
 		contentMatched := false
 		publicKey := false
-		info, statErr := os.Stat(file)
-		if statErr == nil && info.Size() <= privateKeysMaxFileBytes {
-			if data, readErr := os.ReadFile(file); readErr == nil {
-				content := string(data)
-				publicKey = pemPublicKeyOnly(content)
-				if !fileDisabledByMarker(content, privateKeysDisableMarker) {
-					lines := strings.Split(content, "\n")
-					for i, line := range lines {
-						if i > 0 && lineCarriesMarker(lines[i-1], privateKeysDisableLineMarker) {
+		if data, ok := ReadFileBounded(file, DefaultMaxFileBytes); ok {
+			publicKey = pemPublicKeyOnly(string(data))
+		}
+		seen := map[string]bool{}
+		status := scanSecretFile(file, privateKeysDisableMarker, func(w textWindow) bool {
+			for i, line := range w.Lines {
+				if lineCarriesMarker(w.prev(i), privateKeysDisableLineMarker) {
+					continue
+				}
+				for _, h := range pemHeaders {
+					// Every header on the line: a minified bundle is one
+					// line and may embed more than one key.
+					for off := 0; ; {
+						j := strings.Index(line[off:], h.Marker)
+						if j < 0 {
+							break
+						}
+						at := off + j
+						off = at + len(h.Marker)
+						if h.Severity == engine.OutcomeBlock && !pemKeyBodyFollows(w.Lines[i:], at+len(h.Marker)) {
 							continue
 						}
-						for _, h := range pemHeaders {
-							at := strings.Index(line, h.Marker)
-							if at < 0 {
-								continue
-							}
-							if h.Severity == engine.OutcomeBlock && !pemKeyBodyFollows(lines[i:], at+len(h.Marker)) {
-								continue
-							}
-							contentMatched = true
-							hit := fmt.Sprintf("%s:%d - %s", file, i+1, h.Label)
-							hitStruct := engine.Hit{File: file, Line: i + 1, Label: h.Label}
-							if h.Severity == engine.OutcomeBlock {
-								blockHits = append(blockHits, hit)
-								blockHitsStruct = append(blockHitsStruct, hitStruct)
-							} else {
-								infoHits = append(infoHits, hit)
-								infoHitsStruct = append(infoHitsStruct, hitStruct)
-							}
-							if len(blockHits)+len(infoHits) >= hitCap {
-								break filesLoop
-							}
-							break // one PEM block per line
+						lineNo, col := w.FirstLine+i, w.col(i, at)
+						key := fmt.Sprintf("%d:%d", lineNo, col)
+						if seen[key] {
+							continue
+						}
+						seen[key] = true
+						contentMatched = true
+						label := h.Label
+						if w.long(i) {
+							label = fmt.Sprintf("%s (column %d)", h.Label, col)
+						}
+						hit := fmt.Sprintf("%s:%d - %s", file, lineNo, label)
+						hitStruct := engine.Hit{File: file, Line: lineNo, Label: label}
+						if h.Severity == engine.OutcomeBlock {
+							blockHits = append(blockHits, hit)
+							blockHitsStruct = append(blockHitsStruct, hitStruct)
+						} else {
+							infoHits = append(infoHits, hit)
+							infoHitsStruct = append(infoHitsStruct, hitStruct)
+						}
+						if len(blockHits)+len(infoHits) >= hitCap {
+							full = true
+							return false
 						}
 					}
-				} else {
-					// File-level disable marker → don't fall through to filename
-					// detection either; the project author chose to opt out.
-					contentMatched = true
 				}
 			}
+			return true
+		})
+		if full {
+			break
+		}
+		if status == secretFileDisabled {
+			// File-level disable marker → don't fall through to filename
+			// detection either; the project author chose to opt out.
+			contentMatched = true
 		}
 
 		if contentMatched || publicKey {

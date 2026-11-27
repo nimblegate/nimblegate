@@ -5,7 +5,6 @@ package checks
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -29,6 +28,10 @@ type credentialPattern struct {
 	Name     string
 	Pattern  *regexp.Regexp
 	Severity engine.CheckOutcome // OutcomeBlock or OutcomeInfo
+	// MinDigits rejects a match with fewer digits: a random 48-character
+	// key carries several, a run of joined words (golang.org/x/text's
+	// language-name tables hold "sk-" + 48 letters) carries none.
+	MinDigits int
 }
 
 // credentialPatterns is the V0.5 detection catalog. BLOCK-severity
@@ -80,7 +83,7 @@ var credentialPatterns = []credentialPattern{
 	// non-word character never matches, which would miss a key ending in one.
 	{Name: "Anthropic API key", Pattern: regexp.MustCompile(`sk-ant-[A-Za-z0-9_-]{20,}`), Severity: engine.OutcomeBlock},
 	{Name: "OpenAI project key", Pattern: regexp.MustCompile(`sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}`), Severity: engine.OutcomeBlock},
-	{Name: "OpenAI API key", Pattern: regexp.MustCompile(`sk-[A-Za-z0-9]{48}`), Severity: engine.OutcomeBlock},
+	{Name: "OpenAI API key", Pattern: regexp.MustCompile(`sk-[A-Za-z0-9]{48}`), Severity: engine.OutcomeBlock, MinDigits: 1},
 	{Name: "Hugging Face token", Pattern: regexp.MustCompile(`hf_[A-Za-z0-9]{30,}`), Severity: engine.OutcomeBlock},
 	{Name: "Groq API key", Pattern: regexp.MustCompile(`gsk_[A-Za-z0-9]{40,}`), Severity: engine.OutcomeBlock},
 	{Name: "xAI API key", Pattern: regexp.MustCompile(`xai-[A-Za-z0-9]{40,}`), Severity: engine.OutcomeBlock},
@@ -105,26 +108,47 @@ var credentialDocSentinels = map[string]bool{
 
 // credentialLineFires reports whether the pattern matches something on
 // the line that is NOT a known documentation sentinel.
+func credentialLineFires(p credentialPattern, line string) bool {
+	return len(credentialMatches(p, line)) > 0
+}
+
+// credentialMatches returns the byte offset of every match of the pattern on
+// the line that is NOT a known documentation sentinel.
 //
 // A pattern that needs surrounding context to be safe (see the AWS secret
 // key) captures the credential itself in group 1, so the sentinel test reads
 // that rather than the whole match - which would carry the variable name and
 // never equal a published example value.
-func credentialLineFires(p credentialPattern, line string) bool {
-	for _, m := range p.Pattern.FindAllStringSubmatch(line, -1) {
-		hit := m[0]
-		if len(m) > 1 && m[1] != "" {
-			hit = m[1]
+func credentialMatches(p credentialPattern, line string) []int {
+	var at []int
+	for _, m := range p.Pattern.FindAllStringSubmatchIndex(line, -1) {
+		start, end := m[0], m[1]
+		if len(m) > 3 && m[2] >= 0 && m[3] > m[2] {
+			start, end = m[2], m[3]
 		}
+		hit := line[start:end]
 		if credentialDocSentinels[hit] {
 			continue
 		}
 		if strings.HasPrefix(p.Name, "AWS ") && credentialObviouslyFake(hit) {
 			continue
 		}
-		return true
+		if countDigits(hit) < p.MinDigits {
+			continue
+		}
+		at = append(at, start)
 	}
-	return false
+	return at
+}
+
+func countDigits(s string) int {
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			n++
+		}
+	}
+	return n
 }
 
 // credentialFakeWords mark a hand-written placeholder. AWS key characters
@@ -158,9 +182,8 @@ const awsDocSecretStem = "wJalrXUtnFEMI/K7MDENG"
 const credentialsDisableMarker = "appframes:disable security/no-hardcoded-credentials"
 const credentialsDisableLineMarker = "appframes:disable-next-line security/no-hardcoded-credentials"
 
-// credentialsMaxFileBytes caps the per-file scan size. Files larger than
-// this are assumed binary / generated and skipped.
-const credentialsMaxFileBytes = 1 << 20 // 1 MiB
+// tooLargeLabel names a text file past secretScanMaxBytes.
+const tooLargeLabel = "too large to scan for secrets (over 64 MiB)"
 
 // NoHardcodedCredentials scans files for committed secrets matching the
 // curated prefix catalog. Reports BLOCK with file:line:pattern-name -
@@ -205,51 +228,58 @@ func NoHardcodedCredentials(ctx engine.CheckContext) engine.CheckResult {
 	var blockHitsStruct, infoHitsStruct []engine.Hit
 	const hitCap = 10
 
-filesLoop:
+	var tooLarge []string
+	full := false
+
 	for _, file := range files {
+		if full {
+			break
+		}
 		if ShouldSkipPath(ctx, file) {
 			continue
 		}
-		info, err := os.Stat(file)
-		if err != nil {
-			continue
-		}
-		if info.Size() > credentialsMaxFileBytes {
-			continue // skip large/binary files
-		}
-		data, err := os.ReadFile(file)
-		if err != nil {
-			continue
-		}
-		content := string(data)
-		if fileDisabledByMarker(content, credentialsDisableMarker) {
-			continue
-		}
-		lines := strings.Split(content, "\n")
-		for i, line := range lines {
-			// Per-line opt-out: the line above this one has the marker.
-			if i > 0 && lineCarriesMarker(lines[i-1], credentialsDisableLineMarker) {
-				continue
-			}
-			for _, p := range credentialPatterns {
-				if credentialLineFires(p, line) {
-					// Reason intentionally does NOT include the matched bytes.
-					hit := fmt.Sprintf("%s:%d - %s", file, i+1, p.Name)
-					hitStruct := engine.Hit{File: file, Line: i + 1, Label: p.Name}
-					if p.Severity == engine.OutcomeBlock {
-						blockHits = append(blockHits, hit)
-						blockHitsStruct = append(blockHitsStruct, hitStruct)
-					} else {
-						infoHits = append(infoHits, hit)
-						infoHitsStruct = append(infoHitsStruct, hitStruct)
+		seen := map[string]bool{}
+		status := scanSecretFile(file, credentialsDisableMarker, func(w textWindow) bool {
+			for i, line := range w.Lines {
+				// Per-line opt-out: the line above this one has the marker.
+				if lineCarriesMarker(w.prev(i), credentialsDisableLineMarker) {
+					continue
+				}
+				for _, p := range credentialPatterns {
+					for _, at := range credentialMatches(p, line) {
+						lineNo, col := w.FirstLine+i, w.col(i, at)
+						label := p.Name
+						if w.long(i) {
+							label = fmt.Sprintf("%s (column %d)", p.Name, col)
+						}
+						// One key matched by two patterns is reported once,
+						// under the first, as before.
+						key := fmt.Sprintf("%d:%d", lineNo, col)
+						if seen[key] {
+							continue
+						}
+						seen[key] = true
+						// Reason intentionally does NOT include the matched bytes.
+						hit := fmt.Sprintf("%s:%d - %s", file, lineNo, label)
+						hitStruct := engine.Hit{File: file, Line: lineNo, Label: label}
+						if p.Severity == engine.OutcomeBlock {
+							blockHits = append(blockHits, hit)
+							blockHitsStruct = append(blockHitsStruct, hitStruct)
+						} else {
+							infoHits = append(infoHits, hit)
+							infoHitsStruct = append(infoHitsStruct, hitStruct)
+						}
+						if len(blockHits)+len(infoHits) >= hitCap {
+							full = true
+							return false
+						}
 					}
-					if len(blockHits)+len(infoHits) >= hitCap {
-						break filesLoop
-					}
-					// One finding per line is plenty for remediation.
-					break
 				}
 			}
+			return true
+		})
+		if status == secretFileTooLarge {
+			tooLarge = append(tooLarge, file)
 		}
 	}
 
@@ -262,9 +292,28 @@ filesLoop:
 		all = append(all, infoHits...)
 		allStruct := append([]engine.Hit{}, blockHitsStruct...)
 		allStruct = append(allStruct, infoHitsStruct...)
+		for _, f := range tooLarge {
+			all = append(all, f+":0 - "+tooLargeLabel)
+			allStruct = append(allStruct, engine.Hit{File: f, Label: tooLargeLabel})
+		}
 		res.Outcome = engine.OutcomeBlock
 		res.Reason = "credentials detected (raw bytes redacted): " + strings.Join(all, "; ")
 		res.Fix = "remove the credential and ROTATE IT NOW (assume compromised); store via env var / secret manager; use `// appframes:disable-next-line security/no-hardcoded-credentials` ONLY for known-fake test fixtures"
+		res.Hits = allStruct
+	case len(tooLarge) > 0:
+		// A file the frame could not read is not a pass: say so, without
+		// blocking on a file that may hold nothing.
+		var all []string
+		var allStruct []engine.Hit
+		for _, f := range tooLarge {
+			all = append(all, f+":0 - "+tooLargeLabel)
+			allStruct = append(allStruct, engine.Hit{File: f, Label: tooLargeLabel})
+		}
+		all = append(all, infoHits...)
+		allStruct = append(allStruct, infoHitsStruct...)
+		res.Outcome = engine.OutcomeWarn
+		res.Reason = "files not scanned for credentials: " + strings.Join(all, "; ")
+		res.Fix = "keep generated or data files this large out of the repo (add them to .gitignore or `[scan].exclude`), or check them for keys another way"
 		res.Hits = allStruct
 	case len(infoHits) > 0:
 		// Publishable keys only - informational catalogue. No "rotate"
