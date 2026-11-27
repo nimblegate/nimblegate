@@ -93,6 +93,7 @@ func Check(args []string) int {
 		CurrentBranch: currentGitBranch(root),
 		ExcludedDirs:  e.ExcludedDirs(),
 		IgnorePath:    e.IgnorePathFunc(),
+		IgnoreKeyPath: e.IgnoreKeyPathFunc(true),
 	}
 	if trigger == engine.TriggerPreCommit {
 		ctx.ChangedFiles = preCommitChangedFiles(root, *includeUnstaged)

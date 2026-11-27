@@ -94,8 +94,19 @@ each match.
 - Applies to: every staged/scanned file regardless of extension - secrets
   hide in `.env`, `.yaml`, `.json`, `.toml`, `.md`, source code, and CI
   scripts. We rely on the noise-dir exclusion (default + project-configured)
-  to skip vendored code (`node_modules/`, `dist/`, `build/`).
-- Files larger than 1 MB are skipped (assumed binary / generated).
+  to skip vendored code (`node_modules/`, virtualenvs).
+- Build output (`dist/`, `build/`) is read even though the default excludes
+  skip it for other frames: a key inlined at build time exists only in the
+  bundle. A local `nimblegate check` reads there only files git would
+  commit, so a gitignored local build does not block; the gateway reads the
+  whole pushed tree. A `[scan] exclude` that lists `dist` or `build` turns
+  this off.
+- Text files up to 64 MiB are read in streamed windows, so a key in a large
+  minified bundle is found without loading the file whole. Larger text files
+  get a WARN ("too large to scan for secrets"); binary files over 1 MiB
+  (binary extension or a NUL byte) are skipped.
+- Every key on a line is reported. On a line over 1,000 characters (minified
+  code) the finding names the column.
 
 ## Failure message
 

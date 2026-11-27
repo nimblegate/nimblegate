@@ -284,7 +284,7 @@ func TestNoHardcodedCredentials_LargeFileSkipped(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Build a >1MB file with a real-shaped secret inside.
+	// A >1MB file with a binary extension is not text, whatever it holds.
 	big := strings.Repeat("x", 2*1024*1024) + "\nAKIAV2AE4VE65CMG58DK\n"
 	if err := os.WriteFile(filepath.Join(dir, "big.bin"), []byte(big), 0o644); err != nil {
 		t.Fatal(err)
@@ -295,7 +295,7 @@ func TestNoHardcodedCredentials_LargeFileSkipped(t *testing.T) {
 		ExcludedDirs: DefaultExcludes(),
 	})
 	if got.Outcome != engine.OutcomePass {
-		t.Errorf("outcome = %s, want PASS (>1MB file should be skipped)", got.Outcome)
+		t.Errorf("outcome = %s, want PASS (>1MB binary file should be skipped)", got.Outcome)
 	}
 }
 
@@ -408,7 +408,7 @@ func TestNoHardcodedCredentials_AIProviderKeys(t *testing.T) {
 	lo, up, dg := "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789"
 	fires := map[string]string{
 		"anthropic":      "ANTHROPIC_API_KEY=sk-" + "ant-api03-" + lo + up + dg + lo[:18] + "-" + lo[:14] + "AA\n",
-		"openai legacy":  "OPENAI_API_KEY=sk-" + lo + up[:22] + "\n",
+		"openai legacy":  "OPENAI_API_KEY=sk-" + lo + up[:20] + dg[:2] + "\n",
 		"openai project": "OPENAI_API_KEY=sk-" + "proj-" + lo + up + dg + lo[:12] + "\n",
 		"openai service": "OPENAI_API_KEY=sk-" + "svcacct-" + lo + up + dg[:8] + "\n",
 		"openai admin":   "OPENAI_ADMIN_KEY=sk-" + "admin-" + lo + up + dg[:8] + "\n",

@@ -102,6 +102,10 @@ suppression (e.g. a `fixtures/` directory of test keys), use a
 per-file disable OR add the directory to `[scan].exclude` in
 `appframes.toml`.
 
+Like no-hardcoded-credentials, this frame reads build output (`dist/`,
+`build/`) under the default excludes; a local check reads there only files
+git would commit. A `[scan] exclude` that lists them turns this off.
+
 The filename-pattern detection is also suppressed by either marker
 when present in the file's content - but a zero-byte `id_rsa` can't
 hold a comment, so it'll fire regardless. That's intentional: a

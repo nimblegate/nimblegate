@@ -45,6 +45,15 @@ func ShouldSkipPath(ctx engine.CheckContext, path string) bool {
 	return IsExcluded(path, ctx.ProjectRoot, excludes)
 }
 
+// shouldSkipKeyPath is ShouldSkipPath for the key frames, which read build
+// output (see engine.CheckContext.IgnoreKeyPath).
+func shouldSkipKeyPath(ctx engine.CheckContext, path string) bool {
+	if ctx.IgnoreKeyPath != nil {
+		return ctx.IgnoreKeyPath(path)
+	}
+	return ShouldSkipPath(ctx, path)
+}
+
 // IsExcluded reports whether path is inside any directory in excludes,
 // relative to projectRoot. Matching is done on whole path segments:
 // `node_modules` matches `node_modules/foo.js` and `pkg/node_modules/bar.js`

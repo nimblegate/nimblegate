@@ -54,6 +54,7 @@ func Review(args []string) int {
 		WorkingDir:    cwd,
 		ExcludedDirs:  e.ExcludedDirs(),
 		IgnorePath:    e.IgnorePathFunc(),
+		IgnoreKeyPath: e.IgnoreKeyPathFunc(true),
 		CurrentBranch: currentGitBranch(root),
 	}
 	results := engine.Run(e.Registry, ctx)

@@ -98,12 +98,13 @@ func runGateCheck(root string, history bool) ([]engine.CheckResult, []engine.Sup
 		return nil, nil, fmt.Errorf("outside links: %w", err)
 	}
 	ctx := engine.CheckContext{
-		Trigger:      engine.TriggerCLI,
-		ProjectRoot:  root,
-		WorkingDir:   root,
-		ExcludedDirs: e.ExcludedDirs(),
-		IgnorePath:   e.IgnorePathFunc(),
-		OutsideLinks: outside,
+		Trigger:       engine.TriggerCLI,
+		ProjectRoot:   root,
+		WorkingDir:    root,
+		ExcludedDirs:  e.ExcludedDirs(),
+		IgnorePath:    e.IgnorePathFunc(),
+		IgnoreKeyPath: e.IgnoreKeyPathFunc(false),
+		OutsideLinks:  outside,
 	}
 	results := engine.Run(e.Registry, ctx)
 	if !history {
